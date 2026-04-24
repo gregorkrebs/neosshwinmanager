@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+.venv-*/
+venv/
+env/
+
+# PyInstaller build artifacts
+build/
+dist/
+*.manifest
+
+# IDE / editor
+.vscode/
+.idea/
+.gemini/
+*.swp
+*.swo
+.DS_Store
+
+# Local runtime / user data
+crash_report.txt
+*.log
+config.json
+
+# OS
+Thumbs.db
+desktop.ini
