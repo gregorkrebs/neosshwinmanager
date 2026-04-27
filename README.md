@@ -45,7 +45,7 @@ Install these before running the app:
 ## Quick Start (Development)
 
 ```bat
-git clone https://github.com/<your-user>/neosshwinmanager.git
+git clone https://github.com/gregorkrebs/neosshwinmanager.git
 cd neosshwinmanager
 
 python -m venv .venv
@@ -69,6 +69,49 @@ A PyInstaller spec file (`NeoSSHWinManager.spec`) and a PowerShell build script 
 ```
 
 Outputs land in `dist/`.
+
+## CLI Companion Usage
+
+The CLI companion (`NeoSSHWinManager-cli.exe`) does not read the database directly. It asks the already running GUI app for a connection that has CLI access enabled.
+
+Before using it:
+
+1. Start `NeoSSHWinManager.exe` and log in.
+2. Open the target connection in the add/edit dialog.
+3. Enable CLI access for that connection.
+4. Generate or copy the CLI access key shown there.
+
+Open an interactive SSH session in the current terminal:
+
+```powershell
+.\dist\NeoSSHWinManager-cli.exe --connect-cli "<access_key>"
+```
+
+Run a single remote command and return its output to the current terminal:
+
+```powershell
+.\dist\NeoSSHWinManager-cli.exe --connect-cli "<access_key>" --exec "uname -a"
+```
+
+Example commands:
+
+```powershell
+.\dist\NeoSSHWinManager-cli.exe --connect-cli "<access_key>" --exec "whoami"
+.\dist\NeoSSHWinManager-cli.exe --connect-cli "<access_key>" --exec "hostname"
+.\dist\NeoSSHWinManager-cli.exe --connect-cli "<access_key>" --exec "cd /var/www && ls -la"
+```
+
+You can use the same interface from source during development:
+
+```powershell
+python cli_main.py --connect-cli "<access_key>" --exec "hostname"
+```
+
+Notes:
+
+- `--connect-cli` is the preferred flag. `-connectssh` is also accepted for compatibility.
+- If you omit `--exec`, the CLI opens an interactive shell in the current terminal.
+- If the GUI app is not running, no user is logged in, the key is invalid, or CLI access is disabled for that connection, the command exits with an error.
 
 ## Project Layout
 
