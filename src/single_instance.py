@@ -18,7 +18,7 @@ import sys
 APP_WINDOW_TITLE = "NEO SSH-Win Manager"
 
 # Unique mutex name – use your app name + a GUID to avoid collisions
-MUTEX_NAME = "SSHFSWinManager_SingleInstance_Mutex_v1.1.0_{A3F2B1C4-9E7D-4A8F-B3C2-1D5E6F7A8B9C}"
+MUTEX_NAME = "SSHFSWinManager_SingleInstance_Mutex_v1.2.0_{A3F2B1C4-9E7D-4A8F-B3C2-1D5E6F7A8B9C}"
 
 
 def _find_and_focus_existing_window() -> bool:
@@ -106,3 +106,12 @@ def ensure_single_instance() -> None:
 
 # Module-level handle – must stay alive for the entire process lifetime
 _mutex_handle = None
+
+
+def release_instance_lock() -> None:
+    """Release the mutex so a new instance can start (e.g. for restart)."""
+    global _mutex_handle
+    if _mutex_handle:
+        ctypes.windll.kernel32.ReleaseMutex(_mutex_handle)
+        ctypes.windll.kernel32.CloseHandle(_mutex_handle)
+        _mutex_handle = None

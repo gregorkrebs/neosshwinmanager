@@ -27,7 +27,7 @@ from src.ui.debug_window import DebugWindow
 from src.app_logger import logger
 from src.ui.worker import MountWorker, UnmountWorker
 from src.ui.icons import icon as svg_icon
-from src.i18n import tr
+from src.i18n import tr, current_language
 from PyQt6.QtCore import QThread, QSize
 
 
@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
         self._workers: dict[str, QThread] = {}  # Tracking active workers
 
         self.setObjectName("MainWindow")
-        self.setWindowTitle("NEO SSH-Win Manager v1.1.0")
+        self.setWindowTitle("NEO SSH-Win Manager v1.2.0")
         # Mindestbreite so gewählt, dass die Connection-Card (Cloud + Info + Drive-Badge
         # + SSH-Button + Mount-Toggle) plus Action-Panel ohne Abschneiden passt.
         self.setMinimumSize(820, 420)
@@ -59,9 +59,11 @@ class MainWindow(QMainWindow):
                 relative_path
             )
 
-        icon_path = get_resource_path(os.path.join("assets", "app_icon.png"))
-        if os.path.exists(icon_path):
-            self.setWindowIcon(QIcon(icon_path))
+        for icon_file in ("app_icon.ico", "app_icon.png"):
+            icon_path = get_resource_path(os.path.join("assets", icon_file))
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QIcon(icon_path))
+                break
 
         self._build_ui()
         self._setup_tray()
@@ -588,6 +590,35 @@ class MainWindow(QMainWindow):
         if not conn:
             return
 
+        # "Ask each time" – show dialog to choose password or key
+        if conn.auth_method == "ask":
+            from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout, QLabel, QRadioButton
+            dlg = QDialog(self)
+            dlg.setWindowTitle(tr("addedit.auth.ask.title"))
+            dlg.setModal(True)
+            layout = QVBoxLayout(dlg)
+            layout.addWidget(QLabel(tr("addedit.auth.ask.prompt", name=conn.name)))
+            rb_pw = QRadioButton(tr("addedit.auth.password"))
+            rb_key = QRadioButton(tr("addedit.auth.key"))
+            has_pw = bool(conn.password)
+            has_key = bool(conn.key_path)
+            rb_pw.setEnabled(has_pw)
+            rb_key.setEnabled(has_key)
+            rb_pw.setChecked(has_pw)
+            if not has_pw and has_key:
+                rb_key.setChecked(True)
+            layout.addWidget(rb_pw)
+            layout.addWidget(rb_key)
+            btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+            btns.accepted.connect(dlg.accept)
+            btns.rejected.connect(dlg.reject)
+            layout.addWidget(btns)
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            import copy
+            conn = copy.copy(conn)
+            conn.auth_method = "password" if rb_pw.isChecked() else "key"
+
         self._set_status(tr("status.connecting", name=conn.name, drive=conn.drive_letter))
         logger.info(f"Mount gestartet (async): {conn.name} ({conn.host})")
 
@@ -698,16 +729,29 @@ class MainWindow(QMainWindow):
     def _on_settings(self):
         dlg = SettingsDialog(self, self._mgr.get_settings())
         if dlg.exec():
-            self._mgr.save_settings(dlg.get_settings())
+            new_settings = dlg.get_settings()
+            old_lang = current_language()
+            self._mgr.save_settings(new_settings)
             self._apply_settings()
             self._set_status(tr("status.settings_saved"))
             logger.info("Einstellungen gespeichert.")
+            if new_settings.language != old_lang:
+                QMessageBox.information(
+                    self,
+                    "Info",
+                    tr("settings.language.restart"),
+                )
 
     def _apply_settings(self):
         interval = self._mgr.get_settings().check_interval_seconds * 1000
         if self._poll_timer.interval() != interval:
             self._poll_timer.setInterval(interval)
         self._apply_debug_mode()
+        # Apply theme
+        from src.ui.theme import get_stylesheet
+        from PyQt6.QtWidgets import QApplication
+        theme = self._mgr.get_settings().theme or "dark"
+        QApplication.instance().setStyleSheet(get_stylesheet(theme))
 
     def _apply_debug_mode(self):
         enabled = self._mgr.get_settings().debug_mode
@@ -763,7 +807,7 @@ class MainWindow(QMainWindow):
             self._refresh_list()
             self._apply_settings()
             self.setWindowTitle(
-                f"NEO SSH-Win Manager v1.1.0 – {Session.current().username}"
+                f"NEO SSH-Win Manager v1.2.0 – {Session.current().username}"
             )
             self.show()
             self.raise_()

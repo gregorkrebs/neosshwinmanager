@@ -146,8 +146,8 @@ class ConnectionCard(QFrame):
             self._cloud_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
             self._cloud_lbl.setToolTip(tr("card.tooltip.open_path"))
         else:
-            self._cloud_lbl.setCursor(Qt.CursorShape.ArrowCursor)
-            self._cloud_lbl.setToolTip("")
+            self._cloud_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._cloud_lbl.setToolTip(tr("card.tooltip.mount_off"))
 
         # Tooltip updates
         if mounted:
@@ -179,8 +179,13 @@ class ConnectionCard(QFrame):
     # ------------------------------------------------------------------
 
     def _on_icon_clicked(self, event):
-        if self._mounted and event.button() == Qt.MouseButton.LeftButton:
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        if self._mounted:
             self.open_path_requested.emit(self._conn.id)
+        else:
+            self.show_loading(tr("card.loading.connect"))
+            self.mount_requested.emit(self._conn.id)
 
     def _on_toggle(self):
         if self._mounted:

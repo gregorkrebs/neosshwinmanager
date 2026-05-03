@@ -84,9 +84,9 @@ def _request_elevation() -> bool:
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QIcon
 
-from src.ui.theme import STYLESHEET
+from src.ui.theme import STYLESHEET, get_stylesheet
 from src.ui.main_window import MainWindow
 from src.database import init_db
 from src.ui.dialogs.login_dialog import LoginDialog
@@ -115,7 +115,7 @@ def main():
 
     # Windows taskbar icon fix (AppUserModelID)
     try:
-        myappid = 'dennis.sshwinmanager.v1.1.0.rev1' 
+        myappid = 'dennis.sshwinmanager.v1.2.0.rev1'
         if os.name == 'nt':
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
@@ -124,8 +124,19 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("NEO SSH-Win Manager")
     app.setApplicationDisplayName("NEO SSH-Win Manager")
-    app.setApplicationVersion("1.1.0")
+    app.setApplicationVersion("1.2.0")
     app.setOrganizationName("NeoSSHWinManager")
+
+    def get_resource_path(relative_path):
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.dirname(__file__), relative_path)
+
+    for icon_file in ("app_icon.ico", "app_icon.png"):
+        icon_path = get_resource_path(os.path.join("assets", icon_file))
+        if os.path.exists(icon_path):
+            app.setWindowIcon(QIcon(icon_path))
+            break
 
     # Init logger AFTER QApplication (QObject requires QApplication to exist)
     from src.app_logger import init_logger, logger
@@ -178,9 +189,11 @@ def main():
         from src.auth_manager import UserConnectionManager
         from src.i18n import set_language
         ucm = UserConnectionManager(Session.current())
-        set_language(ucm.get_settings().language)
+        user_settings = ucm.get_settings()
+        set_language(user_settings.language)
+        app.setStyleSheet(get_stylesheet(user_settings.theme))
     except Exception as e:
-        logger.warning(f"Language init failed: {e}")
+        logger.warning(f"Language/theme init failed: {e}")
 
     # Don't quit when the last window is hidden (tray support)
     app.setQuitOnLastWindowClosed(False)

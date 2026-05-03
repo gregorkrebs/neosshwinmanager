@@ -37,12 +37,29 @@ class LoginDialog(QDialog):
         self.setMinimumWidth(380)
         self.setModal(True)
         self.setWindowFlags(
-            Qt.WindowType.Dialog |
+            Qt.WindowType.Window |
+            Qt.WindowType.WindowTitleHint |
+            Qt.WindowType.WindowSystemMenuHint |
             Qt.WindowType.WindowCloseButtonHint
         )
+        for icon_file in ("app_icon.ico", "app_icon.png"):
+            icon_path = self._resource_path(os.path.join("assets", icon_file))
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QIcon(icon_path))
+                break
 
         self._first_run = not AuthManager.has_any_users()
         self._build_ui()
+
+    @staticmethod
+    def _resource_path(relative_path: str) -> str:
+        import sys
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            relative_path
+        )
 
     def _divider(self) -> QFrame:
         f = QFrame()
@@ -63,9 +80,23 @@ class LoginDialog(QDialog):
         layout.setSpacing(12)
 
         # Header
-        icon_lbl = QLabel("🔐")
+        icon_lbl = QLabel()
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setObjectName("dialogIconLarge")
+        try:
+            icon_path = self._resource_path(os.path.join("assets", "app_icon.png"))
+            if os.path.exists(icon_path):
+                from PyQt6.QtGui import QPixmap
+                pm = QPixmap(icon_path).scaled(
+                    64, 64,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                icon_lbl.setPixmap(pm)
+            else:
+                icon_lbl.setText("🔐")
+        except Exception:
+            icon_lbl.setText("🔐")
         layout.addWidget(icon_lbl)
 
         title = QLabel("NEO SSH-Win Manager")

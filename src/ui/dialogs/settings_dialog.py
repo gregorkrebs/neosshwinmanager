@@ -91,6 +91,22 @@ class SettingsDialog(QDialog):
         layout.addWidget(restart_hint)
         layout.addWidget(self._divider())
 
+        # ── THEME ────────────────────────────────────────────────────
+        layout.addWidget(self._section(tr("settings.section.theme")))
+        theme_row = QHBoxLayout()
+        theme_row.setContentsMargins(0, 0, 0, 0)
+        theme_lbl = QLabel(tr("settings.theme.label"))
+        theme_lbl.setObjectName("fieldLabel")
+        self._theme_combo = QComboBox()
+        self._theme_combo.addItem(tr("settings.theme.dark"), "dark")
+        self._theme_combo.addItem(tr("settings.theme.light"), "light")
+        self._theme_combo.setFixedWidth(140)
+        theme_row.addWidget(theme_lbl)
+        theme_row.addStretch()
+        theme_row.addWidget(self._theme_combo)
+        layout.addLayout(theme_row)
+        layout.addWidget(self._divider())
+
         # ── GENERAL ──────────────────────────────────────────────────
         layout.addWidget(self._section(tr("settings.section.general")))
         self._start_with_windows = QCheckBox(tr("settings.start_with_windows"))
@@ -232,6 +248,11 @@ class SettingsDialog(QDialog):
         idx = self._lang_combo.findData(lang)
         if idx >= 0:
             self._lang_combo.setCurrentIndex(idx)
+        # Theme
+        theme = getattr(s, 'theme', 'dark') or 'dark'
+        idx = self._theme_combo.findData(theme)
+        if idx >= 0:
+            self._theme_combo.setCurrentIndex(idx)
 
     def _on_putty_toggled(self, checked: bool):
         self._putty_path_widget.setVisible(checked)
@@ -292,6 +313,7 @@ class SettingsDialog(QDialog):
             use_putty=self._use_putty.isChecked(),
             putty_path=self._putty_path_edit.text().strip(),
             language=self._lang_combo.currentData() or "en",
+            theme=self._theme_combo.currentData() or "dark",
         )
         self._apply_autostart(s.start_with_windows)
         return s

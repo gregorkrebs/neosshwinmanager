@@ -183,12 +183,11 @@ class AddEditDialog(QDialog):
         self._auth_combo = QComboBox()
         self._auth_combo.addItem(tr("addedit.auth.password"), "password")
         self._auth_combo.addItem(tr("addedit.auth.key"), "key")
-        self._auth_combo.currentIndexChanged.connect(self._on_auth_changed)
+        self._auth_combo.addItem(tr("addedit.auth.ask"), "ask")
         layout.addWidget(self._auth_combo)
 
-        # Passwort-Zeile
-        self._pw_widget = QWidget()
-        pw_layout = QVBoxLayout(self._pw_widget)
+        # Passwort-Zeile (immer sichtbar)
+        pw_layout = QVBoxLayout()
         pw_layout.setContentsMargins(0, 4, 0, 0)
         pw_layout.setSpacing(4)
         pw_layout.addWidget(self._field_label(tr("addedit.label.password")))
@@ -196,11 +195,10 @@ class AddEditDialog(QDialog):
         self._pw_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self._pw_edit.setPlaceholderText("••••••••")
         pw_layout.addWidget(self._pw_edit)
-        layout.addWidget(self._pw_widget)
+        layout.addLayout(pw_layout)
 
-        # Key-Zeile
-        self._key_widget = QWidget()
-        key_layout = QVBoxLayout(self._key_widget)
+        # Key-Zeile (immer sichtbar)
+        key_layout = QVBoxLayout()
         key_layout.setContentsMargins(0, 4, 0, 0)
         key_layout.setSpacing(4)
         key_layout.addWidget(self._field_label(tr("addedit.label.key")))
@@ -215,8 +213,7 @@ class AddEditDialog(QDialog):
         browse_btn.clicked.connect(self._browse_key)
         key_row.addWidget(browse_btn)
         key_layout.addLayout(key_row)
-        self._key_widget.setVisible(False)
-        layout.addWidget(self._key_widget)
+        layout.addLayout(key_layout)
 
         # ── CLI ACCESS ───────────────────────────────────────────────
         layout.addWidget(self._divider())
@@ -372,10 +369,7 @@ class AddEditDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _on_auth_changed(self, index: int):
-        method = self._auth_combo.itemData(index)
-        self._pw_widget.setVisible(method == "password")
-        self._key_widget.setVisible(method == "key")
-        self.adjustSize()
+        pass  # Both fields are always visible
 
     def _browse_key(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -457,8 +451,8 @@ class AddEditDialog(QDialog):
             remote_path=self._path_edit.text().strip() or "/",
             port=self._port_spin.value(),
             auth_method=auth_method,
-            password=self._pw_edit.text() if auth_method == "password" else "",
-            key_path=self._key_edit.text().strip() if auth_method == "key" else "",
+            password=self._pw_edit.text(),
+            key_path=self._key_edit.text().strip(),
             drive_letter=drive,
             cli_access_enabled=self._cli_enabled_cb.isChecked(),
             cli_access_key=self._cli_key_edit.text() if self._cli_enabled_cb.isChecked() else None

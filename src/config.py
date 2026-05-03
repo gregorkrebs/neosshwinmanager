@@ -50,6 +50,9 @@ class Connection:
             "password": "",
             "key_path": "",
             "remote_path": "/",
+            "drive_letter": "Z:",
+            "cli_access_enabled": False,
+            "cli_access_key": None,
             "id": str(uuid.uuid4()),
         }
         merged = {**defaults, **data}
@@ -72,6 +75,7 @@ class AppSettings:
     auto_login: bool = False  # Automatisch mit Windows-Account einloggen
     auto_reconnect_mounts: bool = True  # Beim Start aktive Mounts wiederherstellen
     language: str = "en"  # UI-Sprache: "en" oder "de"
+    theme: str = "dark"  # UI-Theme: "dark" oder "light"
 
     def to_dict(self) -> dict:
         return asdict(self)
