@@ -107,5 +107,7 @@ def init_db() -> None:
             cols = [row[1] for row in cursor.fetchall()]
             if "language" not in cols:
                 conn.execute("ALTER TABLE app_settings ADD COLUMN language TEXT DEFAULT 'en'")
+            if "theme" not in cols:
+                conn.execute("ALTER TABLE app_settings ADD COLUMN theme TEXT DEFAULT 'dark'")
         except Exception:
             pass

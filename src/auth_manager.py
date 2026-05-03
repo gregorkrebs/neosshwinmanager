@@ -405,6 +405,7 @@ class UserConnectionManager:
             auto_login=bool(row["auto_login"]) if "auto_login" in row.keys() else False,
             auto_reconnect_mounts=bool(row["auto_reconnect"]) if "auto_reconnect" in row.keys() else True,
             language=(row["language"] if "language" in row.keys() and row["language"] else "en"),
+            theme=(row["theme"] if "theme" in row.keys() and row["theme"] else "dark"),
         )
 
     def save_settings(self, s: AppSettings) -> None:
@@ -413,8 +414,8 @@ class UserConnectionManager:
                 """INSERT INTO app_settings
                    (user_id, start_with_windows, minimize_to_tray,
                     check_interval_seconds, debug_mode, require_admin,
-                    use_putty, putty_path, auto_login, auto_reconnect, language, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+                    use_putty, putty_path, auto_login, auto_reconnect, language, theme, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
                    ON CONFLICT(user_id) DO UPDATE SET
                      start_with_windows=excluded.start_with_windows,
                      minimize_to_tray=excluded.minimize_to_tray,
@@ -426,12 +427,13 @@ class UserConnectionManager:
                      auto_login=excluded.auto_login,
                      auto_reconnect=excluded.auto_reconnect,
                      language=excluded.language,
+                     theme=excluded.theme,
                      updated_at=excluded.updated_at""",
                 (self._user.id,
                  int(s.start_with_windows), int(s.minimize_to_tray),
                  s.check_interval_seconds, int(s.debug_mode),
                  int(s.require_admin), int(s.use_putty), s.putty_path,
-                 int(s.auto_login), int(s.auto_reconnect_mounts), s.language)
+                 int(s.auto_login), int(s.auto_reconnect_mounts), s.language, s.theme)
             )
 
     # ------------------------------------------------------------------
