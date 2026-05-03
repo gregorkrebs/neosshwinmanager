@@ -1,7 +1,6 @@
 # build_dual.ps1
 # Terminate existing apps
 Write-Host "[1/4] Terminating existing instances..." -ForegroundColor Cyan
-Stop-Process -Name "SSHWinManager" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "NeoSSHWinManager" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "NeoSSHWinManager-cli" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
