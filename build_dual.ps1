@@ -9,10 +9,6 @@ Start-Sleep -Seconds 2
 Write-Host "[2/4] Cleaning build artifacts..." -ForegroundColor Cyan
 Remove-Item -Path build, dist, *.spec -Recurse -Force -ErrorAction SilentlyContinue
 
-# # Build first GUI EXE
-# Write-Host "[3/4] Building SSHWinManager.exe (GUI)..." -ForegroundColor Cyan
-# & .venv-1/Scripts/pyinstaller.exe --noconfirm --onefile --windowed --name "SSHWinManager" --icon "assets/app_icon.ico" --add-data "src;src" --add-data "assets;assets" --version-file "file_version_info.txt" --hidden-import "PyQt6.sip" --hidden-import "win32api" --hidden-import "win32con" --hidden-import "winreg" --hidden-import "keyring" --hidden-import "keyring.backends.Windows" main.py
-
 # Build second GUI EXE
 Write-Host "[3/4] Building NeoSSHWinManager.exe (GUI)..." -ForegroundColor Cyan
 & .venv-1/Scripts/pyinstaller.exe --noconfirm --onefile --windowed --name "NeoSSHWinManager" --icon "assets/app_icon.ico" --add-data "src;src" --add-data "assets;assets" --version-file "file_version_info.txt" --hidden-import "PyQt6.sip" --hidden-import "win32api" --hidden-import "win32con" --hidden-import "winreg" --hidden-import "keyring" --hidden-import "keyring.backends.Windows" main.py
