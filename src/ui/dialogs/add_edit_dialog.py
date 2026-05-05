@@ -39,9 +39,10 @@ class AddEditDialog(QDialog):
         self._existing = existing_connections or []
         self._is_edit = connection is not None
 
+        self.setObjectName("dialogSurface")
         self.setWindowTitle(tr("addedit.edit_title") if self._is_edit else tr("addedit.add_title"))
-        self.setMinimumWidth(460)
-        self.setMaximumWidth(600)
+        self.setMinimumWidth(520)
+        self.setMaximumWidth(680)
         self.setModal(True)
         self._build_ui()
         if self._is_edit:
@@ -88,19 +89,36 @@ class AddEditDialog(QDialog):
         inner = QWidget()
         scroll.setWidget(inner)
         layout = QVBoxLayout(inner)
-        layout.setContentsMargins(24, 20, 24, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(20, 20, 20, 12)
+        layout.setSpacing(14)
 
         # Titel
         title_text = tr("addedit.edit_title") if self._is_edit else tr("addedit.add_title")
+        hero = QFrame()
+        hero.setObjectName("dialogHeroCard")
+        hero_l = QVBoxLayout(hero)
+        hero_l.setContentsMargins(22, 20, 22, 20)
+        hero_l.setSpacing(8)
+
         title = QLabel(title_text)
         title.setObjectName("dialogTitle")
-        layout.addWidget(title)
-        layout.addWidget(self._divider())
+        hero_l.addWidget(title)
+
+        lead = QLabel(tr("dialog.lead.addedit.edit") if self._is_edit else tr("dialog.lead.addedit.add"))
+        lead.setObjectName("dialogLead")
+        lead.setWordWrap(True)
+        hero_l.addWidget(lead)
+        layout.addWidget(hero)
+
+        form_card = QFrame()
+        form_card.setObjectName("dialogSectionCard")
+        form = QVBoxLayout(form_card)
+        form.setContentsMargins(22, 20, 22, 20)
+        form.setSpacing(8)
 
         # ── Template (nur im Add-Modus) ───────────────────────────────
         if not self._is_edit and self._existing:
-            layout.addWidget(self._section(tr("addedit.section.template")))
+            form.addWidget(self._section(tr("addedit.section.template")))
 
             template_row = QHBoxLayout()
             template_row.setContentsMargins(0, 0, 0, 0)
@@ -116,26 +134,26 @@ class AddEditDialog(QDialog):
             self._template_combo.currentIndexChanged.connect(self._on_template_selected)
             template_row.addWidget(self._template_combo, stretch=1)
 
-            layout.addLayout(template_row)
+            form.addLayout(template_row)
 
             hint = QLabel(tr("addedit.template.hint"))
             hint.setObjectName("fieldLabel")
             hint.setWordWrap(True)
-            layout.addWidget(hint)
-            layout.addWidget(self._divider())
+            form.addWidget(hint)
+            form.addWidget(self._divider())
 
         # ── GENERAL ──────────────────────────────────────────────────
-        layout.addWidget(self._section(tr("addedit.section.general")))
+        form.addWidget(self._section(tr("addedit.section.general")))
 
-        layout.addWidget(self._field_label(tr("addedit.label.name")))
+        form.addWidget(self._field_label(tr("addedit.label.name")))
         self._name_edit = QLineEdit()
         self._name_edit.setPlaceholderText(tr("addedit.placeholder.name"))
-        layout.addWidget(self._name_edit)
+        form.addWidget(self._name_edit)
 
-        layout.addWidget(self._field_label(tr("addedit.label.host")))
+        form.addWidget(self._field_label(tr("addedit.label.host")))
         self._host_edit = QLineEdit()
         self._host_edit.setPlaceholderText("192.168.1.1 or server.example.com")
-        layout.addWidget(self._host_edit)
+        form.addWidget(self._host_edit)
 
         host_row = QHBoxLayout()
         host_row.setContentsMargins(0, 0, 0, 0)
@@ -158,33 +176,33 @@ class AddEditDialog(QDialog):
         port_col.addWidget(self._port_spin)
         host_row.addLayout(port_col, stretch=1)
 
-        layout.addLayout(host_row)
+        form.addLayout(host_row)
 
         # ── PATH & DRIVE ─────────────────────────────────────────────
-        layout.addWidget(self._divider())
-        layout.addWidget(self._section(tr("addedit.section.path")))
+        form.addWidget(self._divider())
+        form.addWidget(self._section(tr("addedit.section.path")))
 
-        layout.addWidget(self._field_label(tr("addedit.label.path")))
+        form.addWidget(self._field_label(tr("addedit.label.path")))
         self._path_edit = QLineEdit()
         self._path_edit.setPlaceholderText("/home/user  or  /")
         self._path_edit.setText("/")
-        layout.addWidget(self._path_edit)
+        form.addWidget(self._path_edit)
 
-        layout.addWidget(self._field_label(tr("addedit.label.drive")))
+        form.addWidget(self._field_label(tr("addedit.label.drive")))
         self._drive_combo = QComboBox()
         self._populate_drive_combo()
-        layout.addWidget(self._drive_combo)
+        form.addWidget(self._drive_combo)
 
         # ── AUTHENTICATION ───────────────────────────────────────────
-        layout.addWidget(self._divider())
-        layout.addWidget(self._section(tr("addedit.section.auth")))
+        form.addWidget(self._divider())
+        form.addWidget(self._section(tr("addedit.section.auth")))
 
-        layout.addWidget(self._field_label(tr("addedit.label.method")))
+        form.addWidget(self._field_label(tr("addedit.label.method")))
         self._auth_combo = QComboBox()
         self._auth_combo.addItem(tr("addedit.auth.password"), "password")
         self._auth_combo.addItem(tr("addedit.auth.key"), "key")
         self._auth_combo.addItem(tr("addedit.auth.ask"), "ask")
-        layout.addWidget(self._auth_combo)
+        form.addWidget(self._auth_combo)
 
         # Passwort-Zeile (immer sichtbar)
         pw_layout = QVBoxLayout()
@@ -195,7 +213,7 @@ class AddEditDialog(QDialog):
         self._pw_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self._pw_edit.setPlaceholderText("••••••••")
         pw_layout.addWidget(self._pw_edit)
-        layout.addLayout(pw_layout)
+        form.addLayout(pw_layout)
 
         # Key-Zeile (immer sichtbar)
         key_layout = QVBoxLayout()
@@ -209,19 +227,21 @@ class AddEditDialog(QDialog):
         self._key_edit.setPlaceholderText("C:/Users/user/.ssh/id_rsa")
         key_row.addWidget(self._key_edit, stretch=1)
         browse_btn = QPushButton("…")
+        browse_btn.setObjectName("rpHeaderBtn")
         browse_btn.setFixedWidth(36)
+        browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         browse_btn.clicked.connect(self._browse_key)
         key_row.addWidget(browse_btn)
         key_layout.addLayout(key_row)
-        layout.addLayout(key_layout)
+        form.addLayout(key_layout)
 
         # ── CLI ACCESS ───────────────────────────────────────────────
-        layout.addWidget(self._divider())
-        layout.addWidget(self._section(tr("addedit.section.cli")))
+        form.addWidget(self._divider())
+        form.addWidget(self._section(tr("addedit.section.cli")))
 
         self._cli_enabled_cb = QCheckBox(tr("addedit.cli.enable"))
         self._cli_enabled_cb.stateChanged.connect(self._on_cli_toggle)
-        layout.addWidget(self._cli_enabled_cb)
+        form.addWidget(self._cli_enabled_cb)
 
         self._cli_key_widget = QWidget()
         cli_key_layout = QVBoxLayout(self._cli_key_widget)
@@ -240,27 +260,32 @@ class AddEditDialog(QDialog):
         key_display_row.addWidget(self._cli_key_edit, stretch=1)
         
         self._cli_show_btn = QPushButton("👁")
+        self._cli_show_btn.setObjectName("rpHeaderBtn")
         self._cli_show_btn.setFixedWidth(36)
         self._cli_show_btn.setCheckable(True)
+        self._cli_show_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._cli_show_btn.clicked.connect(self._toggle_cli_key_visibility)
         key_display_row.addWidget(self._cli_show_btn)
         
         self._cli_gen_btn = QPushButton(tr("addedit.cli.generate"))
+        self._cli_gen_btn.setObjectName("actionBtn")
+        self._cli_gen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._cli_gen_btn.clicked.connect(self._generate_new_cli_key)
         key_display_row.addWidget(self._cli_gen_btn)
         
         cli_key_layout.addLayout(key_display_row)
         
         self._cli_key_widget.setVisible(False)
-        layout.addWidget(self._cli_key_widget)
+        form.addWidget(self._cli_key_widget)
 
-        layout.addStretch()
+        form.addStretch()
+        layout.addWidget(form_card)
 
         # ── Button-Leiste (außerhalb der ScrollArea, immer sichtbar) ─
         btn_frame = QWidget()
         btn_frame.setObjectName("dialogBtnBar")
         btn_outer = QVBoxLayout(btn_frame)
-        btn_outer.setContentsMargins(24, 8, 24, 16)
+        btn_outer.setContentsMargins(20, 8, 20, 16)
         btn_outer.setSpacing(0)
 
         divider2 = self._divider()
@@ -273,6 +298,7 @@ class AddEditDialog(QDialog):
         btn_row.addStretch()
 
         cancel_btn = QPushButton(tr("dialog.cancel"))
+        cancel_btn.setObjectName("secondaryBtn")
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel_btn.setFixedHeight(36)
         cancel_btn.setMinimumWidth(110)

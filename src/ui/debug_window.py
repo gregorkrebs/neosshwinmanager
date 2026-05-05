@@ -4,7 +4,7 @@ debug_window.py – Live log viewer dialog for SSH Win Manager.
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTextEdit,
-    QPushButton, QLabel, QCheckBox, QFileDialog, QWidget
+    QPushButton, QLabel, QCheckBox, QFileDialog, QWidget, QFrame
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QFont
@@ -24,6 +24,7 @@ class DebugWindow(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("debugSurface")
         self.setWindowTitle("SSH Win Manager – Debug Log")
         self.setMinimumSize(700, 480)
         self.resize(860, 560)
@@ -42,39 +43,48 @@ class DebugWindow(QDialog):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         layout.addWidget(self._build_toolbar())
 
         self._log_view = QTextEdit()
         self._log_view.setReadOnly(True)
         self._log_view.setFont(QFont("Consolas", 10))
         self._log_view.setObjectName("debugLogView")
-        self._log_view.setStyleSheet(
-            "QTextEdit#debugLogView { background-color:#080810; color:#c8d6e5; border:none; padding:10px; }"
-        )
         layout.addWidget(self._log_view, stretch=1)
 
     def _build_toolbar(self) -> QWidget:
-        tb = QWidget()
-        tb.setFixedHeight(50)
+        tb = QFrame()
         tb.setObjectName("debugToolbar")
-        tb.setStyleSheet(
-            "QWidget#debugToolbar { background:#0a0a14; border-bottom:1px solid #1a1a2e; }"
-        )
         h = QHBoxLayout(tb)
-        h.setContentsMargins(14, 0, 14, 0)
-        h.setSpacing(10)
+        h.setContentsMargins(18, 16, 18, 16)
+        h.setSpacing(12)
 
+        title_col = QVBoxLayout()
+        title_col.setContentsMargins(0, 0, 0, 0)
+        title_col.setSpacing(4)
+
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setSpacing(8)
         dot = QLabel("●")
         dot.setObjectName("statusDot")
         title = QLabel("Live Debug Log")
-        title.setObjectName("connName") # Use existing name style
-        h.addWidget(dot)
-        h.addWidget(title)
+        title.setObjectName("debugTitle")
+        title_row.addWidget(dot)
+        title_row.addWidget(title)
+        title_row.addStretch()
+        title_col.addLayout(title_row)
+
+        subtitle = QLabel("Interne Events, Mounting und SSH-Status in Echtzeit")
+        subtitle.setObjectName("debugMeta")
+        title_col.addWidget(subtitle)
+
+        h.addLayout(title_col)
         h.addStretch()
 
         self._auto_scroll_cb = QCheckBox("Auto-scroll")
+        self._auto_scroll_cb.setObjectName("debugCheck")
         self._auto_scroll_cb.setChecked(True)
         self._auto_scroll_cb.toggled.connect(
             lambda v: setattr(self, "_auto_scroll", v)
