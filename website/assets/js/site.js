@@ -134,6 +134,8 @@
   // Apply theme as early as possible to avoid a flash.
   applyTheme(getPreferredTheme());
 
+  window.neoSite = { applyTheme, getPreferredTheme };
+
   document.addEventListener("DOMContentLoaded", () => {
     initThemeToggle();
     initMobileMenu();

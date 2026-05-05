@@ -32,15 +32,13 @@
           </a>
           <nav class="nav" data-nav>
             <a href="${prefix}index.html" data-i18n="nav.overview">Übersicht</a>
+            <a href="${prefix}app.html" data-i18n="nav.demo">Live-App</a>
             <a href="${prefix}features.html" data-i18n="nav.features">Features</a>
             <a href="${prefix}download.html" data-i18n="nav.download">Download</a>
             <a href="${prefix}docs/getting-started.html" data-i18n="nav.docs">Dokumentation</a>
             <a href="${prefix}changelog.html" data-i18n="nav.changelog">Changelog</a>
           </nav>
           <div class="topbar-actions">
-            <button class="icon-btn menu-btn" data-menu-toggle aria-label="Menu" data-i18n-attr="aria-label:btn.menu">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-            </button>
             <div class="lang-switch" role="group" aria-label="Language" data-i18n-attr="aria-label:btn.lang">
               <button data-lang="de" type="button">DE</button>
               <button data-lang="en" type="button">EN</button>
@@ -52,6 +50,9 @@
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.8 10.9.6.1.8-.2.8-.6v-2.1c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2.9-.3 2-.4 3-.4s2.1.1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.7 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.5-1.5 7.8-5.8 7.8-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
               <span data-i18n="btn.github">GitHub</span>
             </a>
+            <button class="icon-btn menu-btn" data-menu-toggle aria-label="Menu" data-i18n-attr="aria-label:btn.menu">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </button>
           </div>
         </div>
       </header>`;
@@ -79,6 +80,7 @@
             <div>
               <h4 data-i18n="footer.product">Produkt</h4>
               <ul>
+                <li><a href="${prefix}app.html" data-i18n="footer.demo">Live-App</a></li>
                 <li><a href="${prefix}features.html" data-i18n="nav.features">Features</a></li>
                 <li><a href="${prefix}download.html" data-i18n="nav.download">Download</a></li>
                 <li><a href="${prefix}changelog.html" data-i18n="nav.changelog">Changelog</a></li>
