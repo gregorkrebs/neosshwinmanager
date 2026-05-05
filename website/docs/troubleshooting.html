@@ -23,182 +23,59 @@
       <h1 data-i18n="ts.title"></h1>
       <p class="lead" data-i18n="ts.lead"></p>
 
-      <!-- ==================== LOGS ==================== -->
-      <h2 id="logs" data-i18n="ts.logs.title"></h2>
+      <!-- ==================== sshfs.exe not found ==================== -->
+      <h2 id="nosshfs" data-i18n="ts.h.nosshfs"></h2>
+      <p data-i18n="ts.nosshfs.body"></p>
+      <ul>
+        <li><code>C:\Program Files\SSHFS-Win\bin\sshfs.exe</code></li>
+        <li><code>C:\Program Files (x86)\SSHFS-Win\bin\sshfs.exe</code></li>
+      </ul>
+      <p data-i18n="ts.nosshfs.note"></p>
+
+      <!-- ==================== mount point in use ==================== -->
+      <h2 id="mountpoint" data-i18n="ts.h.mountpoint"></h2>
+      <p data-i18n="ts.mountpoint.body"></p>
+      <ol>
+        <li data-i18n="ts.mountpoint.li1"></li>
+        <li data-i18n="ts.mountpoint.li2"></li>
+        <li data-i18n="ts.mountpoint.li3"></li>
+        <li data-i18n="ts.mountpoint.li4"></li>
+      </ol>
+
+      <!-- ==================== Authentication failed ==================== -->
+      <h2 id="authfail" data-i18n="ts.h.authfail"></h2>
+      <ul>
+        <li data-i18n="ts.authfail.li1"></li>
+        <li data-i18n="ts.authfail.li2"></li>
+        <li data-i18n="ts.authfail.li3"></li>
+        <li data-i18n="ts.authfail.li4"></li>
+      </ul>
+
+      <!-- ==================== Connection refused ==================== -->
+      <h2 id="connrefused" data-i18n="ts.h.connrefused"></h2>
+      <p data-i18n="ts.connrefused.body"></p>
+      <pre><code>ssh -p &lt;port&gt; &lt;user&gt;@&lt;host&gt;</code></pre>
+      <p data-i18n="ts.connrefused.note"></p>
+
+      <!-- ==================== Access denied ==================== -->
+      <h2 id="accessdenied" data-i18n="ts.h.accessdenied"></h2>
+      <p data-i18n="ts.accessdenied.body"></p>
+      <pre><code>-oidmap=user -ouid=-1 -ogid=-1
+-oumask=000 -ocreate_umask=000
+-odefault_permissions</code></pre>
+      <p data-i18n="ts.accessdenied.note"></p>
+
+      <!-- ==================== App not in foreground ==================== -->
+      <h2 id="nostart" data-i18n="ts.h.nostart"></h2>
+      <p data-i18n="ts.nostart.body"></p>
+      <ul>
+        <li data-i18n="ts.nostart.li1"></li>
+        <li data-i18n="ts.nostart.li2"></li>
+      </ul>
+
+      <!-- ==================== View logs ==================== -->
+      <h2 id="logs" data-i18n="ts.h.logs"></h2>
       <p data-i18n="ts.logs.body"></p>
-      <pre><code>%APPDATA%\SSHWinManager\app.log</code></pre>
-
-      <h3 data-i18n="ts.logs.debug.title"></h3>
-      <p data-i18n="ts.logs.debug.body"></p>
-      <ol>
-        <li data-i18n="ts.logs.debug.li1"></li>
-        <li data-i18n="ts.logs.debug.li2"></li>
-        <li data-i18n="ts.logs.debug.li3"></li>
-      </ol>
-      <div class="callout info">
-        <span class="callout-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-        </span>
-        <div>
-          <strong data-i18n="ts.logs.debug.note.title"></strong>
-          <span data-i18n="ts.logs.debug.note.body"></span>
-        </div>
-      </div>
-
-      <!-- ==================== GHOST DRIVES ==================== -->
-      <h2 id="ghost-drives" data-i18n="ts.ghost.title"></h2>
-      <p data-i18n="ts.ghost.body"></p>
-      <ul>
-        <li data-i18n="ts.ghost.reason1"></li>
-        <li data-i18n="ts.ghost.reason2"></li>
-        <li data-i18n="ts.ghost.reason3"></li>
-      </ul>
-      <p data-i18n="ts.ghost.fix.intro"></p>
-
-      <div class="grid grid-2" style="margin-top: 16px;">
-        <div class="card">
-          <h3 data-i18n="ts.ghost.fixghost.title"></h3>
-          <p data-i18n="ts.ghost.fixghost.body"></p>
-          <p style="margin-top: 8px;">
-            <span class="badge" data-i18n="ts.ghost.fixghost.where"></span>
-          </p>
-        </div>
-        <div class="card">
-          <h3 data-i18n="ts.ghost.restartexplorer.title"></h3>
-          <p data-i18n="ts.ghost.restartexplorer.body"></p>
-          <p style="margin-top: 8px;">
-            <span class="badge" data-i18n="ts.ghost.restartexplorer.where"></span>
-          </p>
-        </div>
-      </div>
-
-      <div class="callout warn" style="margin-top: 24px;">
-        <span class="callout-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/>
-          </svg>
-        </span>
-        <div>
-          <strong data-i18n="ts.ghost.warn.title"></strong>
-          <span data-i18n="ts.ghost.warn.body"></span>
-        </div>
-      </div>
-
-      <!-- ==================== AUTH ==================== -->
-      <h2 id="auth" data-i18n="ts.auth.title"></h2>
-      <p data-i18n="ts.auth.body"></p>
-
-      <h3 data-i18n="ts.auth.modes.title"></h3>
-      <p data-i18n="ts.auth.modes.body"></p>
-
-      <table>
-        <thead>
-          <tr>
-            <th data-i18n="ts.auth.table.mode"></th>
-            <th data-i18n="ts.auth.table.when"></th>
-            <th data-i18n="ts.auth.table.behavior"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong data-i18n="ts.auth.table.password"></strong></td>
-            <td data-i18n="ts.auth.table.password.when"></td>
-            <td data-i18n="ts.auth.table.password.behavior"></td>
-          </tr>
-          <tr>
-            <td><strong data-i18n="ts.auth.table.key"></strong></td>
-            <td data-i18n="ts.auth.table.key.when"></td>
-            <td data-i18n="ts.auth.table.key.behavior"></td>
-          </tr>
-          <tr>
-            <td><strong data-i18n="ts.auth.table.ask"></strong></td>
-            <td data-i18n="ts.auth.table.ask.when"></td>
-            <td data-i18n="ts.auth.table.ask.behavior"></td>
-          </tr>
-          <tr>
-            <td><strong data-i18n="ts.auth.table.nopass"></strong></td>
-            <td data-i18n="ts.auth.table.nopass.when"></td>
-            <td data-i18n="ts.auth.table.nopass.behavior"></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="callout info" style="margin-top: 16px;">
-        <span class="callout-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-        </span>
-        <div>
-          <strong data-i18n="ts.auth.ask.note.title"></strong>
-          <span data-i18n="ts.auth.ask.note.body"></span>
-        </div>
-      </div>
-
-      <h3 data-i18n="ts.auth.checklist.title"></h3>
-      <ul>
-        <li data-i18n="ts.auth.check1"></li>
-        <li data-i18n="ts.auth.check2"></li>
-        <li data-i18n="ts.auth.check3"></li>
-        <li data-i18n="ts.auth.check4"></li>
-        <li data-i18n="ts.auth.check5"></li>
-        <li data-i18n="ts.auth.check6"></li>
-      </ul>
-
-      <!-- ==================== MOUNT FAILS ==================== -->
-      <h2 id="mount" data-i18n="ts.mount.title"></h2>
-
-      <h3 data-i18n="ts.mount.prereq.title"></h3>
-      <p data-i18n="ts.mount.prereq.body"></p>
-      <ul>
-        <li>
-          <strong>WinFsp</strong> —
-          <a href="https://github.com/winfsp/winfsp/releases" target="_blank" rel="noopener">winfsp/winfsp</a>
-        </li>
-        <li>
-          <strong>SSHFS-Win</strong> —
-          <a href="https://github.com/winfsp/sshfs-win/releases" target="_blank" rel="noopener">winfsp/sshfs-win</a>
-        </li>
-      </ul>
-      <p data-i18n="ts.mount.prereq.order"></p>
-
-      <h3 data-i18n="ts.mount.letter.title"></h3>
-      <p data-i18n="ts.mount.letter.body"></p>
-
-      <h3 data-i18n="ts.mount.firewall.title"></h3>
-      <p data-i18n="ts.mount.firewall.body"></p>
-      <pre><code>ssh benutzername@hostname -p 22</code></pre>
-      <p data-i18n="ts.mount.firewall.note"></p>
-
-      <!-- ==================== SMARTSCREEN ==================== -->
-      <h2 id="smartscreen" data-i18n="ts.smartscreen.title"></h2>
-      <p data-i18n="ts.smartscreen.body"></p>
-      <ol>
-        <li data-i18n="ts.smartscreen.li1"></li>
-        <li data-i18n="ts.smartscreen.li2"></li>
-      </ol>
-      <div class="callout warn">
-        <span class="callout-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/>
-          </svg>
-        </span>
-        <div>
-          <strong data-i18n="ts.smartscreen.warn.title"></strong>
-          <span data-i18n="ts.smartscreen.warn.body"></span>
-          <a href="https://github.com/gregorkrebs/neosshwinmanager/releases" target="_blank" rel="noopener">GitHub-Releases</a>
-          <span data-i18n="ts.smartscreen.warn.body2"></span>
-        </div>
-      </div>
-
-      <!-- ==================== STILL STUCK ==================== -->
-      <h2 id="help" data-i18n="ts.help.title"></h2>
-      <p data-i18n="ts.help.body"></p>
-      <a class="btn btn-primary" href="https://github.com/gregorkrebs/neosshwinmanager/issues" target="_blank" rel="noopener" data-i18n="ts.help.btn"></a>
 
     </article>
     </div>
