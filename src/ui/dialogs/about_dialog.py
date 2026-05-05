@@ -13,7 +13,7 @@ import os
 from PyQt6.QtGui import QIcon, QPixmap
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.i18n import tr
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.3.1"
 
 
 class AboutDialog(QDialog):

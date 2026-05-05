@@ -455,7 +455,7 @@
     const language = getLang();
 
     return {
-      version: "v1.3.0",
+      version: "v1.3.1",
       workstation: "workstation",
       currentUser: "admin",
       currentUserId: "user-admin",
