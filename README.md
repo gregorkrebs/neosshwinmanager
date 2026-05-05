@@ -1,7 +1,7 @@
 <h1 align="center">NEO SSH-Win Manager</h1>
 
 <p align="center">
-  A modern, dark-themed Windows desktop app for mounting remote SSH filesystems as Windows drive letters.<br/>
+  A modern Windows desktop app for mounting remote SSH filesystems as Windows drive letters with a centralized solution for SSH access<br/>
   Built on top of <a href="https://github.com/winfsp/sshfs-win">sshfs-win</a> and <a href="https://github.com/winfsp/winfsp">WinFsp</a>.
 </p>
 
