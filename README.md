@@ -83,18 +83,9 @@ Manage multiple SSH connections, mount them with one click, switch languages per
 </table>
 
 ## Browser Demo
-
-> **Interactive HTML demo** — no installation, no backend, no SSH connection needed.  
-> All buttons, dialogs, settings, and forms are fully functional in the browser.
-
-**Does GitHub render it inline?** No — GitHub READMEs block JavaScript, so embedded HTML won't run.  
 **The live demo works via GitHub Pages:**
 
 👉 **<https://gregorkrebs.github.io/neosshwinmanager/website/app.html>**
-
-To enable it: Go to *Settings → Pages* in your repository and set the source to **Deploy from branch: `main`, folder: `/` (root)**.
-
-Alternatively, clone the repo and open `website/app.html` directly in any browser — no server needed.
 
 ## Prerequisites
 
