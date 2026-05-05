@@ -214,6 +214,7 @@
   "addedit.cli.label": "CLI Access Key (128 Zeichen)",
   "addedit.cli.none": "Kein Key generiert",
   "addedit.cli.generate": "Neu generieren",
+  "addedit.cli.copy": "In Zwischenablage kopieren",
   "addedit.select_key": "Privaten Schlüssel auswählen",
   "addedit.required.title": "Pflichtfelder",
   "addedit.required.name": "Name darf nicht leer sein.",
