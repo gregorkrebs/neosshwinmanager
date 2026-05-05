@@ -51,24 +51,7 @@ class SystemTray(QSystemTrayIcon):
 
     def _build_menu(self):
         menu = QMenu()
-        menu.setStyleSheet("""
-            QMenu {
-                background-color: #0f0f1a;
-                border: 1px solid #1e1e30;
-                border-radius: 8px;
-                color: #c8d6e5;
-                padding: 4px;
-            }
-            QMenu::item {
-                padding: 7px 18px;
-                border-radius: 4px;
-            }
-            QMenu::item:selected {
-                background-color: #1a1a2e;
-                color: #00b4d8;
-            }
-            QMenu::separator { height: 1px; background: #1a1a2e; margin: 4px 0; }
-        """)
+        menu.setObjectName("trayMenu")
 
         show_act = QAction("▣  " + tr("tray.show_hide"), self)
         show_act.triggered.connect(self._toggle_window)

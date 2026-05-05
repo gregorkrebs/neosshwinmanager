@@ -33,8 +33,9 @@ class LoginDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("dialogSurface")
         self.setWindowTitle(tr("login.title"))
-        self.setMinimumWidth(380)
+        self.setMinimumWidth(440)
         self.setModal(True)
         self.setWindowFlags(
             Qt.WindowType.Window |
@@ -76,10 +77,15 @@ class LoginDialog(QDialog):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
 
-        # Header
+        hero = QFrame()
+        hero.setObjectName("dialogHeroCard")
+        hero_l = QVBoxLayout(hero)
+        hero_l.setContentsMargins(22, 22, 22, 22)
+        hero_l.setSpacing(10)
+
         icon_lbl = QLabel()
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setObjectName("dialogIconLarge")
@@ -97,28 +103,33 @@ class LoginDialog(QDialog):
                 icon_lbl.setText("🔐")
         except Exception:
             icon_lbl.setText("🔐")
-        layout.addWidget(icon_lbl)
+        hero_l.addWidget(icon_lbl)
 
         title = QLabel("NEO SSH-Win Manager")
         title.setObjectName("dialogTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        hero_l.addWidget(title)
 
-        layout.addWidget(self._divider())
+        lead = QLabel(tr("login.create_first") if self._first_run else tr("login.please_sign_in"))
+        lead.setObjectName("dialogLead")
+        lead.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lead.setWordWrap(True)
+        hero_l.addWidget(lead)
+        layout.addWidget(hero)
+
+        form_card = QFrame()
+        form_card.setObjectName("dialogSectionCard")
+        form_l = QVBoxLayout(form_card)
+        form_l.setContentsMargins(22, 20, 22, 20)
+        form_l.setSpacing(10)
 
         if self._first_run:
-            self._build_register_form(layout)
+            self._build_register_form(form_l)
         else:
-            self._build_login_form(layout)
+            self._build_login_form(form_l)
+        layout.addWidget(form_card)
 
     def _build_login_form(self, layout: QVBoxLayout):
-        sub = QLabel(tr("login.please_sign_in"))
-        sub.setObjectName("fieldLabel")
-        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(sub)
-
-        layout.addSpacing(4)
-
         lbl_user = QLabel(tr("login.username"))
         lbl_user.setObjectName("fieldLabel")
         layout.addWidget(lbl_user)
@@ -138,25 +149,16 @@ class LoginDialog(QDialog):
         self._login_error.setVisible(False)
         layout.addWidget(self._login_error)
 
-        layout.addSpacing(4)
-        layout.addWidget(self._divider())
-
         btn = QPushButton(tr("login.sign_in"))
         btn.setObjectName("primaryBtn")
-        btn.setMinimumHeight(40)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setMinimumHeight(34)
         btn.clicked.connect(self._do_login)
         layout.addWidget(btn)
 
         self._login_user.setFocus()
 
     def _build_register_form(self, layout: QVBoxLayout):
-        sub = QLabel(tr("login.create_first"))
-        sub.setObjectName("fieldLabel")
-        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(sub)
-
-        layout.addSpacing(4)
-
         for attr, lbl, ph, pw in [
             ("_reg_user", tr("login.username"), tr("login.username"), False),
             ("_reg_pw",   tr("login.password"), tr("login.pw_min"), True),
@@ -175,12 +177,10 @@ class LoginDialog(QDialog):
         self._reg_error.setVisible(False)
         layout.addWidget(self._reg_error)
 
-        layout.addSpacing(4)
-        layout.addWidget(self._divider())
-
         btn = QPushButton(tr("login.create_account"))
         btn.setObjectName("primaryBtn")
-        btn.setMinimumHeight(40)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setMinimumHeight(34)
         btn.clicked.connect(self._do_register)
         layout.addWidget(btn)
 
@@ -260,8 +260,9 @@ class UserManagementDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("dialogSurface")
         self.setWindowTitle(tr("users.title"))
-        self.setMinimumWidth(440)
+        self.setMinimumWidth(520)
         self.setMinimumHeight(400)
         self.setModal(True)
         self._build_ui()
@@ -300,59 +301,82 @@ class UserManagementDialog(QDialog):
         inner = QWidget()
         scroll.setWidget(inner)
         layout = QVBoxLayout(inner)
-        layout.setContentsMargins(24, 20, 24, 12)
-        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 12)
+        layout.setSpacing(14)
+
+        hero = QFrame()
+        hero.setObjectName("dialogHeroCard")
+        hero_l = QVBoxLayout(hero)
+        hero_l.setContentsMargins(22, 20, 22, 20)
+        hero_l.setSpacing(8)
 
         title = QLabel(tr("users.title"))
         title.setObjectName("dialogTitle")
-        layout.addWidget(title)
-        layout.addWidget(self._divider())
+        hero_l.addWidget(title)
+
+        lead = QLabel(tr("dialog.lead.users"))
+        lead.setObjectName("dialogLead")
+        lead.setWordWrap(True)
+        hero_l.addWidget(lead)
+        layout.addWidget(hero)
+
+        content_card = QFrame()
+        content_card.setObjectName("dialogSectionCard")
+        content = QVBoxLayout(content_card)
+        content.setContentsMargins(22, 20, 22, 20)
+        content.setSpacing(10)
 
         # Benutzerliste
         list_lbl = QLabel(tr("users.section.users"))
         list_lbl.setObjectName("sectionLabel")
-        layout.addWidget(list_lbl)
+        content.addWidget(list_lbl)
 
         self._users_layout = QVBoxLayout()
-        self._users_layout.setSpacing(4)
-        layout.addLayout(self._users_layout)
+        self._users_layout.setSpacing(8)
+        content.addLayout(self._users_layout)
 
-        layout.addWidget(self._divider())
+        content.addWidget(self._divider())
 
         # Neuen Benutzer anlegen
         new_lbl = QLabel(tr("users.section.new"))
         new_lbl.setObjectName("sectionLabel")
-        layout.addWidget(new_lbl)
+        content.addWidget(new_lbl)
 
         self._new_user = self._input(tr("users.placeholder.username"))
-        layout.addWidget(self._new_user)
+        content.addWidget(self._new_user)
 
         self._new_pw = self._input(tr("users.placeholder.password"), password=True)
-        layout.addWidget(self._new_pw)
+        content.addWidget(self._new_pw)
 
         self._new_is_admin = QCheckBox(tr("users.admin"))
-        layout.addWidget(self._new_is_admin)
+        content.addWidget(self._new_is_admin)
 
         add_btn = QPushButton(tr("users.create"))
         add_btn.setObjectName("primaryBtn")
-        add_btn.setMinimumHeight(36)
+        add_btn.setMinimumHeight(34)
+        add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         add_btn.clicked.connect(self._add_user)
-        layout.addWidget(add_btn)
+        content.addWidget(add_btn)
 
-        layout.addStretch()
+        content.addStretch()
+        layout.addWidget(content_card)
 
         # Fixe Button-Leiste außerhalb der Scroll-Area.
         btn_bar = QWidget()
+        btn_bar.setObjectName("dialogBtnBar")
         btn_bar_layout = QVBoxLayout(btn_bar)
-        btn_bar_layout.setContentsMargins(24, 8, 24, 16)
+        btn_bar_layout.setContentsMargins(20, 8, 20, 16)
         btn_bar_layout.setSpacing(8)
         btn_bar_layout.addWidget(self._divider())
 
         close_row = QHBoxLayout()
+        close_row.setContentsMargins(0, 10, 0, 0)
         close_row.addWidget(make_maximize_button(self))
         close_row.addStretch()
         close_btn = QPushButton(tr("dialog.close"))
-        close_btn.setMinimumHeight(36)
+        close_btn.setObjectName("secondaryBtn")
+        close_btn.setMinimumHeight(34)
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.clicked.connect(self.accept)
         close_row.addWidget(close_btn)
         close_row.addStretch()
@@ -362,6 +386,8 @@ class UserManagementDialog(QDialog):
         outer.addWidget(btn_bar)
 
     def _refresh_users(self):
+        from src.database import get_connection
+
         # Liste leeren
         while self._users_layout.count():
             item = self._users_layout.takeAt(0)
@@ -370,52 +396,100 @@ class UserManagementDialog(QDialog):
 
         current_id = Session.current().id if Session.current() else None
         users = AuthManager.list_users()
+        with get_connection() as conn:
+            rows = conn.execute(
+                "SELECT user_id, COUNT(*) AS count FROM connections GROUP BY user_id"
+            ).fetchall()
+        connection_counts = {row["user_id"]: row["count"] for row in rows}
 
         for u in users:
-            row = QWidget()
+            row = QFrame()
+            row.setObjectName("userBox")
             row_l = QHBoxLayout(row)
-            row_l.setContentsMargins(8, 4, 8, 4)
+            row_l.setContentsMargins(14, 12, 14, 12)
+            row_l.setSpacing(10)
 
-            icon = "👑" if u["is_admin"] else "👤"
             name = u["username"]
-            suffix = tr("users.you") if u["id"] == current_id else ""
-            lbl = QLabel(f"{icon}  {name}{suffix}")
-            lbl.setObjectName("connName")
-            lbl.setProperty("state", "user_row")
-            row_l.addWidget(lbl, stretch=1)
+            is_me = u["id"] == current_id
+            connection_count = int(connection_counts.get(u["id"], 0))
+            count_text = tr("users.connections.one", n=connection_count) if connection_count == 1 else tr("users.connections.many", n=connection_count)
 
-            if u["id"] == current_id:
+            avatar = QLabel(name[:2].upper())
+            avatar.setObjectName("userAvatar")
+            avatar.setProperty("admin", "true" if u["is_admin"] else "false")
+            avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            avatar.setFixedSize(QSize(40, 40))
+            row_l.addWidget(avatar)
+
+            meta = QWidget()
+            meta_l = QVBoxLayout(meta)
+            meta_l.setContentsMargins(0, 0, 0, 0)
+            meta_l.setSpacing(4)
+
+            title_row = QHBoxLayout()
+            title_row.setContentsMargins(0, 0, 0, 0)
+            title_row.setSpacing(8)
+
+            name_lbl = QLabel(name)
+            name_lbl.setObjectName("connName")
+            title_row.addWidget(name_lbl)
+
+            role_badge = QLabel(tr("users.admin") if u["is_admin"] else tr("users.role.member"))
+            role_badge.setObjectName("userRoleBadge")
+            if u["is_admin"]:
+                role_badge.setProperty("variant", "accent")
+            title_row.addWidget(role_badge)
+
+            if is_me:
+                you_badge = QLabel(tr("users.badge.you"))
+                you_badge.setObjectName("userRoleBadge")
+                you_badge.setProperty("variant", "accent")
+                title_row.addWidget(you_badge)
+
+            title_row.addStretch(1)
+            meta_l.addLayout(title_row)
+
+            sub_lbl = QLabel(count_text)
+            sub_lbl.setObjectName("userMetaSub")
+            meta_l.addWidget(sub_lbl)
+            row_l.addWidget(meta, stretch=1)
+
+            if is_me:
                 # Eigener Eintrag: Passwort-ändern-Button
                 chg_btn = QPushButton()
-                chg_btn.setFixedSize(32, 28)
+                chg_btn.setObjectName("rpHeaderBtn")
+                chg_btn.setFixedSize(32, 32)
                 chg_btn.setIcon(svg_icon("key", "#aab4c4", 16))
                 chg_btn.setIconSize(QSize(16, 16))
                 chg_btn.setToolTip(tr("users.tooltip.change_pw"))
+                chg_btn.setCursor(Qt.CursorShape.PointingHandCursor)
                 chg_btn.clicked.connect(self._change_own_password)
                 row_l.addWidget(chg_btn)
             else:
                 # Admin-Aktionen für andere User
                 if Session.is_admin():
                     reset_btn = QPushButton()
-                    reset_btn.setFixedSize(32, 28)
+                    reset_btn.setObjectName("rpHeaderBtn")
+                    reset_btn.setFixedSize(32, 32)
                     reset_btn.setIcon(svg_icon("rotate-cw", "#aab4c4", 16))
                     reset_btn.setIconSize(QSize(16, 16))
                     reset_btn.setToolTip(tr("users.tooltip.reset_pw", name=name))
+                    reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
                     uid_r = u["id"]
                     reset_btn.clicked.connect(lambda _, i=uid_r, n=name: self._reset_user_password(i, n))
                     row_l.addWidget(reset_btn)
 
                 del_btn = QPushButton()
-                del_btn.setFixedSize(32, 28)
+                del_btn.setObjectName("rpHeaderBtn")
+                del_btn.setFixedSize(32, 32)
                 del_btn.setIcon(svg_icon("trash", "#ff6b7a", 16))
                 del_btn.setIconSize(QSize(16, 16))
                 del_btn.setToolTip(tr("users.tooltip.delete", name=name))
                 del_btn.setProperty("btn_type", "danger")
+                del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
                 uid = u["id"]
                 del_btn.clicked.connect(lambda _, i=uid, n=name: self._delete_user(i, n))
                 row_l.addWidget(del_btn)
-
-            row.setObjectName("userBox")
             self._users_layout.addWidget(row)
 
     def _add_user(self):
@@ -483,45 +557,81 @@ class ChangePasswordDialog(QDialog):
     def __init__(self, user_id: str, parent=None):
         super().__init__(parent)
         self._user_id = user_id
+        self.setObjectName("dialogSurface")
         self.setWindowTitle(tr("chgpw.title"))
-        self.setMinimumWidth(380)
+        self.setMinimumWidth(420)
         self.setModal(True)
         self._build_ui()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
+
+        hero = QFrame()
+        hero.setObjectName("dialogHeroCard")
+        hero_l = QVBoxLayout(hero)
+        hero_l.setContentsMargins(20, 18, 20, 18)
+        hero_l.setSpacing(8)
 
         title = QLabel(tr("chgpw.title"))
         title.setObjectName("dialogTitle")
-        layout.addWidget(title)
+        hero_l.addWidget(title)
+
+        lead = QLabel(tr("users.tooltip.change_pw"))
+        lead.setObjectName("dialogLead")
+        lead.setWordWrap(True)
+        hero_l.addWidget(lead)
+        layout.addWidget(hero)
+
+        form_card = QFrame()
+        form_card.setObjectName("dialogSectionCard")
+        form_l = QVBoxLayout(form_card)
+        form_l.setContentsMargins(20, 18, 20, 18)
+        form_l.setSpacing(10)
 
         self._old_pw = QLineEdit()
         self._old_pw.setPlaceholderText(tr("chgpw.current"))
         self._old_pw.setEchoMode(QLineEdit.EchoMode.Password)
-        layout.addWidget(self._old_pw)
+        form_l.addWidget(self._old_pw)
 
         self._new_pw = QLineEdit()
         self._new_pw.setPlaceholderText(tr("chgpw.new"))
         self._new_pw.setEchoMode(QLineEdit.EchoMode.Password)
-        layout.addWidget(self._new_pw)
+        form_l.addWidget(self._new_pw)
 
         self._confirm_pw = QLineEdit()
         self._confirm_pw.setPlaceholderText(tr("chgpw.confirm"))
         self._confirm_pw.setEchoMode(QLineEdit.EchoMode.Password)
-        layout.addWidget(self._confirm_pw)
+        form_l.addWidget(self._confirm_pw)
+        layout.addWidget(form_card)
+
+        footer = QWidget()
+        footer.setObjectName("dialogBtnBar")
+        footer_l = QVBoxLayout(footer)
+        footer_l.setContentsMargins(0, 8, 0, 0)
+        footer_l.setSpacing(0)
+        sep = QFrame()
+        sep.setObjectName("divider")
+        sep.setFixedHeight(1)
+        footer_l.addWidget(sep)
 
         btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 10, 0, 0)
+        btn_row.addWidget(make_maximize_button(self))
         btn_row.addStretch()
         cancel = QPushButton(tr("dialog.cancel"))
+        cancel.setObjectName("secondaryBtn")
+        cancel.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel.clicked.connect(self.reject)
         btn_row.addWidget(cancel)
         save = QPushButton(tr("dialog.save"))
         save.setObjectName("primaryBtn")
+        save.setCursor(Qt.CursorShape.PointingHandCursor)
         save.clicked.connect(self._save)
         btn_row.addWidget(save)
-        layout.addLayout(btn_row)
+        footer_l.addLayout(btn_row)
+        layout.addWidget(footer)
 
     def _save(self):
         old_pw = self._old_pw.text()
