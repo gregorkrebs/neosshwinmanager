@@ -27,6 +27,7 @@
     de: {
       // ─── chrome ──────────────────────────────────────────────
       "nav.overview": "Übersicht",
+      "nav.demo": "Live-App",
       "nav.features": "Features",
       "nav.download": "Download",
       "nav.docs": "Dokumentation",
@@ -39,6 +40,7 @@
       "btn.lang": "Sprache wechseln",
 
       "title.index": "NEO SSH-Win Manager — SSH-Laufwerke für Windows",
+      "title.app": "Browser-Simulation — NEO SSH-Win Manager",
       "title.features": "Features — NEO SSH-Win Manager",
       "title.download": "Download — NEO SSH-Win Manager",
       "title.changelog": "Changelog — NEO SSH-Win Manager",
@@ -52,10 +54,13 @@
       "title.docs.api": "API-Referenz — Entwickler — NEO SSH-Win Manager",
       "meta.index.description":
         "Kostenloser Windows-Desktop-Client für SSHFS. Remote-Ordner als Laufwerk einbinden, mehrere Benutzer, passwortloses SSH ohne SSH-Key, eingebautes Terminal.",
+      "meta.app.description":
+        "Interaktive Browser-Simulation der Windows-App. Klickbare Buttons, originale Statusmeldungen und komplette Frontend-Logik ohne echte SSH- oder Mount-Aktionen.",
 
       "footer.tagline":
         "Kostenloser Open-Source-SSHFS-Client für Windows. Showcase- und Portfolio-Projekt von Den4ik53 und Gregor Krebs.",
       "footer.product": "Produkt",
+      "footer.demo": "Live-App",
       "footer.docs": "Dokumentation",
       "footer.developers": "Entwickler",
       "footer.builton": "Aufsetzend auf",
@@ -80,6 +85,31 @@
       "side.projectStructure": "Projektstruktur",
       "side.apiReference": "API-Referenz",
 
+      // ─── docs: authentication ─────────────────────────────────
+      "auth.title": "Authentifizierung",
+      "auth.lead": "Drei Methoden — Passwort, privater Schlüssel oder „jedes Mal fragen“. Hier siehst du, wie sie funktionieren und wo die Zugangsdaten liegen.",
+      "auth.h.password": "Passwort speichern",
+      "auth.password.body": "Du gibst das SSH-Passwort einmal ein — danach läuft alles automatisch. Beim Mounten und im Terminal wird das Passwort im Hintergrund eingegeben. Kein SSH-Key nötig.",
+      "auth.password.storage": "Das Passwort wird lokal in der SQLite-Datenbank gespeichert — pro App-Benutzer mit AES-256-GCM verschlüsselt und erst nach dem App-Login entschlüsselt.",
+      "auth.h.key": "SSH-Key",
+      "auth.key.body": "Gib den Pfad zu deinem privaten SSH-Key an (z. B. <code>C:\\Users\\du\\.ssh\\id_ed25519</code>). Der Key wird beim Verbinden automatisch verwendet. SSH-Zertifikate werden ebenfalls unterstützt.",
+      "auth.key.note": "Der Key sollte keine Passphrase haben, damit der Mount automatisch im Hintergrund funktioniert.",
+      "auth.h.ask": "Jedes Mal fragen",
+      "auth.ask.body": "Es wird kein Passwort gespeichert — bei jedem Verbindungsaufbau erscheint ein Eingabedialog. Sinnvoll für:",
+      "auth.ask.li1": "Server, auf denen keine Zugangsdaten gespeichert werden sollen.",
+      "auth.ask.li2": "Konten mit wechselnden Passwörtern.",
+      "auth.ask.li3": "Server mit Zwei-Faktor-Authentifizierung.",
+      "auth.h.encryption": "Wie werden Passwörter geschützt?",
+      "auth.encryption.body": "Beim App-Login wird aus deinem Profilpasswort ein Schlüssel erzeugt, der nur im Arbeitsspeicher bleibt. Mit ihm werden alle SSH-Zugangsdaten lokal verschlüsselt. Beim Abmelden wird der Schlüssel sofort gelöscht.",
+      "auth.key.unattended": "SSHFS-Win führt im Hintergrund einen unattended Mount aus — eine interaktive Passphrase-Abfrage hängt den Mount-Versuch sonst auf.",
+      "auth.h.password.storage": "Wo liegt das Passwort?",
+      "auth.password.li1": "Wenn <code>keyring</code> verfügbar ist (Standard): im <strong>Windows Credential Manager</strong>, DPAPI-verschlüsselt, gebunden an den Windows-Benutzer.",
+      "auth.password.li2": "<code>config.json</code> enthält dann <em>kein</em> Klartext-Passwort, nur einen Marker <code>_has_password</code>.",
+      "auth.password.li3": "In der Multi-User-DB liegt das Passwort zusätzlich symmetrisch verschlüsselt mit dem aus deinem Login-Passwort abgeleiteten Schlüssel.",
+      "auth.key.mount": "Beim Mount wird der Pfad an <code>sshfs.exe</code> via <code>-oIdentityFile=…</code> übergeben. Zusätzlich werden gesetzt:",
+      "auth.key.batchmode": "Damit fragt SSH bei fehlendem oder falschem Key nicht interaktiv nach einem Passwort, sondern bricht ab.",
+      "auth.key.cert": "SSH-Zertifikate funktionieren genauso — der signierte Public-Key-Teil muss neben dem privaten Schlüssel als <code>&lt;key&gt;-cert.pub</code> liegen, OpenSSH und SSHFS-Win finden ihn automatisch.",
+
       // ─── hero (index) ─────────────────────────────────────────
       "hero.eyebrow": "v1.2.0 · Open Source · Windows · MIT",
       "hero.title": "Mehrere Server.",
@@ -88,19 +118,27 @@
       "hero.lead":
         "NEO SSH-Win Manager ist ein moderner Desktop-Client für SSHFS auf Windows — mit Multi-User-Konten, verschlüsselten Credentials, integriertem Terminal und einem CLI-Companion für Skripte und Automatisierungen. Komplett kostenlos und Open Source.",
       "hero.cta.download": "Download für Windows",
+      "hero.cta.demo": "Live-App testen",
       "hero.cta.docs": "Dokumentation",
-      "hero.meta.free": "Kostenlos & bleibt kostenlos",
+      "hero.meta.free": "Ist und bleibt kostenlos",
       "hero.meta.license": "MIT-Lizenz",
       "hero.meta.platform": "Windows 10 / 11",
+
+      "simpage.eyebrow": "Browser-Simulation",
+      "simpage.title": "Die Windows-App im Browser.",
+      "simpage.lead": "Diese Demo bildet das Desktop-UX mit klickbaren Buttons, Statusmeldungen und Dialogen nach. Alles läuft rein im Frontend: keine SSH-Verbindung, kein Mount, kein Backend.",
+      "simpage.reset": "Demo zurücksetzen",
+      "simpage.noteTitle": "Frontend-only",
+      "simpage.note": "SSH öffnet nur ein Platzhalter-Popup. Mounts, Explorer-Aktionen, Einstellungen und Formulare werden komplett im Browser simuliert.",
 
       // ─── mockup labels ────────────────────────────────────────
       "mock.titlebar": "NEO SSH-Win Manager — admin@workstation",
       "mock.connections": "Verbindungen",
       "mock.pill": "3 aktiv · 1 verbunden",
       "mock.system": "System · web-01",
-      "mock.lastSeen": "Last seen",
-      "mock.load": "Load",
-      "mock.uptime": "Uptime",
+      "mock.lastSeen": "Zuletzt gesehen",
+      "mock.load": "Auslastung",
+      "mock.uptime": "Betriebszeit",
       "mock.online": "Online · 1 Mount",
 
       // ─── feature section ──────────────────────────────────────
@@ -245,22 +283,22 @@
       "conn.tip2": "Bei <em>„mount point in use”</em>: Einstellungen → <em>Veraltete Mounts bereinigen</em>.",
       "conn.tip3": "Mehrere Verbindungen zum gleichen Server sind erlaubt — jeweils mit anderem Laufwerksbuchstaben.",
 
-      // ─── docs: authentication ─────────────────────────────────
-      "auth.title": "Anmeldung & Sicherheit",
-      "auth.lead": "Drei Methoden zur SSH-Anmeldung — wähle, was am besten zu deinem Workflow passt.",
-      "auth.h.password": "Passwort speichern (empfohlen)",
-      "auth.password.body": "Du gibst das SSH-Passwort einmal ein — danach läuft alles automatisch. Beim Mounten und im Terminal wird das Passwort im Hintergrund eingegeben. Kein SSH-Key nötig.",
-      "auth.password.storage": "Das Passwort wird lokal in der SQLite-Datenbank gespeichert — pro App-Benutzer mit AES-256-GCM verschlüsselt und erst nach dem App-Login entschlüsselt.",
-      "auth.h.key": "SSH-Key",
-      "auth.key.body": "Gib den Pfad zu deinem privaten SSH-Key an (z. B. <code>C:\\Users\\du\\.ssh\\id_ed25519</code>). Der Key wird beim Verbinden automatisch verwendet. SSH-Zertifikate werden ebenfalls unterstützt.",
-      "auth.key.note": "Der Key sollte keine Passphrase haben, damit der Mount automatisch im Hintergrund funktioniert.",
-      "auth.h.ask": "Jedes Mal fragen",
-      "auth.ask.body": "Es wird kein Passwort gespeichert — bei jedem Verbindungsaufbau erscheint ein Eingabedialog. Sinnvoll für:",
-      "auth.ask.li1": "Server, auf denen keine Zugangsdaten gespeichert werden sollen.",
-      "auth.ask.li2": "Konten mit wechselnden Passwörtern.",
-      "auth.ask.li3": "Server mit Zwei-Faktor-Authentifizierung.",
-      "auth.h.encryption": "Wie werden Passwörter geschützt?",
-      "auth.encryption.body": "Beim App-Login wird aus deinem Profilpasswort ein Schlüssel erzeugt, der nur im Arbeitsspeicher bleibt. Mit ihm werden alle SSH-Zugangsdaten lokal verschlüsselt. Beim Abmelden wird der Schlüssel sofort gelöscht.",
+      // // ─── docs: authentication ─────────────────────────────────
+      // "auth.title": "Anmeldung & Sicherheit",
+      // "auth.lead": "Drei Methoden zur SSH-Anmeldung — wähle, was am besten zu deinem Workflow passt.",
+      // "auth.h.password": "Passwort speichern (empfohlen)",
+      // "auth.password.body": "Du gibst das SSH-Passwort einmal ein — danach läuft alles automatisch. Beim Mounten und im Terminal wird das Passwort im Hintergrund eingegeben. Kein SSH-Key nötig.",
+      // "auth.password.storage": "Das Passwort wird lokal in der SQLite-Datenbank gespeichert — pro App-Benutzer mit AES-256-GCM verschlüsselt und erst nach dem App-Login entschlüsselt.",
+      // "auth.h.key": "SSH-Key",
+      // "auth.key.body": "Gib den Pfad zu deinem privaten SSH-Key an (z. B. <code>C:\\Users\\du\\.ssh\\id_ed25519</code>). Der Key wird beim Verbinden automatisch verwendet. SSH-Zertifikate werden ebenfalls unterstützt.",
+      // "auth.key.note": "Der Key sollte keine Passphrase haben, damit der Mount automatisch im Hintergrund funktioniert.",
+      // "auth.h.ask": "Jedes Mal fragen",
+      // "auth.ask.body": "Es wird kein Passwort gespeichert — bei jedem Verbindungsaufbau erscheint ein Eingabedialog. Sinnvoll für:",
+      // "auth.ask.li1": "Server, auf denen keine Zugangsdaten gespeichert werden sollen.",
+      // "auth.ask.li2": "Konten mit wechselnden Passwörtern.",
+      // "auth.ask.li3": "Server mit Zwei-Faktor-Authentifizierung.",
+      // "auth.h.encryption": "Wie werden Passwörter geschützt?",
+      // "auth.encryption.body": "Beim App-Login wird aus deinem Profilpasswort ein Schlüssel erzeugt, der nur im Arbeitsspeicher bleibt. Mit ihm werden alle SSH-Zugangsdaten lokal verschlüsselt. Beim Abmelden wird der Schlüssel sofort gelöscht.",
 
       // ─── docs: cli ────────────────────────────────────────────
       "cli.title": "CLI-Companion",
@@ -326,7 +364,7 @@
       "cfg.h.theme": "Design wechseln",
       "cfg.theme.body": "Im Einstellungs-Dialog → <em>Erscheinungsbild</em> → <em>Hell</em> oder <em>Dunkel</em>. Pro Benutzer gespeichert, wirkt sofort.",
       "cfg.h.lang": "Sprache wechseln",
-      "cfg.lang.body": "Einstellungen → <em>Sprache</em>. Verfügbar: <strong>Deutsch</strong> und <strong>Englisch</strong>. Die Oberfläche wechselt sofort.",
+      "cfg.lang.body": "Einstellungen → <em>Sprache</em>. Verfügbar: <strong>Deutsch</strong> und <strong>Englisch</strong>. Die Sprache ändert sich nach Neustart.",
       "cfg.h.debug": "Debug-Modus",
       "cfg.debug.body": "Aktiviert detailliertes Logging in <code>%APPDATA%\\SSHWinManager\\app.log</code> und ein Live-Log-Fenster. Hilfreich bei Verbindungsproblemen.",
 
@@ -496,7 +534,7 @@
       "fp.theme.title": "Modernes Design",
       "fp.theme.body": "Stilvolles Interface mit hellem und dunklem Theme — pro Benutzer einstellbar.",
       "fp.lang.title": "Deutsch & Englisch",
-      "fp.lang.body": "Sprache pro Benutzer wählbar. Die Oberfläche wechselt sofort.",
+      "fp.lang.body": "Sprache pro Benutzer wählbar. Die Sprache ändert sich nach Neustart.",
       "fp.autostart.title": "Mit Windows starten",
       "fp.autostart.body": "Die App startet optional automatisch beim Windows-Login — als Tray-App im Hintergrund.",
       "fp.s4.eyebrow": "Automatisierung",
@@ -549,6 +587,7 @@
     en: {
       // ─── chrome ──────────────────────────────────────────────
       "nav.overview": "Overview",
+      "nav.demo": "Live app",
       "nav.features": "Features",
       "nav.download": "Download",
       "nav.docs": "Documentation",
@@ -561,6 +600,7 @@
       "btn.lang": "Switch language",
 
       "title.index": "NEO SSH-Win Manager — SSH drives for Windows",
+      "title.app": "Browser simulator — NEO SSH-Win Manager",
       "title.features": "Features — NEO SSH-Win Manager",
       "title.download": "Download — NEO SSH-Win Manager",
       "title.changelog": "Changelog — NEO SSH-Win Manager",
@@ -574,10 +614,13 @@
       "title.docs.api": "API reference — Developers — NEO SSH-Win Manager",
       "meta.index.description":
         "Free Windows desktop client for SSHFS. Mount remote folders as drives, manage multiple users, use passwordless SSH without an SSH key, and open the built-in terminal.",
+      "meta.app.description":
+        "Interactive browser simulation of the Windows app. Clickable buttons, original status messages and frontend-only logic without any real SSH or mount actions.",
 
       "footer.tagline":
         "A free, open-source SSHFS client for Windows. Showcase and portfolio project by Den4ik53 and Gregor Krebs.",
       "footer.product": "Product",
+      "footer.demo": "Live app",
       "footer.docs": "Documentation",
       "footer.developers": "Developers",
       "footer.builton": "Built on",
@@ -610,10 +653,18 @@
       "hero.lead":
         "NEO SSH-Win Manager is a modern Windows desktop app for SSHFS — mount remote folders as drive letters, manage multiple profiles, and connect without typing passwords. Completely free and open source.",
       "hero.cta.download": "Download for Windows",
+      "hero.cta.demo": "Open live app",
       "hero.cta.docs": "Documentation",
       "hero.meta.free": "Free and stays free",
       "hero.meta.license": "MIT licence",
       "hero.meta.platform": "Windows 10 / 11",
+
+      "simpage.eyebrow": "Browser simulator",
+      "simpage.title": "The Windows app in your browser.",
+      "simpage.lead": "This demo mirrors the desktop UX with clickable buttons, status messages and dialog flows. Everything runs in the frontend only: no SSH session, no drive mount, no backend.",
+      "simpage.reset": "Reset demo",
+      "simpage.noteTitle": "Frontend-only",
+      "simpage.note": "SSH only opens a placeholder popup. Mounts, Explorer actions, settings and forms are fully simulated in the browser.",
 
       // ─── mockup labels ────────────────────────────────────────
       "mock.titlebar": "NEO SSH-Win Manager — admin@workstation",
@@ -769,8 +820,8 @@
 
       // ─── docs: authentication ─────────────────────────────────
       "auth.title": "Authentication",
-      "auth.lead": "Three ways to sign in to your SSH servers — pick what fits your workflow.",
-      "auth.h.password": "Save password (recommended)",
+      "auth.lead": "Three SSH sign-in methods — password, private key, or ask each time. This section shows how they work and where credentials are stored.",
+      "auth.h.password": "Save password",
       "auth.password.body": "Enter your SSH password once — after that, everything is automatic. When mounting and in the terminal, the password is entered in the background. No SSH key required.",
       "auth.password.storage": "The password is stored locally in the SQLite database — encrypted per app user with AES-256-GCM and decrypted only after app sign-in.",
       "auth.h.key": "SSH key",
@@ -783,6 +834,14 @@
       "auth.ask.li3": "Servers with two-factor authentication.",
       "auth.h.encryption": "How are passwords protected?",
       "auth.encryption.body": "When you sign in to the app, a key is derived from your profile password and kept only in memory. All SSH credentials are encrypted with this key. When you sign out, the key is immediately discarded.",
+      "auth.key.unattended": "For unattended use (e.g. auto-mount on startup), use the SSH key method with a key that has no passphrase.",
+      "auth.h.password.storage": "Where is the password stored?",
+      "auth.password.li1": "If <code>keyring</code> is available (default): in the <strong>Windows Credential Manager</strong>, DPAPI-encrypted and tied to the Windows user.",
+      "auth.password.li2": "<code>config.json</code> then contains <em>no</em> plain-text password — only a marker <code>_has_password</code>.",
+      "auth.password.li3": "In the multi-user database the password is additionally stored symmetrically encrypted with a key derived from your login password.",
+      "auth.key.mount": "When mounting, the path is passed to <code>sshfs.exe</code> via <code>-oIdentityFile=…</code>. The following options are also set:",
+      "auth.key.batchmode": "This prevents SSH from prompting interactively for a password if the key is missing or incorrect — it aborts instead.",
+      "auth.key.cert": "SSH certificates work the same way — the signed public key must be placed next to the private key as <code>&lt;key&gt;-cert.pub</code>; OpenSSH and SSHFS-Win find it automatically.",
 
       // ─── docs: cli ────────────────────────────────────────────
       "cli.title": "CLI companion",
@@ -848,7 +907,7 @@
       "cfg.h.theme": "Change appearance",
       "cfg.theme.body": "Settings → <em>Appearance</em> → <em>Light</em> or <em>Dark</em>. Saved per user, takes effect immediately.",
       "cfg.h.lang": "Change language",
-      "cfg.lang.body": "Settings → <em>Language</em>. Available: <strong>English</strong> and <strong>German</strong>. The interface switches instantly.",
+      "cfg.lang.body": "Settings → <em>Language</em>. Available: <strong>English</strong> and <strong>German</strong>. The interface switches after restart.",
       "cfg.h.debug": "Debug mode",
       "cfg.debug.body": "Enables detailed logging to <code>%APPDATA%\\SSHWinManager\\app.log</code> and a live log window. Helpful when troubleshooting connection issues.",
 
@@ -1018,7 +1077,7 @@
       "fp.theme.title": "Modern design",
       "fp.theme.body": "A polished interface with light and dark themes — per-user preference.",
       "fp.lang.title": "German & English",
-      "fp.lang.body": "Language per user. The interface switches instantly.",
+      "fp.lang.body": "Language per user. The interface switches after restart.",
       "fp.autostart.title": "Start with Windows",
       "fp.autostart.body": "The app can start automatically at Windows login — as a tray app in the background.",
       "fp.s4.eyebrow": "Automation",

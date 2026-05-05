@@ -7,6 +7,7 @@ kein Framework, keine Toolchain — reines HTML, CSS und ein bisschen Vanilla-JS
 
 ```
 website/
+├── app.html                 # Interaktive Browser-Simulation der Windows-App
 ├── index.html               # Startseite (Hero + Features + Preview)
 ├── features.html            # Feature-Übersicht im Detail
 ├── download.html            # Download + Systemanforderungen + Sicherheitshinweise
@@ -23,8 +24,11 @@ website/
 │       └── api.html
 └── assets/
     ├── css/site.css         # Komplettes Design-System
+   ├── css/app-sim.css      # Desktop-ähnliches Styling für die Browser-Simulation
     ├── js/site.js           # Theme-Toggle, Mobile-Nav
     ├── js/layout.js         # Shared Topbar, Footer, Sidebar
+   ├── js/app-sim.js        # Frontend-only Logik für die Live-App-Simulation
+   ├── fonts/               # Lokal gehostete Inter- und JetBrains-Mono-Dateien
     ├── icons/               # Inline-SVGs (übernommen aus Lucide-Style)
     ├── app_icon.png
     └── app_icon_only.png
@@ -83,6 +87,7 @@ Output-Directory auf `website/` setzen.
 
 - **Top-/Footer-Navigation:** `website/assets/js/layout.js` (eine Quelle für alle Seiten).
 - **Theme-Farben:** `website/assets/css/site.css` — die `:root` und `[data-theme="light"]`-Blöcke ganz oben.
+- **Interaktive Browser-App:** `website/app.html`, Logik in `website/assets/js/app-sim.js`, Styling in `website/assets/css/app-sim.css`.
 - **Neue Doku-Seite:** Eine bestehende `docs/*.html` kopieren, Inhalt ersetzen,
   Eintrag in `layout.js` zur Sidebar (`docsSidebar()`-Funktion) hinzufügen.
 
@@ -92,6 +97,7 @@ Das Design folgt dem dunklen Cyber/Admin-Dashboard-Look der App:
 
 - Akzentfarben **Cyan + Grün** wie der Mount-Toggle der App.
 - JetBrains Mono für Code &amp; Labels, Inter für Body.
+- Fonts werden lokal aus `website/assets/fonts/` geladen; es gibt keine Google-Fonts-Requests mehr.
 - Alle Farben sind als CSS Custom Properties definiert — Light- und Dark-Mode
   über `[data-theme="dark|light"]` am `<html>`-Tag, Toggle in der Topbar,
   Wahl in `localStorage`.
@@ -105,9 +111,11 @@ Die Texte sind aktuell deutsch. Eine englische Version ist vorbereitet:
    `/` und `/en/` umlinkt.
 3. `<html lang="…">` und `data-pathprefix` entsprechend anpassen.
 
-## Fehlende / gewünschte Screenshots
+## Demo & Screenshots
 
-Die Seite zeigt aktuell ein gerendertes UI-Mockup. Sobald echte Screenshots
+Die Seite enthält jetzt zusätzlich eine interaktive Browser-Simulation unter
+`website/app.html`. Das Hero-Mockup auf der Startseite bleibt als statische
+Teaser-Grafik bestehen. Sobald echte Screenshots
 verfügbar sind, sollten sie folgende Pfade bekommen — sie sind in der README
 und in der Doku referenziert:
 

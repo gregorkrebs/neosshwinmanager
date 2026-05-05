@@ -4,9 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title data-i18n="title.troubleshooting">Troubleshooting — NEO SSH-Win Manager</title>
+  <title data-i18n="title.troubleshooting"></title>
   <link rel="icon" type="image/png" href="../assets/app_icon_only.png" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
   <link rel="stylesheet" href="../assets/css/site.css" />
   <script src="../assets/js/i18n.js" defer></script>
   <script src="../assets/js/site.js" defer></script>
@@ -14,37 +13,27 @@
 </head>
 <body>
   <div data-layout="topbar" data-pathprefix="../"></div>
-  <div data-layout="docs-layout" data-pathprefix="../">
-
+  <div class="container">
+    <div class="docs">
+      <div data-layout="docs-sidebar" data-pathprefix="../"></div>
     <article class="doc-content">
 
       <!-- ==================== HERO ==================== -->
-      <span class="eyebrow" data-i18n="ts.eyebrow">Troubleshooting</span>
-      <h1 data-i18n="ts.title">Häufige Probleme &amp; Lösungen.</h1>
-      <p class="lead" data-i18n="ts.lead">
-        Hier findest du Lösungen zu den häufigsten Problemen — von Verbindungsfehlern bis zu Laufwerks-Geistern.
-      </p>
+      <span class="eyebrow" data-i18n="ts.eyebrow"></span>
+      <h1 data-i18n="ts.title"></h1>
+      <p class="lead" data-i18n="ts.lead"></p>
 
       <!-- ==================== LOGS ==================== -->
-      <h2 id="logs" data-i18n="ts.logs.title">Logs einsehen</h2>
-      <p data-i18n="ts.logs.body">
-        Wenn etwas nicht funktioniert, ist der erste Schritt immer ein Blick in die Log-Datei.
-        Logs werden automatisch gespeichert unter:
-      </p>
+      <h2 id="logs" data-i18n="ts.logs.title"></h2>
+      <p data-i18n="ts.logs.body"></p>
       <pre><code>%APPDATA%\SSHWinManager\app.log</code></pre>
 
-      <h3 data-i18n="ts.logs.debug.title">Debug-Modus aktivieren</h3>
-      <p data-i18n="ts.logs.debug.body">
-        Im Debug-Modus werden deutlich detailliertere Informationen protokolliert — hilfreich bei
-        schwer reproduzierbaren Fehlern.
-      </p>
+      <h3 data-i18n="ts.logs.debug.title"></h3>
+      <p data-i18n="ts.logs.debug.body"></p>
       <ol>
-        <li data-i18n="ts.logs.debug.li1"><strong>Einstellungen</strong> öffnen.</li>
-        <li data-i18n="ts.logs.debug.li2"><strong>Debug-Modus</strong> aktivieren.</li>
-        <li data-i18n="ts.logs.debug.li3">
-          Den Schalter <strong>Debug</strong> in der Hauptoberfläche klicken —
-          es öffnet sich ein Live-Log-Fenster, das alle Ereignisse in Echtzeit anzeigt.
-        </li>
+        <li data-i18n="ts.logs.debug.li1"></li>
+        <li data-i18n="ts.logs.debug.li2"></li>
+        <li data-i18n="ts.logs.debug.li3"></li>
       </ol>
       <div class="callout info">
         <span class="callout-icon">
@@ -54,51 +43,34 @@
           </svg>
         </span>
         <div>
-          <strong data-i18n="ts.logs.debug.note.title">Live-Logs</strong>
-          <span data-i18n="ts.logs.debug.note.body">
-            Sobald der Debug-Modus aktiv ist, kannst du über den <strong>Debug</strong>-Button
-            in der App ein Live-Fenster öffnen, das alle Logs in Echtzeit scrollt —
-            ideal zum Beobachten während du eine Verbindung versuchst.
-          </span>
+          <strong data-i18n="ts.logs.debug.note.title"></strong>
+          <span data-i18n="ts.logs.debug.note.body"></span>
         </div>
       </div>
 
       <!-- ==================== GHOST DRIVES ==================== -->
-      <h2 id="ghost-drives" data-i18n="ts.ghost.title">Laufwerke lassen sich nicht trennen / Geister-Laufwerke</h2>
-      <p data-i18n="ts.ghost.body">
-        Es kann vorkommen, dass ein Laufwerk nach dem Unmounten im Explorer sichtbar bleibt
-        oder sich gar nicht erst trennen lässt. Das passiert typischerweise, wenn:
-      </p>
+      <h2 id="ghost-drives" data-i18n="ts.ghost.title"></h2>
+      <p data-i18n="ts.ghost.body"></p>
       <ul>
-        <li data-i18n="ts.ghost.reason1">die SSH-Verbindung unerwartet abgebrochen ist,</li>
-        <li data-i18n="ts.ghost.reason2">ein Prozess noch auf das Laufwerk zugreift,</li>
-        <li data-i18n="ts.ghost.reason3">Windows den Laufwerksbuchstaben intern noch als belegt führt.</li>
+        <li data-i18n="ts.ghost.reason1"></li>
+        <li data-i18n="ts.ghost.reason2"></li>
+        <li data-i18n="ts.ghost.reason3"></li>
       </ul>
-      <p data-i18n="ts.ghost.fix.intro">
-        Dafür gibt es in den <strong>Einstellungen</strong> zwei Hilfsfunktionen:
-      </p>
+      <p data-i18n="ts.ghost.fix.intro"></p>
 
       <div class="grid grid-2" style="margin-top: 16px;">
         <div class="card">
-          <h3 data-i18n="ts.ghost.fixghost.title">Fix Ghost Drive</h3>
-          <p data-i18n="ts.ghost.fixghost.body">
-            Entfernt Laufwerks-Einträge, die als „Karteileiche" übrig geblieben sind —
-            also Buchstaben, die im Explorer erscheinen, aber zu keiner aktiven
-            SSHFS-Verbindung mehr gehören.
-          </p>
+          <h3 data-i18n="ts.ghost.fixghost.title"></h3>
+          <p data-i18n="ts.ghost.fixghost.body"></p>
           <p style="margin-top: 8px;">
-            <span class="badge" data-i18n="ts.ghost.fixghost.where">Einstellungen → Fix Ghost Drive</span>
+            <span class="badge" data-i18n="ts.ghost.fixghost.where"></span>
           </p>
         </div>
         <div class="card">
-          <h3 data-i18n="ts.ghost.restartexplorer.title">Restart Windows Explorer</h3>
-          <p data-i18n="ts.ghost.restartexplorer.body">
-            Startet den Windows Explorer-Prozess neu. Behebt Fälle, in denen
-            Laufwerke im Explorer hängen bleiben, obwohl SSHFS sie bereits
-            freigegeben hat.
-          </p>
+          <h3 data-i18n="ts.ghost.restartexplorer.title"></h3>
+          <p data-i18n="ts.ghost.restartexplorer.body"></p>
           <p style="margin-top: 8px;">
-            <span class="badge" data-i18n="ts.ghost.restartexplorer.where">Einstellungen → Restart Windows Explorer</span>
+            <span class="badge" data-i18n="ts.ghost.restartexplorer.where"></span>
           </p>
         </div>
       </div>
@@ -110,58 +82,46 @@
           </svg>
         </span>
         <div>
-          <strong data-i18n="ts.ghost.warn.title">Explorer-Neustart</strong>
-          <span data-i18n="ts.ghost.warn.body">
-            Beim Neustart des Explorers flackert die Taskleiste kurz — das ist normal.
-            Offene Explorer-Fenster werden dabei geschlossen und neu geöffnet.
-          </span>
+          <strong data-i18n="ts.ghost.warn.title"></strong>
+          <span data-i18n="ts.ghost.warn.body"></span>
         </div>
       </div>
 
       <!-- ==================== AUTH ==================== -->
-      <h2 id="auth" data-i18n="ts.auth.title">Authentifizierungs-Probleme</h2>
-      <p data-i18n="ts.auth.body">
-        Verbindung schlägt fehl, obwohl Zugangsdaten stimmen? Hier sind die häufigsten Ursachen:
-      </p>
+      <h2 id="auth" data-i18n="ts.auth.title"></h2>
+      <p data-i18n="ts.auth.body"></p>
 
-      <h3 data-i18n="ts.auth.modes.title">Welcher Auth-Modus ist aktiv?</h3>
-      <p data-i18n="ts.auth.modes.body">
-        NEO SSH-Win Manager unterscheidet drei Authentifizierungs-Modi pro Verbindung:
-      </p>
+      <h3 data-i18n="ts.auth.modes.title"></h3>
+      <p data-i18n="ts.auth.modes.body"></p>
 
       <table>
         <thead>
           <tr>
-            <th data-i18n="ts.auth.table.mode">Modus</th>
-            <th data-i18n="ts.auth.table.when">Wann aktiv</th>
-            <th data-i18n="ts.auth.table.behavior">Verhalten</th>
+            <th data-i18n="ts.auth.table.mode"></th>
+            <th data-i18n="ts.auth.table.when"></th>
+            <th data-i18n="ts.auth.table.behavior"></th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong data-i18n="ts.auth.table.password">Passwort</strong></td>
-            <td data-i18n="ts.auth.table.password.when">Passwort gespeichert, kein „Jedes Mal fragen"</td>
-            <td data-i18n="ts.auth.table.password.behavior">Automatischer Login mit gespeichertem Passwort.</td>
+            <td><strong data-i18n="ts.auth.table.password"></strong></td>
+            <td data-i18n="ts.auth.table.password.when"></td>
+            <td data-i18n="ts.auth.table.password.behavior"></td>
           </tr>
           <tr>
-            <td><strong data-i18n="ts.auth.table.key">SSH-Key</strong></td>
-            <td data-i18n="ts.auth.table.key.when">SSH-Key hinterlegt, kein „Jedes Mal fragen"</td>
-            <td data-i18n="ts.auth.table.key.behavior">Automatischer Login mit hinterlegtem Schlüssel.</td>
+            <td><strong data-i18n="ts.auth.table.key"></strong></td>
+            <td data-i18n="ts.auth.table.key.when"></td>
+            <td data-i18n="ts.auth.table.key.behavior"></td>
           </tr>
           <tr>
-            <td><strong data-i18n="ts.auth.table.ask">Jedes Mal fragen</strong></td>
-            <td data-i18n="ts.auth.table.ask.when">Option aktiviert, Passwort <em>und/oder</em> Key konfiguriert</td>
-            <td data-i18n="ts.auth.table.ask.behavior">
-              Vor jeder Verbindung erscheint ein Dialog — du wählst, ob Passwort
-              oder SSH-Key verwendet werden soll.
-            </td>
+            <td><strong data-i18n="ts.auth.table.ask"></strong></td>
+            <td data-i18n="ts.auth.table.ask.when"></td>
+            <td data-i18n="ts.auth.table.ask.behavior"></td>
           </tr>
           <tr>
-            <td><strong data-i18n="ts.auth.table.nopass">Kein Passwort</strong></td>
-            <td data-i18n="ts.auth.table.nopass.when">Kein Passwort, kein Key, kein „Jedes Mal fragen"</td>
-            <td data-i18n="ts.auth.table.nopass.behavior">
-              Die App fragt beim Verbinden automatisch nach dem Passwort.
-            </td>
+            <td><strong data-i18n="ts.auth.table.nopass"></strong></td>
+            <td data-i18n="ts.auth.table.nopass.when"></td>
+            <td data-i18n="ts.auth.table.nopass.behavior"></td>
           </tr>
         </tbody>
       </table>
@@ -174,32 +134,26 @@
           </svg>
         </span>
         <div>
-          <strong data-i18n="ts.auth.ask.note.title">„Jedes Mal fragen" bedeutet: Methode wählen</strong>
-          <span data-i18n="ts.auth.ask.note.body">
-            Diese Option fragt nicht nach dem Passwort — sie lässt dich vor jeder Verbindung
-            auswählen, <em>welche</em> gespeicherte Methode (Passwort oder SSH-Key) genutzt werden soll.
-            Voraussetzung: mindestens eine Methode muss konfiguriert sein.
-          </span>
+          <strong data-i18n="ts.auth.ask.note.title"></strong>
+          <span data-i18n="ts.auth.ask.note.body"></span>
         </div>
       </div>
 
-      <h3 data-i18n="ts.auth.checklist.title">Checkliste bei Login-Fehlern</h3>
+      <h3 data-i18n="ts.auth.checklist.title"></h3>
       <ul>
-        <li data-i18n="ts.auth.check1">Stimmen Benutzername und Hostname / IP?</li>
-        <li data-i18n="ts.auth.check2">Ist der SSH-Port korrekt (Standard: 22)?</li>
-        <li data-i18n="ts.auth.check3">Ist der SSH-Dienst auf dem Server aktiv?</li>
-        <li data-i18n="ts.auth.check4">Ist Passwort-Authentifizierung auf dem Server erlaubt (<code>PasswordAuthentication yes</code> in <code>sshd_config</code>)?</li>
-        <li data-i18n="ts.auth.check5">Bei SSH-Key: Ist der öffentliche Schlüssel in <code>~/.ssh/authorized_keys</code> auf dem Server eingetragen?</li>
-        <li data-i18n="ts.auth.check6">Debug-Modus aktivieren und Fehlermeldung im Live-Log prüfen.</li>
+        <li data-i18n="ts.auth.check1"></li>
+        <li data-i18n="ts.auth.check2"></li>
+        <li data-i18n="ts.auth.check3"></li>
+        <li data-i18n="ts.auth.check4"></li>
+        <li data-i18n="ts.auth.check5"></li>
+        <li data-i18n="ts.auth.check6"></li>
       </ul>
 
       <!-- ==================== MOUNT FAILS ==================== -->
-      <h2 id="mount" data-i18n="ts.mount.title">Laufwerk lässt sich nicht mounten</h2>
+      <h2 id="mount" data-i18n="ts.mount.title"></h2>
 
-      <h3 data-i18n="ts.mount.prereq.title">Voraussetzungen prüfen</h3>
-      <p data-i18n="ts.mount.prereq.body">
-        Das Mounten setzt zwei externe Programme voraus. Sind beide installiert?
-      </p>
+      <h3 data-i18n="ts.mount.prereq.title"></h3>
+      <p data-i18n="ts.mount.prereq.body"></p>
       <ul>
         <li>
           <strong>WinFsp</strong> —
@@ -210,36 +164,22 @@
           <a href="https://github.com/winfsp/sshfs-win/releases" target="_blank" rel="noopener">winfsp/sshfs-win</a>
         </li>
       </ul>
-      <p data-i18n="ts.mount.prereq.order">
-        Installationsreihenfolge beachten: zuerst WinFsp, dann SSHFS-Win.
-      </p>
+      <p data-i18n="ts.mount.prereq.order"></p>
 
-      <h3 data-i18n="ts.mount.letter.title">Laufwerksbuchstabe bereits belegt</h3>
-      <p data-i18n="ts.mount.letter.body">
-        Wenn der gewünschte Laufwerksbuchstabe bereits von einem anderen Laufwerk genutzt wird,
-        schlägt das Mounten fehl. Entweder einen anderen Buchstaben in den Verbindungseinstellungen
-        wählen, oder die Auto-Erkennung nutzen.
-      </p>
+      <h3 data-i18n="ts.mount.letter.title"></h3>
+      <p data-i18n="ts.mount.letter.body"></p>
 
-      <h3 data-i18n="ts.mount.firewall.title">Firewall / Netzwerk</h3>
-      <p data-i18n="ts.mount.firewall.body">
-        Stelle sicher, dass Port 22 (oder der konfigurierte SSH-Port) vom Client aus erreichbar ist.
-        Ein kurzer Test:
-      </p>
+      <h3 data-i18n="ts.mount.firewall.title"></h3>
+      <p data-i18n="ts.mount.firewall.body"></p>
       <pre><code>ssh benutzername@hostname -p 22</code></pre>
-      <p data-i18n="ts.mount.firewall.note">
-        Funktioniert das Terminal-Login, liegt das Problem nicht am Netzwerk.
-      </p>
+      <p data-i18n="ts.mount.firewall.note"></p>
 
       <!-- ==================== SMARTSCREEN ==================== -->
-      <h2 id="smartscreen" data-i18n="ts.smartscreen.title">Windows SmartScreen-Warnung</h2>
-      <p data-i18n="ts.smartscreen.body">
-        Die App ist nicht code-signiert (Open-Source-Projekt ohne Zertifikat).
-        Windows zeigt beim ersten Start eine SmartScreen-Warnung.
-      </p>
+      <h2 id="smartscreen" data-i18n="ts.smartscreen.title"></h2>
+      <p data-i18n="ts.smartscreen.body"></p>
       <ol>
-        <li data-i18n="ts.smartscreen.li1">Im Warndialog auf <strong>„Weitere Informationen"</strong> klicken.</li>
-        <li data-i18n="ts.smartscreen.li2">Dann <strong>„Trotzdem ausführen"</strong> wählen.</li>
+        <li data-i18n="ts.smartscreen.li1"></li>
+        <li data-i18n="ts.smartscreen.li2"></li>
       </ol>
       <div class="callout warn">
         <span class="callout-icon">
@@ -248,26 +188,20 @@
           </svg>
         </span>
         <div>
-          <strong data-i18n="ts.smartscreen.warn.title">Nur aus offizieller Quelle laden</strong>
-          <span data-i18n="ts.smartscreen.warn.body">
-            Lade die App ausschließlich von den offiziellen
-          </span>
+          <strong data-i18n="ts.smartscreen.warn.title"></strong>
+          <span data-i18n="ts.smartscreen.warn.body"></span>
           <a href="https://github.com/gregorkrebs/neosshwinmanager/releases" target="_blank" rel="noopener">GitHub-Releases</a>
-          <span data-i18n="ts.smartscreen.warn.body2">herunter. SHA256-Prüfsummen sind im Changelog angegeben.</span>
+          <span data-i18n="ts.smartscreen.warn.body2"></span>
         </div>
       </div>
 
       <!-- ==================== STILL STUCK ==================== -->
-      <h2 id="help" data-i18n="ts.help.title">Problem nicht gefunden?</h2>
-      <p data-i18n="ts.help.body">
-        Debug-Log aktivieren, den relevanten Abschnitt kopieren und ein Issue auf GitHub öffnen —
-        mit Betriebssystem-Version, App-Version und den Log-Zeilen.
-      </p>
-      <a class="btn btn-primary" href="https://github.com/gregorkrebs/neosshwinmanager/issues" target="_blank" rel="noopener" data-i18n="ts.help.btn">
-        Issue auf GitHub öffnen
-      </a>
+      <h2 id="help" data-i18n="ts.help.title"></h2>
+      <p data-i18n="ts.help.body"></p>
+      <a class="btn btn-primary" href="https://github.com/gregorkrebs/neosshwinmanager/issues" target="_blank" rel="noopener" data-i18n="ts.help.btn"></a>
 
     </article>
+    </div>
   </div>
   <div data-layout="footer" data-pathprefix="../"></div>
 </body>
