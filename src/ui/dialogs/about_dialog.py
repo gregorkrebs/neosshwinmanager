@@ -13,14 +13,16 @@ import os
 from PyQt6.QtGui import QIcon, QPixmap
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.i18n import tr
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 
 
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("dialogSurface")
         self.setWindowTitle(tr("about.title"))
-        self.setFixedWidth(340)
+        self.setMinimumWidth(420)
+        self.setMaximumWidth(520)
         self.setModal(True)
         self._build_ui()
         # Max-Höhe = Bildschirm, Start-Höhe = volle Hauptfenster-Höhe (Inhalt scrollt bei Overflow).
@@ -44,8 +46,14 @@ class AboutDialog(QDialog):
         inner = QWidget()
         scroll.setWidget(inner)
         layout = QVBoxLayout(inner)
-        layout.setContentsMargins(28, 24, 28, 12)
-        layout.setSpacing(6)
+        layout.setContentsMargins(20, 20, 20, 12)
+        layout.setSpacing(14)
+
+        hero = QFrame()
+        hero.setObjectName("dialogHeroCard")
+        hero_l = QVBoxLayout(hero)
+        hero_l.setContentsMargins(22, 22, 22, 22)
+        hero_l.setSpacing(10)
 
         # Icon / Header
         icon_lbl = QLabel()
@@ -65,65 +73,81 @@ class AboutDialog(QDialog):
         else:
             from src.ui.icons import pixmap as svg_pixmap
             icon_lbl.setPixmap(svg_pixmap("cloud", "#00b4d8", 64))
-        
-        layout.addWidget(icon_lbl)
+
+        hero_l.addWidget(icon_lbl)
 
         title_lbl = QLabel("NEO SSH-Win Manager")
         title_lbl.setObjectName("dialogTitle")
         title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title_lbl)
+        hero_l.addWidget(title_lbl)
 
         ver_lbl = QLabel(tr("about.version", version=APP_VERSION))
-        ver_lbl.setObjectName("fieldLabel")
+        ver_lbl.setObjectName("dialogPill")
         ver_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(ver_lbl)
-
-        layout.addSpacing(10)
+        hero_l.addWidget(ver_lbl, 0, Qt.AlignmentFlag.AlignCenter)
 
         desc = QLabel(tr("about.desc"))
-        desc.setObjectName("mutedLabel")
+        desc.setObjectName("dialogLead")
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         desc.setWordWrap(True)
-        layout.addWidget(desc)
+        hero_l.addWidget(desc)
+        layout.addWidget(hero)
 
-        layout.addSpacing(8)
+        details = QFrame()
+        details.setObjectName("dialogSectionCard")
+        details_l = QVBoxLayout(details)
+        details_l.setContentsMargins(20, 18, 20, 18)
+        details_l.setSpacing(10)
 
         req_lbl = QLabel(tr("about.requires"))
         req_lbl.setObjectName("accentLabel")
         req_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(req_lbl)
+        details_l.addWidget(req_lbl)
 
-        layout.addSpacing(12)
+        sep = QFrame()
+        sep.setObjectName("divider")
+        sep.setFixedHeight(1)
+        details_l.addWidget(sep)
 
         author_title = QLabel(tr("about.developers"))
-        author_title.setObjectName("secondaryTitle")
+        author_title.setObjectName("sectionLabel")
         author_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(author_title)
+        details_l.addWidget(author_title)
 
-        author1 = QLabel('<a href="https://github.com/Den4ik53" style="color: #6a7a8a; text-decoration: none;">Den4ik53</a>')
+        author1 = QLabel('<a href="https://github.com/Den4ik53">Den4ik53</a>')
+        author1.setObjectName("dialogLink")
         author1.setOpenExternalLinks(True)
         author1.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(author1)
+        details_l.addWidget(author1)
 
-        author2 = QLabel('<a href="https://github.com/gregorkrebs" style="color: #6a7a8a; text-decoration: none;">Gregor Krebs</a>')
+        author2 = QLabel('<a href="https://github.com/gregorkrebs">Gregor Krebs</a>')
+        author2.setObjectName("dialogLink")
         author2.setOpenExternalLinks(True)
         author2.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(author2)
+        details_l.addWidget(author2)
 
+        layout.addWidget(details)
         layout.addStretch()
 
         # Fixe Button-Leiste außerhalb der Scroll-Area.
         btn_bar = QWidget()
+        btn_bar.setObjectName("dialogBtnBar")
         btn_bar_layout = QVBoxLayout(btn_bar)
-        btn_bar_layout.setContentsMargins(28, 8, 28, 20)
+        btn_bar_layout.setContentsMargins(20, 8, 20, 16)
         btn_bar_layout.setSpacing(8)
+        sep = QFrame()
+        sep.setObjectName("divider")
+        sep.setFixedHeight(1)
+        btn_bar_layout.addWidget(sep)
 
         ok_btn = QPushButton(tr("dialog.close"))
         ok_btn.setObjectName("primaryBtn")
-        ok_btn.setFixedWidth(100)
+        ok_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        ok_btn.setFixedWidth(120)
         ok_btn.clicked.connect(self.accept)
 
         btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 10, 0, 0)
         btn_row.addWidget(make_maximize_button(self))
         btn_row.addStretch()
         btn_row.addWidget(ok_btn)

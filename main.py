@@ -115,7 +115,7 @@ def main():
 
     # Windows taskbar icon fix (AppUserModelID)
     try:
-        myappid = 'dennis.sshwinmanager.v1.2.0.rev1'
+        myappid = 'neo.sshwinmanager.v1.3.0.rev1'
         if os.name == 'nt':
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
@@ -124,7 +124,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("NEO SSH-Win Manager")
     app.setApplicationDisplayName("NEO SSH-Win Manager")
-    app.setApplicationVersion("1.2.0")
+    app.setApplicationVersion("1.3.0")
     app.setOrganizationName("NeoSSHWinManager")
 
     def get_resource_path(relative_path):
@@ -144,7 +144,7 @@ def main():
     logger.info("Application started (Standard Mode)")
 
     # Apply global stylesheet
-    app.setStyleSheet(STYLESHEET)
+    app.setStyleSheet(get_stylesheet("dark"))
 
     # Default font
     font = QFont("Segoe UI", 10)
