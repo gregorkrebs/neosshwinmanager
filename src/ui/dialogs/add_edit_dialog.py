@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QComboBox, QSpinBox, QFrame, QFileDialog,
     QWidget, QCheckBox, QScrollArea
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QScreen
 from PyQt6.QtWidgets import QApplication
 from typing import List, Optional
@@ -21,6 +21,7 @@ import secrets
 from src.config import Connection
 from src.drive_utils import get_available_drives
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
+from src.ui.icons import icon as svg_icon
 from src.i18n import tr
 
 
@@ -249,31 +250,37 @@ class AddEditDialog(QDialog):
         cli_key_layout.setSpacing(4)
         
         cli_key_layout.addWidget(self._field_label(tr("addedit.cli.label")))
-        
-        key_display_row = QHBoxLayout()
-        key_display_row.setSpacing(6)
-        
+
+        key_row = QHBoxLayout()
+        key_row.setSpacing(6)
+        key_row.setContentsMargins(0, 0, 0, 0)
+
         self._cli_key_edit = QLineEdit()
         self._cli_key_edit.setReadOnly(True)
-        self._cli_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self._cli_key_edit.setPlaceholderText(tr("addedit.cli.none"))
-        key_display_row.addWidget(self._cli_key_edit, stretch=1)
-        
-        self._cli_show_btn = QPushButton("👁")
-        self._cli_show_btn.setObjectName("rpHeaderBtn")
-        self._cli_show_btn.setFixedWidth(36)
-        self._cli_show_btn.setCheckable(True)
-        self._cli_show_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._cli_show_btn.clicked.connect(self._toggle_cli_key_visibility)
-        key_display_row.addWidget(self._cli_show_btn)
-        
-        self._cli_gen_btn = QPushButton(tr("addedit.cli.generate"))
-        self._cli_gen_btn.setObjectName("actionBtn")
+        key_row.addWidget(self._cli_key_edit, stretch=1)
+
+        self._cli_gen_btn = QPushButton()
+        self._cli_gen_btn.setObjectName("rpHeaderBtn")
+        self._cli_gen_btn.setFixedSize(32, 32)
+        self._cli_gen_btn.setIcon(svg_icon("refresh", "#aab4c4", 15))
+        self._cli_gen_btn.setIconSize(QSize(15, 15))
+        self._cli_gen_btn.setToolTip(tr("addedit.cli.generate"))
         self._cli_gen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._cli_gen_btn.clicked.connect(self._generate_new_cli_key)
-        key_display_row.addWidget(self._cli_gen_btn)
-        
-        cli_key_layout.addLayout(key_display_row)
+        key_row.addWidget(self._cli_gen_btn)
+
+        self._cli_copy_btn = QPushButton()
+        self._cli_copy_btn.setObjectName("rpHeaderBtn")
+        self._cli_copy_btn.setFixedSize(32, 32)
+        self._cli_copy_btn.setIcon(svg_icon("copy", "#aab4c4", 15))
+        self._cli_copy_btn.setIconSize(QSize(15, 15))
+        self._cli_copy_btn.setToolTip(tr("addedit.cli.copy"))
+        self._cli_copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._cli_copy_btn.clicked.connect(self._copy_cli_key)
+        key_row.addWidget(self._cli_copy_btn)
+
+        cli_key_layout.addLayout(key_row)
         
         self._cli_key_widget.setVisible(False)
         form.addWidget(self._cli_key_widget)
@@ -422,8 +429,8 @@ class AddEditDialog(QDialog):
         self._pw_edit.setText(conn.password)
         self._key_edit.setText(conn.key_path)
         
-        self._cli_enabled_cb.setChecked(conn.cli_access_enabled)
         self._cli_key_edit.setText(conn.cli_access_key or "")
+        self._cli_enabled_cb.setChecked(conn.cli_access_enabled)
         self._cli_key_widget.setVisible(conn.cli_access_enabled)
         
         self._populate_drive_combo()
@@ -438,13 +445,16 @@ class AddEditDialog(QDialog):
         self.adjustSize()
 
     def _generate_new_cli_key(self):
-        new_key = secrets.token_hex(64) # 128 characters
-        self._cli_key_edit.setText(new_key)
+        self._cli_key_edit.setText(secrets.token_hex(64))
 
-    def _toggle_cli_key_visibility(self, visible: bool):
-        mode = QLineEdit.EchoMode.Normal if visible else QLineEdit.EchoMode.Password
-        self._cli_key_edit.setEchoMode(mode)
-        self._cli_show_btn.setText("🔒" if visible else "👁")
+    def _copy_cli_key(self):
+        key = self._cli_key_edit.text()
+        if not key:
+            return
+        QApplication.clipboard().setText(key)
+        self._cli_copy_btn.setIcon(svg_icon("check", "#00d464", 15))
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(1500, lambda: self._cli_copy_btn.setIcon(svg_icon("copy", "#aab4c4", 15)))
 
     def _on_save(self):
         name = self._name_edit.text().strip()
