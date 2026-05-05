@@ -18,7 +18,14 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/main-window.png" alt="NEO SSH-Win Manager — main window" width="800"/>
+  <img src="assets/screenshots/app-preview-dark.png" alt="NEO SSH-Win Manager — dark mode" width="49%"/>
+  <img src="assets/screenshots/app-preview-light.png" alt="NEO SSH-Win Manager — light mode" width="49%"/>
+</p>
+
+<p align="center">
+  <a href="https://gregorkrebs.github.io/neosshwinmanager/website/app.html">
+    <img src="https://img.shields.io/badge/Interactive%20Demo-Live%20in%20Browser-%2300b4d8?style=for-the-badge&logo=html5&logoColor=white" alt="Interactive browser demo"/>
+  </a>
 </p>
 
 Manage multiple SSH connections, mount them with one click, switch languages per user, and browse remote paths in Windows Explorer as if they were local drives.
@@ -45,6 +52,16 @@ Manage multiple SSH connections, mount them with one click, switch languages per
 <table>
   <tr>
     <td align="center">
+      <img src="assets/screenshots/app-preview-dark.png" alt="Dark mode — connection list" width="380"/><br/>
+      <sub><b>Dark mode</b></sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/app-preview-light.png" alt="Light mode — connection list" width="380"/><br/>
+      <sub><b>Light mode</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <img src="assets/screenshots/add-edit-dialog.png" alt="Add / Edit connection dialog" width="380"/><br/>
       <sub><b>Add / edit a connection</b></sub>
     </td>
@@ -64,6 +81,20 @@ Manage multiple SSH connections, mount them with one click, switch languages per
     </td>
   </tr>
 </table>
+
+## Browser Demo
+
+> **Interactive HTML demo** — no installation, no backend, no SSH connection needed.  
+> All buttons, dialogs, settings, and forms are fully functional in the browser.
+
+**Does GitHub render it inline?** No — GitHub READMEs block JavaScript, so embedded HTML won't run.  
+**The live demo works via GitHub Pages:**
+
+👉 **<https://gregorkrebs.github.io/neosshwinmanager/website/app.html>**
+
+To enable it: Go to *Settings → Pages* in your repository and set the source to **Deploy from branch: `main`, folder: `/` (root)**.
+
+Alternatively, clone the repo and open `website/app.html` directly in any browser — no server needed.
 
 ## Prerequisites
 
