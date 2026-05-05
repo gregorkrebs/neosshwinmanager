@@ -1,0 +1,64 @@
+﻿<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title.docs.connections">Verbindungen — NEO SSH-Win Manager</title>
+  <link rel="icon" type="image/png" href="../assets/app_icon_only.png" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script src="../assets/js/i18n.js" defer></script>
+  <script src="../assets/js/site.js" defer></script>
+  <script src="../assets/js/layout.js" defer></script>
+</head>
+<body>
+  <div data-layout="topbar" data-pathprefix="../"></div>
+  <div class="container">
+    <div class="docs">
+      <div data-layout="docs-sidebar" data-pathprefix="../"></div>
+      <main class="docs-main">
+        <h1 data-i18n="conn.title">Verbindungen anlegen</h1>
+        <p class="lead" data-i18n="conn.lead">Alle Felder im Verbindungs-Dialog erklärt — und wie das Laufwerk danach eingehängt wird.</p>
+
+        <h2 data-i18n="conn.h.dialog">Verbindungs-Dialog</h2>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="conn.th.field">Feld</th>
+              <th data-i18n="conn.th.desc">Beschreibung</th>
+              <th data-i18n="conn.th.default">Standard</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>name</code></td><td data-i18n="conn.f.name">Anzeigename, wird als Laufwerksbezeichnung gesetzt.</td><td>—</td></tr>
+            <tr><td><code>host</code></td><td data-i18n="conn.f.host">Adresse oder IP des SSH-Servers.</td><td>—</td></tr>
+            <tr><td><code>user</code></td><td data-i18n="conn.f.user">SSH-Benutzername auf dem Server.</td><td>—</td></tr>
+            <tr><td><code>port</code></td><td data-i18n="conn.f.port">SSH-Port.</td><td><code>22</code></td></tr>
+            <tr><td><code>remote_path</code></td><td data-i18n="conn.f.path">Der Ordner auf dem Server, der als Laufwerk eingehängt werden soll.</td><td><code>/</code></td></tr>
+            <tr><td><code>drive_letter</code></td><td data-i18n="conn.f.letter">Windows-Laufwerksbuchstabe (z. B. Z:).</td><td><code>Z:</code></td></tr>
+            <tr><td><code>auth_method</code></td><td data-i18n="conn.f.auth"><code>password</code>, <code>key</code> oder <code>ask</code>.</td><td><code>password</code></td></tr>
+            <tr><td><code>password</code></td><td data-i18n="conn.f.password">Wird lokal verschlüsselt in der SQLite-Datenbank gespeichert.</td><td>—</td></tr>
+            <tr><td><code>key_path</code></td><td data-i18n="conn.f.keypath">Pfad zum SSH-Key (nur bei Methode „key").</td><td>—</td></tr>
+            <tr><td><code>cli_access_enabled</code></td><td data-i18n="conn.f.cli">Erlaubt Zugriff aus dem CLI-Companion.</td><td><code>false</code></td></tr>
+          </tbody>
+        </table>
+
+        <h2 data-i18n="conn.h.mount">Laufwerk einhängen</h2>
+        <p data-i18n="conn.mount.body">Den Toggle rechts in der Verbindungskarte klicken. Bei Erfolg wird der Toggle grün und das Laufwerk erscheint im Explorer.</p>
+
+        <h2 data-i18n="conn.h.unmount">Laufwerk aushängen</h2>
+        <p data-i18n="conn.unmount.body">Nochmals auf den (nun grünen) Toggle klicken. Falls das fehlschlägt, werden automatisch Fallback-Methoden versucht.</p>
+
+        <h2 data-i18n="conn.h.tips">Tipps</h2>
+        <ul>
+          <li data-i18n="conn.tip1"><strong>Auto-Reconnect-Mounts beim Start</strong> in den Einstellungen aktivieren, damit Laufwerke beim nächsten App-Start automatisch wieder eingehängt werden.</li>
+          <li data-i18n="conn.tip2">Bei <em>„mount point in use"</em>: Einstellungen → <em>Veraltete Mounts bereinigen</em>.</li>
+          <li data-i18n="conn.tip3">Mehrere Verbindungen zum gleichen Server sind erlaubt — jeweils mit anderem Laufwerksbuchstaben.</li>
+        </ul>
+      </main>
+    </div>
+  </div>
+  <div data-layout="footer" data-pathprefix="../"></div>
+</body>
+</html>
+

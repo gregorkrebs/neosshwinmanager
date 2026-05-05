@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title.docs.api">API-Referenz — Entwickler — NEO SSH-Win Manager</title>
+  <link rel="icon" type="image/png" href="../../assets/app_icon_only.png" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="../../assets/css/site.css" />
+  <script src="../../assets/js/i18n.js" defer></script>
+  <script src="../../assets/js/site.js" defer></script>
+  <script src="../../assets/js/layout.js" defer></script>
+</head>
+<body>
+  <div data-layout="topbar" data-pathprefix="../../"></div>
+  <div class="container">
+    <div class="docs">
+      <div data-layout="docs-sidebar" data-pathprefix="../../"></div>
+      <main class="docs-main">
+        <h1 data-i18n="dev.api.title">API-Referenz</h1>
+        <p class="lead" data-i18n="dev.api.lead">Wichtige Klassen und Methoden für Entwickler und Mitwirkende.</p>
+
+        <h2 data-i18n="dev.api.h.auth">Authentifizierungs-Ablauf</h2>
+        <ol>
+          <li data-i18n="dev.api.auth.li1">User gibt im Login-Fenster Username + Passwort ein.</li>
+          <li data-i18n="dev.api.auth.li2"><code>UserManager.authenticate(username, password)</code> vergleicht den Hash, leitet bei Erfolg den Session-Key ab und gibt ihn zurück.</li>
+          <li data-i18n="dev.api.auth.li3">Session-Key wird in <code>UserConnectionManager</code> übergeben und nur in dessen Instanz gehalten.</li>
+          <li data-i18n="dev.api.auth.li4">Beim Lesen einer Verbindung wird das verschlüsselte Passwort mit dem Session-Key entschlüsselt.</li>
+          <li data-i18n="dev.api.auth.li5">Beim Logout: <code>UserConnectionManager.dispose()</code> löscht den Schlüssel aus dem RAM.</li>
+        </ol>
+
+        <h2 data-i18n="dev.api.h.mount">Mount- / Unmount-Ablauf</h2>
+        <ol>
+          <li data-i18n="dev.api.mount.li1">UI ruft <code>SSHFSController.mount(connection)</code> in einem Worker-Thread auf.</li>
+          <li data-i18n="dev.api.mount.li2">Bei <code>auth_method="ask"</code>: Modal-Dialog für Passwort, sonst <code>connection.password</code> oder <code>connection.key_path</code>.</li>
+          <li data-i18n="dev.api.mount.li3">Argument-Liste wird gebaut, <code>sshfs.exe</code> als detached Subprocess gestartet.</li>
+          <li data-i18n="dev.api.mount.li4">Nach 3 s wird per <code>list_mounts()</code> validiert, ob das Laufwerk verfügbar ist.</li>
+          <li data-i18n="dev.api.mount.li5">UI bekommt ein Signal <code>mount_state_changed(connection_id, "mounted"|"failed", error_text)</code>.</li>
+          <li data-i18n="dev.api.mount.li6">Unmount: <code>SSHFSController.unmount(letter)</code> mit Fallback-Kette.</li>
+        </ol>
+
+        <h2 data-i18n="dev.api.h.cli">CLI-IPC-Ablauf</h2>
+<pre><code>┌────────────┐   JSON-Request    ┌──────────────┐
+│ cli_main.py│ ─────────────────►│  ipc_server  │
+│  (CLI EXE) │                   │  (GUI Thread)│
+└────────────┘ ◄───── JSON ──────└──────────────┘
+                Credentials             │
+       ▼                                ▼
+   spawn ssh                     UserConnMgr.lookup(key)
+                                        │
+                                        ▼
+                                 SQLite + Decrypt</code></pre>
+
+        <h3 data-i18n="dev.api.h.pipe">Pipe-Protokoll</h3>
+        <pre><code>// Request
+{
+  "op": "connect",
+  "key": "&lt;access_key&gt;",
+  "exec": "&lt;optional command&gt;"
+}
+
+// Response (success)
+{
+  "ok": true,
+  "host": "...",
+  "port": 22,
+  "user": "...",
+  "auth_method": "password" | "key",
+  "password": "...",
+  "key_path": "...",
+  "exec": "..."
+}
+
+// Response (error)
+{ "ok": false, "error": "invalid_key" | "no_session" | "cli_disabled" }</code></pre>
+
+        <h2 data-i18n="dev.api.h.settings">Einstellungs-Ablauf</h2>
+        <ol>
+          <li data-i18n="dev.api.settings.li1">Settings-Dialog ändert <code>AppSettings</code>-Instanz.</li>
+          <li data-i18n="dev.api.settings.li2"><code>AppSettings.save()</code> schreibt JSON.</li>
+          <li data-i18n="dev.api.settings.li3">Signal <code>settings_changed</code> wird ausgegeben.</li>
+          <li data-i18n="dev.api.settings.li4">Theme: <code>QApplication.setStyleSheet(load_theme(name))</code> — kein Neustart nötig.</li>
+          <li data-i18n="dev.api.settings.li5">Sprache: <code>i18n.set_locale(code)</code>; alle Widgets re-rendern via <code>retranslate_ui()</code>.</li>
+        </ol>
+
+        <h2 data-i18n="dev.api.h.public">Öffentliche Klassen &amp; Methoden</h2>
+
+        <h3><code>config.AppSettings</code></h3>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="dev.api.th.method">Methode</th>
+              <th data-i18n="dev.api.th.desc">Beschreibung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>AppSettings.load() → AppSettings</code></td><td data-i18n="dev.api.desc.load">Liest <code>config.json</code>, merged mit Defaults, gibt Instanz zurück.</td></tr>
+            <tr><td><code>save() → None</code></td><td data-i18n="dev.api.desc.save">Schreibt aktuelle Werte als JSON.</td></tr>
+            <tr><td><code>reset_to_defaults() → None</code></td><td data-i18n="dev.api.desc.reset">Setzt alles auf Default und persistiert.</td></tr>
+          </tbody>
+        </table>
+
+        <h3><code>auth_manager.UserManager</code></h3>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="dev.api.th.method">Methode</th>
+              <th data-i18n="dev.api.th.desc">Beschreibung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>create_user(username, password) → User</code></td><td data-i18n="dev.api.desc.createUser">Legt neuen User an, hasht Passwort.</td></tr>
+            <tr><td><code>authenticate(username, password) → SessionKey | None</code></td><td data-i18n="dev.api.desc.authenticate">Login. Gibt bei Erfolg den abgeleiteten Session-Key zurück.</td></tr>
+            <tr><td><code>change_password(user_id, old, new) → bool</code></td><td data-i18n="dev.api.desc.changePassword">Re-encryptet alle Verbindungs-Passwörter mit neuem Session-Key.</td></tr>
+            <tr><td><code>delete_user(user_id) → None</code></td><td data-i18n="dev.api.desc.deleteUser">Cascade-löscht Verbindungen.</td></tr>
+          </tbody>
+        </table>
+
+        <h3><code>auth_manager.UserConnectionManager</code></h3>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="dev.api.th.method">Methode</th>
+              <th data-i18n="dev.api.th.desc">Beschreibung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>list() → list[Connection]</code></td><td data-i18n="dev.api.desc.list">Alle Verbindungen des aktuellen Users.</td></tr>
+            <tr><td><code>get(id) → Connection</code></td><td data-i18n="dev.api.desc.get">Eine Verbindung — Passwort entschlüsselt.</td></tr>
+            <tr><td><code>create(connection) → int</code></td><td data-i18n="dev.api.desc.createConn">Anlegen, Passwort verschlüsselt persistieren. Gibt ID zurück.</td></tr>
+            <tr><td><code>update(connection) → None</code></td><td data-i18n="dev.api.desc.updateConn">Re-encrypt &amp; persist.</td></tr>
+            <tr><td><code>delete(id) → None</code></td><td data-i18n="dev.api.desc.deleteConn">Löschen.</td></tr>
+            <tr><td><code>by_access_key(key) → Connection | None</code></td><td data-i18n="dev.api.desc.byAccessKey">Vom IPC-Server für CLI-Lookup verwendet.</td></tr>
+          </tbody>
+        </table>
+
+        <h3><code>sshfs_controller.SSHFSController</code></h3>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="dev.api.th.method">Methode</th>
+              <th data-i18n="dev.api.th.desc">Beschreibung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>mount(connection, password=None) → MountResult</code></td><td data-i18n="dev.api.desc.mount">Startet Mount. Gibt Status + ggf. stderr zurück.</td></tr>
+            <tr><td><code>unmount(letter) → bool</code></td><td data-i18n="dev.api.desc.unmount">Trennt sauber, mit Fallback-Strategien.</td></tr>
+            <tr><td><code>list_mounts() → list[MountInfo]</code></td><td data-i18n="dev.api.desc.listMounts">Aktuelle Mounts.</td></tr>
+            <tr><td><code>status_for(connection) → str</code></td><td data-i18n="dev.api.desc.statusFor"><code>"mounted" / "unmounted" / "stale"</code>.</td></tr>
+            <tr><td><code>cleanup_stale() → int</code></td><td data-i18n="dev.api.desc.cleanup">Räumt verwaiste Mountpoints auf.</td></tr>
+          </tbody>
+        </table>
+
+        <h3><code>single_instance.SingleInstance</code></h3>
+        <pre><code>with SingleInstance("SSHWinManager_Mutex_v1") as inst:
+    if not inst.acquired:
+        inst.activate_existing_window()
+        sys.exit(0)
+    run_app()</code></pre>
+
+        <h2 data-i18n="dev.api.h.gendoc">Generierte API-Dokumentation (optional)</h2>
+
+        <h3 data-i18n="dev.api.variant.pdoc">Variante A — pdoc</h3>
+        <pre><code>pip install pdoc
+pdoc -o site/api src/</code></pre>
+
+        <h3 data-i18n="dev.api.variant.mkdocs">Variante B — MkDocs Material + mkdocstrings</h3>
+        <pre><code>pip install mkdocs-material mkdocstrings[python]
+mkdocs serve</code></pre>
+      </main>
+    </div>
+  </div>
+  <div data-layout="footer" data-pathprefix="../../"></div>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title.docs.gettingStarted">Erster Start — NEO SSH-Win Manager</title>
+  <link rel="icon" type="image/png" href="../assets/app_icon_only.png" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script src="../assets/js/i18n.js" defer></script>
+  <script src="../assets/js/site.js" defer></script>
+  <script src="../assets/js/layout.js" defer></script>
+</head>
+<body>
+  <div data-layout="topbar" data-pathprefix="../"></div>
+  <div class="container">
+    <div class="docs">
+      <div data-layout="docs-sidebar" data-pathprefix="../"></div>
+      <main class="docs-main">
+        <h1 data-i18n="gs.title">Installation &amp; erster Start</h1>
+        <p class="lead" data-i18n="gs.lead">Schritt für Schritt: von der Installation bis zum ersten eingehängten SSH-Laufwerk.</p>
+
+        <h2 data-i18n="gs.h.prereq">1. Voraussetzungen installieren</h2>
+        <p data-i18n="gs.prereq.intro">NEO SSH-Win Manager benötigt zwei kostenlose Zusatzprogramme:</p>
+        <ol>
+          <li><strong>WinFsp</strong> — <a href="https://github.com/winfsp/winfsp/releases" target="_blank" rel="noopener">winfsp/winfsp Releases</a></li>
+          <li><strong>SSHFS-Win</strong> — <a href="https://github.com/winfsp/sshfs-win/releases" target="_blank" rel="noopener">winfsp/sshfs-win Releases</a></li>
+        </ol>
+        <p data-i18n="gs.prereq.note">Beide Installer mit Standardoptionen durchklicken. Fertig.</p>
+
+        <h2 data-i18n="gs.h.download">2. App herunterladen</h2>
+        <p>
+          <span data-i18n="gs.download.text">Auf der</span>
+          <a href="../download.html" data-i18n="nav.download">Download-Seite</a>
+          <span data-i18n="gs.download.or">oder direkt im</span>
+          <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/latest" target="_blank" rel="noopener" data-i18n="gs.download.release">GitHub-Release</a>
+          <span data-i18n="gs.download.text2">die</span>
+          <code>NeoSSHWinManager.exe</code>
+          <span data-i18n="gs.download.text3">herunterladen.</span>
+        </p>
+        <div class="callout warn">
+          <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></span>
+          <div>
+            <strong data-i18n="gs.smartscreen.title">SmartScreen-Hinweis</strong>
+            <span data-i18n="gs.smartscreen.body">Die App ist nicht signiert. Beim ersten Start „Weitere Informationen" → „Trotzdem ausführen" wählen.</span>
+          </div>
+        </div>
+
+        <h2 data-i18n="gs.h.firstrun">3. Erster Start — Profil anlegen</h2>
+        <p data-i18n="gs.firstrun.intro">Beim ersten Start ist keine Datenbank vorhanden. Du wirst aufgefordert, ein Benutzerprofil mit Name und Passwort anzulegen. Dieses Passwort wird für zwei Dinge genutzt:</p>
+        <ul>
+          <li data-i18n="gs.firstrun.li1">Login in die App.</li>
+          <li data-i18n="gs.firstrun.li2">Verschlüsselung deiner gespeicherten SSH-Zugangsdaten.</li>
+        </ul>
+        <div class="callout danger">
+          <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg></span>
+          <div data-i18n="gs.firstrun.warn">Wichtig: Vergisst du das Passwort, sind die gespeicherten SSH-Zugangsdaten dieses Profils nicht wiederherstellbar. Es gibt keinen Reset.</div>
+        </div>
+
+        <h2 data-i18n="gs.h.login">4. Login</h2>
+        <p data-i18n="gs.login.body">Nach dem Setup landest du im Login-Dialog. Optional kannst du in den Einstellungen <em>„Auto-Login mit Windows-Account"</em> aktivieren — dann entfällt der Login-Schritt.</p>
+
+        <h2 data-i18n="gs.h.firstconn">5. Erste Verbindung anlegen</h2>
+        <p data-i18n="gs.firstconn.intro">Im Hauptfenster oben rechts auf <strong>+ Verbindung</strong> klicken. Folgende Felder ausfüllen:</p>
+        <ul>
+          <li data-i18n="gs.field.name"><strong>Name</strong> — frei wählbar, wird als Laufwerksbezeichnung angezeigt.</li>
+          <li data-i18n="gs.field.host"><strong>Host</strong> — Adresse oder IP des SSH-Servers.</li>
+          <li data-i18n="gs.field.user"><strong>Benutzer</strong> — dein SSH-Benutzername.</li>
+          <li data-i18n="gs.field.port"><strong>Port</strong> — Standard ist 22.</li>
+          <li data-i18n="gs.field.path"><strong>Remote-Pfad</strong> — z. B. <code>/var/www</code> oder <code>/</code>.</li>
+          <li data-i18n="gs.field.letter"><strong>Laufwerksbuchstabe</strong> — die App schlägt einen freien vor.</li>
+          <li data-i18n="gs.field.auth"><strong>Anmeldung</strong> — Passwort, SSH-Key oder jedes Mal fragen.</li>
+        </ul>
+        <p data-i18n="gs.firstconn.finish">Speichern, dann den Toggle in der Verbindungskarte klicken. Bei Erfolg wird das Laufwerk grün und erscheint im Explorer.</p>
+
+        <h2 data-i18n="gs.h.next">Nächste Schritte</h2>
+        <ul>
+          <li><a href="connections.html" data-i18n="side.connections">Verbindungen anlegen</a></li>
+          <li><a href="authentication.html" data-i18n="side.auth">Authentifizierung</a></li>
+          <li><a href="configuration.html" data-i18n="side.settingsTheme">Einstellungen &amp; Theme</a></li>
+        </ul>
+      </main>
+    </div>
+  </div>
+  <div data-layout="footer" data-pathprefix="../"></div>
+</body>
+</html>
