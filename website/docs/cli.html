@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title.docs.cli">CLI-Companion — NEO SSH-Win Manager</title>
+  <link rel="icon" type="image/png" href="../assets/app_icon_only.png" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script src="../assets/js/i18n.js" defer></script>
+  <script src="../assets/js/site.js" defer></script>
+  <script src="../assets/js/layout.js" defer></script>
+</head>
+<body>
+  <div data-layout="topbar" data-pathprefix="../"></div>
+  <div class="container">
+    <div class="docs">
+      <div data-layout="docs-sidebar" data-pathprefix="../"></div>
+      <main class="docs-main">
+        <h1 data-i18n="cli.title">CLI-Companion</h1>
+        <p class="lead" data-i18n="cli.lead">SSH-Verbindungen aus Skripten oder Automatisierungen heraus nutzen — ohne Login-Dialog.</p>
+
+        <h2 data-i18n="cli.h.concept">Wie funktioniert es?</h2>
+        <p data-i18n="cli.concept.body"><code>NeoSSHWinManager-cli.exe</code> ist eine separate Konsolen-App, die mit der laufenden Haupt-App kommuniziert. Du aktivierst CLI-Zugriff für eine Verbindung und bekommst einen Access-Key — damit kannst du dich aus jedem Skript heraus verbinden.</p>
+
+        <h2 data-i18n="cli.h.prereq">Voraussetzungen</h2>
+        <ul>
+          <li data-i18n="cli.prereq.li1">Die Haupt-App läuft und du bist eingeloggt.</li>
+          <li data-i18n="cli.prereq.li2">In der Verbindung ist <strong>CLI-Zugriff</strong> aktiviert.</li>
+          <li data-i18n="cli.prereq.li3">Du hast den Access-Key (in der Verbindungsbearbeitung einsehbar).</li>
+        </ul>
+
+        <h2 data-i18n="cli.h.examples">Beispiele</h2>
+        <h3 data-i18n="cli.h.interactive">Interaktive SSH-Session</h3>
+        <pre><code>NeoSSHWinManager-cli.exe --connect-cli "&lt;access_key&gt;"</code></pre>
+
+        <h3 data-i18n="cli.h.command">Einzelnes Kommando ausführen</h3>
+        <pre><code>NeoSSHWinManager-cli.exe --connect-cli "&lt;access_key&gt;" --exec "uname -a"
+NeoSSHWinManager-cli.exe --connect-cli "&lt;access_key&gt;" --exec "hostname"
+NeoSSHWinManager-cli.exe --connect-cli "&lt;access_key&gt;" --exec "cd /var/www &amp;&amp; ls -la"</code></pre>
+
+        <h2 data-i18n="cli.h.flags">Parameter</h2>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="cli.th.flag">Parameter</th>
+              <th data-i18n="cli.th.desc">Beschreibung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>--connect-cli &lt;key&gt;</code></td><td data-i18n="cli.flag.connect">Access-Key der Verbindung.</td></tr>
+            <tr><td><code>-connectssh &lt;key&gt;</code></td><td data-i18n="cli.flag.alias">Alias (alternative Schreibweise).</td></tr>
+            <tr><td><code>--exec "&lt;cmd&gt;"</code></td><td data-i18n="cli.flag.exec">Optional: Kommando ausführen statt interaktiver Shell.</td></tr>
+          </tbody>
+        </table>
+
+        <h2 data-i18n="cli.h.exit">Exit-Codes</h2>
+        <ul>
+          <li data-i18n="cli.exit.0"><code>0</code> — Erfolgreich.</li>
+          <li data-i18n="cli.exit.1"><code>1</code> — Fehler (App nicht aktiv, kein Login, ungültiger Key).</li>
+          <li data-i18n="cli.exit.2"><code>2</code> — Fehlende Parameter.</li>
+        </ul>
+
+        <div class="callout">
+          <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <div>
+            <strong data-i18n="cli.security.title">Sicherheitshinweis</strong>
+            <span data-i18n="cli.security.body">Der Access-Key wird nur lokal übertragen — nicht über das Netzwerk. Lege Keys nicht in Klartext in Skripte oder Repositories, sondern lese sie aus einer lokalen <code>.env</code>-Datei oder dem Credential Manager.</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div data-layout="footer" data-pathprefix="../"></div>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title.docs.configuration">Einstellungen — NEO SSH-Win Manager</title>
+  <link rel="icon" type="image/png" href="../assets/app_icon_only.png" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script src="../assets/js/i18n.js" defer></script>
+  <script src="../assets/js/site.js" defer></script>
+  <script src="../assets/js/layout.js" defer></script>
+</head>
+<body>
+  <div data-layout="topbar" data-pathprefix="../"></div>
+  <div class="container">
+    <div class="docs">
+      <div data-layout="docs-sidebar" data-pathprefix="../"></div>
+      <main class="docs-main">
+        <h1 data-i18n="cfg.title">Einstellungen</h1>
+        <p class="lead" data-i18n="cfg.lead">Alles, was im Einstellungs-Dialog konfigurierbar ist.</p>
+
+        <h2 data-i18n="cfg.h.location">Speicherort</h2>
+        <p data-i18n="cfg.location.body">Einstellungen werden in <code>%APPDATA%\SSHWinManager\config.json</code> gespeichert. Verbindungen und Benutzerprofile liegen in einer separaten Datenbank im selben Ordner.</p>
+
+        <h2 data-i18n="cfg.h.general">Allgemein</h2>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="cfg.th.setting">Einstellung</th>
+              <th data-i18n="cfg.th.default">Standard</th>
+              <th data-i18n="cfg.th.effect">Effekt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-i18n="cfg.s.startup">Mit Windows starten</td>
+              <td data-i18n="cfg.s.startup.d">aus</td>
+              <td data-i18n="cfg.s.startup.e">App startet automatisch beim Windows-Login.</td>
+            </tr>
+            <tr>
+              <td data-i18n="cfg.s.tray">In Tray minimieren</td>
+              <td data-i18n="cfg.s.tray.d">an</td>
+              <td data-i18n="cfg.s.tray.e">Schließen minimiert die App ins System-Tray statt sie zu beenden.</td>
+            </tr>
+            <tr>
+              <td data-i18n="cfg.s.autologin">Auto-Login mit Windows-Account</td>
+              <td data-i18n="cfg.s.autologin.d">aus</td>
+              <td data-i18n="cfg.s.autologin.e">Login wird übersprungen, wenn Windows-Benutzer mit App-Profil übereinstimmt.</td>
+            </tr>
+            <tr>
+              <td data-i18n="cfg.s.reconnect">Auto-Reconnect</td>
+              <td data-i18n="cfg.s.reconnect.d">aus</td>
+              <td data-i18n="cfg.s.reconnect.e">Unterbrochene Laufwerke werden automatisch neu verbunden.</td>
+            </tr>
+            <tr>
+              <td data-i18n="cfg.s.reconnectstart">Laufwerke beim Start wiederherstellen</td>
+              <td data-i18n="cfg.s.reconnectstart.d">an</td>
+              <td data-i18n="cfg.s.reconnectstart.e">Beim App-Start werden zuletzt aktive Laufwerke automatisch eingehängt.</td>
+            </tr>
+            <tr>
+              <td data-i18n="cfg.s.interval">Check-Intervall</td>
+              <td data-i18n="cfg.s.interval.d">30 s</td>
+              <td data-i18n="cfg.s.interval.e">Wie oft der Verbindungsstatus geprüft wird.</td>
+            </tr>
+            <tr>
+              <td data-i18n="cfg.s.debug">Debug-Modus</td>
+              <td data-i18n="cfg.s.debug.d">aus</td>
+              <td data-i18n="cfg.s.debug.e">Aktiviert ausführliches Logging und ein Live-Log-Fenster.</td>
+            </tr>
+            <tr>
+              <td data-i18n="cfg.s.putty">PuTTY verwenden</td>
+              <td data-i18n="cfg.s.putty.d">aus</td>
+              <td data-i18n="cfg.s.putty.e">PuTTY statt OpenSSH für SSH-Sessions verwenden.</td>
+            </tr>
+            <tr>
+              <td data-i18n="cfg.s.puttypath">PuTTY-Pfad</td>
+              <td data-i18n="cfg.s.puttypath.d">Standard-Pfad</td>
+              <td data-i18n="cfg.s.puttypath.e">Pfad zur PuTTY-Installation.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 data-i18n="cfg.h.theme">Design wechseln</h2>
+        <p data-i18n="cfg.theme.body">Im Einstellungs-Dialog → <em>Erscheinungsbild</em> → <em>Hell</em> oder <em>Dunkel</em>. Pro Benutzer gespeichert, wirkt sofort.</p>
+
+        <h2 data-i18n="cfg.h.lang">Sprache wechseln</h2>
+        <p data-i18n="cfg.lang.body">Einstellungen → <em>Sprache</em>. Verfügbar: <strong>Deutsch</strong> und <strong>Englisch</strong>. Die Oberfläche wechselt sofort.</p>
+
+        <h2 data-i18n="cfg.h.debug">Debug-Modus</h2>
+        <p data-i18n="cfg.debug.body">Aktiviert detailliertes Logging in <code>%APPDATA%\SSHWinManager\app.log</code> und ein Live-Log-Fenster. Hilfreich bei Verbindungsproblemen.</p>
+      </main>
+    </div>
+  </div>
+  <div data-layout="footer" data-pathprefix="../"></div>
+</body>
+</html>

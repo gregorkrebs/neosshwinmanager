@@ -1,0 +1,232 @@
+﻿<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title.index">NEO SSH-Win Manager — SSH-Laufwerke für Windows</title>
+  <meta name="description" content="Kostenloser Windows-Desktop-Client für SSHFS. Remote-Ordner als Laufwerk einbinden, mehrere Benutzer, passwortloses SSH ohne SSH-Key, eingebautes Terminal." data-i18n-attr="content:meta.index.description" />
+  <link rel="icon" type="image/png" href="assets/app_icon_only.png" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="assets/css/site.css" />
+  <script src="assets/js/i18n.js" defer></script>
+  <script src="assets/js/site.js" defer></script>
+  <script src="assets/js/layout.js" defer></script>
+</head>
+<body>
+  <div data-layout="topbar" data-pathprefix=""></div>
+
+  <!-- ==================== HERO ==================== -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <div>
+        <span class="eyebrow"><span class="dot"></span><span data-i18n="hero.eyebrow">v1.2.0 · Open Source · Windows · MIT</span></span>
+        <h1>
+          <span data-i18n="hero.title">Mehrere Server.</span>
+          <span class="accent" data-i18n="hero.titleAccent">Mehrere Benutzer.</span>
+          <span data-i18n="hero.titleEnd">Ein Klick zum Mounten.</span>
+        </h1>
+        <p class="lead" data-i18n="hero.lead">
+          NEO SSH-Win Manager ist ein moderner Windows-Desktop-Client für SSHFS — Remote-Ordner als Laufwerk einbinden, mehrere Profile verwalten und passwortlos verbinden ohne SSH-Key. Komplett kostenlos und Open Source.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-lg" href="https://github.com/gregorkrebs/neosshwinmanager/releases/latest" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            <span data-i18n="hero.cta.download">Download für Windows</span>
+          </a>
+          <a class="btn btn-lg" href="docs/getting-started.html">
+            <span data-i18n="hero.cta.docs">Dokumentation</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+        <div class="hero-meta">
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+            <span data-i18n="hero.meta.free">Kostenlos &amp; bleibt kostenlos</span>
+          </span>
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span data-i18n="hero.meta.license">MIT-Lizenz</span>
+          </span>
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+            <span data-i18n="hero.meta.platform">Windows 10 / 11</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- App preview ------------------------------------------------- -->
+      <div class="app-frame app-mockup" aria-hidden="true">
+        <div class="titlebar">
+          <span class="dots"><span></span><span></span><span></span></span>
+          <span data-i18n="mock.titlebar">NEO SSH-Win Manager — admin@workstation</span>
+        </div>
+        <div class="app-body">
+          <div class="sidebar">
+            <div class="side-icon active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div>
+            <div class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></div>
+            <div class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div class="side-icon" style="margin-top:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></div>
+          </div>
+          <div class="main">
+            <div class="main-head">
+              <span class="title" data-i18n="mock.connections">Verbindungen</span>
+              <span class="pill" data-i18n="mock.pill">3 aktiv · 1 verbunden</span>
+            </div>
+            <div class="conn-row mounted">
+              <span class="conn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></span>
+              <span>
+                <div class="conn-name">Production · web-01</div>
+                <div class="conn-host">deploy@10.0.4.21:/var/www</div>
+              </span>
+              <span class="drive">Z:</span>
+              <span class="toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></span>
+            </div>
+            <div class="conn-row">
+              <span class="conn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></span>
+              <span>
+                <div class="conn-name">Homelab · NAS</div>
+                <div class="conn-host">gregor@nas.local:/volume1</div>
+              </span>
+              <span class="drive">N:</span>
+              <span class="toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            </div>
+            <div class="conn-row">
+              <span class="conn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></span>
+              <span>
+                <div class="conn-name">Staging · db-replica</div>
+                <div class="conn-host">root@10.0.4.45:/srv</div>
+              </span>
+              <span class="drive">S:</span>
+              <span class="toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            </div>
+          </div>
+          <div class="right">
+            <p class="sec-title" data-i18n="mock.system">System · web-01</p>
+            <div class="stat">CPU <span>14%</span></div>
+            <div class="bar"><i style="width:14%"></i></div>
+            <div class="stat">RAM <span>2.1 / 8 GB</span></div>
+            <div class="bar"><i style="width:26%"></i></div>
+            <div class="stat">Disk <span>31%</span></div>
+            <div class="bar"><i style="width:31%"></i></div>
+            <p class="sec-title" style="margin-top:6px" data-i18n="mock.uptime">Uptime</p>
+            <div class="stat"><span data-i18n="mock.lastSeen">Last seen</span><span>00:01</span></div>
+            <div class="stat"><span data-i18n="mock.load">Load</span><span>0.42</span></div>
+          </div>
+        </div>
+        <div class="statusbar">
+          <span><span class="status-dot"></span><span data-i18n="mock.online">Online · 1 Mount</span></span>
+          <span>v1.2.0</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FEATURES ==================== -->
+  <section class="section">
+    <div class="container">
+      <p class="section-eyebrow" data-i18n="feat.eyebrow">Funktionen</p>
+      <h2 class="section-title" data-i18n="feat.title">Einfach. Sicher. Sofort einsatzbereit.</h2>
+      <p class="section-sub" data-i18n="feat.sub">
+        SSH-Laufwerke mit einem Klick einbinden, mehrere Benutzer verwalten, sicher einloggen — alles in einer App, ohne Kommandozeile.
+      </p>
+
+      <div class="grid grid-3">
+        <div class="card feature-highlight">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <h3 data-i18n="feat.multiuser.title">Mehrere Benutzer</h3>
+          <p data-i18n="feat.multiuser.body">Mehrere Profile auf einem PC. Jeder Benutzer hat eigene Verbindungen und Zugangsdaten — sicher voneinander getrennt.</p>
+        </div>
+        <div class="card feature-highlight">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+          <h3 data-i18n="feat.cli.title">CLI-Companion</h3>
+          <p data-i18n="feat.cli.body">Verbindungen aus Skripten oder Automatisierungen heraus nutzen — mit Access-Key, ohne Login-Dialog.</p>
+        </div>
+        <div class="card feature-highlight">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <h3 data-i18n="feat.passwordless.title">Passwortlos — ohne SSH-Key</h3>
+          <p data-i18n="feat.passwordless.body">Passwort einmal speichern, danach automatisch einloggen — beim Mounten und im Terminal. Kein SSH-Key, kein Passwort-Tippen.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div>
+          <h3 data-i18n="feat.mount.title">One-Click Mount</h3>
+          <p data-i18n="feat.mount.body">Remote-Pfade direkt als Windows-Laufwerksbuchstaben einbinden — über SSHFS-Win und WinFsp.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+          <h3 data-i18n="feat.terminal.title">Eingebautes SSH-Terminal</h3>
+          <p data-i18n="feat.terminal.body">Direkt aus der App heraus mit jedem Server verbinden. Passwort wird automatisch eingegeben.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="9" x2="9" y2="15"/><line x1="15" y1="9" x2="15" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></svg></div>
+          <h3 data-i18n="feat.sysinfo.title">Live-Systemstatus</h3>
+          <p data-i18n="feat.sysinfo.body">CPU, RAM, Disk, Uptime und Load pro Server — direkt in der Verbindungskarte sichtbar.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+          <h3 data-i18n="feat.auth.title">Passwort, Key oder Zertifikat</h3>
+          <p data-i18n="feat.auth.body">Drei Anmeldemethoden: gespeichertes Passwort, SSH-Key oder jedes Mal neu eingeben. Mehrere lokale Konten. Pro User wird aus dem Login-Passwort ein Schlüssel abgeleitet — alle SSH-Credentials sind in der SQLite-DB symmetrisch verschlüsselt.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg></div>
+          <h3 data-i18n="feat.tray.title">System-Tray</h3>
+          <p data-i18n="feat.tray.body">App im Hintergrund lassen, Laufwerke mit einem Klick ein- oder aushängen.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+          <h3 data-i18n="feat.theme.title">Modernes Design</h3>
+          <p data-i18n="feat.theme.body">Stilvolles modernes Interface — wahlweise hell oder dunkel. Pro Benutzer einstellbar, ebenso die Sprache.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== HOW IT WORKS ==================== -->
+  <section class="section">
+    <div class="container">
+      <p class="section-eyebrow" data-i18n="how.eyebrow">Funktionsweise</p>
+      <h2 class="section-title" data-i18n="how.title">Native Windows-Laufwerke via SSH.</h2>
+      <p class="section-sub" data-i18n="how.sub">
+        Kein VPN, keine Kompromisse. NEO SSH-Win Manager verbindet sich sicher per SSH und hängt den Remote-Ordner direkt als Windows-Laufwerk ein — sichtbar im Explorer wie eine normale Festplatte.
+      </p>
+      <pre><code><span style="color:#8b949e" data-i18n="how.code.comment"># Was die App im Hintergrund ausführt:</span>
+sshfs deploy@10.0.4.21:/var/www Z: -p22 \
+  -ovolname=Production -oreconnect \
+  -oidmap=user -odefault_permissions \
+  -oStrictHostKeyChecking=no</code></pre>
+      <div class="grid grid-2" style="margin-top:24px">
+        <div class="card">
+          <h3 data-i18n="how.cred.title">Sichere Zugangsdaten-Speicherung</h3>
+          <p data-i18n="how.cred.body">SSH-Passwörter werden lokal in der SQLite-Datenbank gespeichert — pro App-Benutzer mit AES-256-GCM verschlüsselt. Der Schlüssel wird beim App-Login freigegeben und bleibt nur während der Sitzung im Arbeitsspeicher.</p>
+        </div>
+        <div class="card">
+          <h3 data-i18n="how.multi.title">Echte Mehrbenutzer-Trennung</h3>
+          <p data-i18n="how.multi.body">Mehrere Profile auf einem PC teilen keine Zugangsdaten. Jeder Benutzer hat seine eigenen Verbindungen, seine Sprache, sein Design — und sieht die Zugangsdaten der anderen nie.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CTA ==================== -->
+  <section class="section" style="border-bottom:none">
+    <div class="container">
+      <div class="card" style="text-align:center; padding:48px 24px">
+        <p class="section-eyebrow" data-i18n="cta.eyebrow">Loslegen</p>
+        <h2 class="section-title" style="margin-bottom:12px" data-i18n="cta.title">Lade dir die aktuelle Version herunter.</h2>
+        <p class="section-sub" style="margin:0 auto 24px" data-i18n="cta.sub">
+          Aktuell v1.2.0 — kostenlos, ohne Tracking, ohne Account.
+        </p>
+        <div class="hero-actions" style="justify-content:center">
+          <a class="btn btn-primary btn-lg" href="download.html">
+            <span data-i18n="cta.btn.download">Zum Download</span>
+          </a>
+          <a class="btn btn-lg" href="https://github.com/gregorkrebs/neosshwinmanager" target="_blank" rel="noopener">
+            <span data-i18n="cta.btn.source">Quellcode auf GitHub</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div data-layout="footer" data-pathprefix=""></div>
+</body>
+</html>
