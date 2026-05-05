@@ -111,7 +111,7 @@
       "auth.key.cert": "SSH-Zertifikate funktionieren genauso — der signierte Public-Key-Teil muss neben dem privaten Schlüssel als <code>&lt;key&gt;-cert.pub</code> liegen, OpenSSH und SSHFS-Win finden ihn automatisch.",
 
       // ─── hero (index) ─────────────────────────────────────────
-      "hero.eyebrow": "v1.2.0 · Open Source · Windows · MIT",
+      "hero.eyebrow": "v1.3.1 · Open Source · Windows · MIT",
       "hero.title": "Mehrere Server.",
       "hero.titleAccent": "Mehrere Admins.",
       "hero.titleEnd": "Ein Klick zum Mounten.",
@@ -199,7 +199,7 @@
       // ─── CTA ──────────────────────────────────────────────────
       "cta.eyebrow": "Loslegen",
       "cta.title": "Lade dir die aktuelle Version herunter.",
-      "cta.sub": "Aktuell v1.2.0 — kostenlos, ohne Tracking, ohne Account.",
+      "cta.sub": "Aktuell v1.3.1 — kostenlos, ohne Tracking, ohne Account.",
       "cta.btn.download": "Zum Download",
       "cta.btn.source": "Quellcode auf GitHub",
 
@@ -223,6 +223,29 @@
         "Erste Veröffentlichung des NEO SSH-Win Manager — moderner Windows-Desktop-Client zum Einbinden von SSH-Ordnern als Laufwerksbuchstaben.",
       "changelog.v110.gui": "GUI-Anwendung",
       "changelog.v110.cli": "CLI-Companion",
+
+      // ─── v1.3.1 ──────────────────────────────────────────────
+      "changelog.v131.li1": "Agent-CLI-Key im Verbindungseditor direkt sichtbar statt maskiert.",
+      "changelog.v131.li2": "Zwei sichtbare SVG-Aktionen für CLI-Key eingeführt: kopieren und neu generieren.",
+      "changelog.v131.li3": "Copy-Feedback im Editor per Check-Icon ergänzt.",
+      "changelog.v131.li4": "Versions- und Website-Metadaten auf 1.3.1 angehoben.",
+
+      // ─── v1.3.0 ──────────────────────────────────────────────
+      "changelog.v130.li1": "Einstellungen und Benutzerverwaltung als Vollbild-Panel via QStackedWidget",
+      "changelog.v130.li2": "Sidebar-Navigation mit Hervorhebung des aktiven Eintrags",
+      "changelog.v130.li3": "[i]-Schaltfläche öffnet ausschließlich das SSH-Live-Systeminfo-Panel",
+      "changelog.v130.li4": "Bearbeiten-Schaltfläche immer sichtbar, deaktiviert wenn Verbindung eingehängt",
+      "changelog.v130.li5": "Primäre Schaltflächen: Verlauf #00b4d8 → #0077b6, schwarzer Text",
+      "changelog.v130.li6": "Titelleistenfarbe passt sich dem aktiven Design via DwmSetWindowAttribute (Windows 11+) an",
+      "changelog.v130.li7": "Checkbox-Indikator: 14×14 px, weißer Haken auf rotem Hintergrund",
+      "changelog.v130.li8": "Panel-Header: 52 px Höhe, Kicker-Labels entfernt, Titel vertikal zentriert",
+      "changelog.v130.li9": "Listenansicht mit 4-px-Farbbalken für CPU/RAM/Festplatte",
+      "changelog.v130.li10": "Vollständige statische Website in website/ (Landing, Features, Docs, Changelog, Download)",
+      "changelog.v130.li11": "Interaktive Browser-Simulation (website/app.html) in reinem HTML/CSS/JS",
+      "changelog.v130.li12": "Keine Installation nötig, direkt über GitHub Pages bereitstellbar",
+      "changelog.v130.li13": "Veraltetes credential_store.py entfernt",
+      "changelog.v130.li14": "AppUserModelID-Präfix von dennis. auf neo. geändert",
+      "changelog.v130.li15": "Versionserhöhung auf 1.3.0",
 
       // ─── docs: getting-started ────────────────────────────────
       "gs.title": "Installation & erster Start",
@@ -646,7 +669,7 @@
       "side.apiReference": "API reference",
 
       // ─── hero ─────────────────────────────────────────────────
-      "hero.eyebrow": "v1.2.0 · Open Source · Windows · MIT",
+      "hero.eyebrow": "v1.3.1 · Open Source · Windows · MIT",
       "hero.title": "Multiple servers.",
       "hero.titleAccent": "Multiple users.",
       "hero.titleEnd": "One click to mount.",
@@ -734,7 +757,7 @@
       // ─── CTA ──────────────────────────────────────────────────
       "cta.eyebrow": "Get started",
       "cta.title": "Download the latest release.",
-      "cta.sub": "Currently v1.2.0 — free, no tracking, no account required.",
+      "cta.sub": "Currently v1.3.1 — free, no tracking, no account required.",
       "cta.btn.download": "Go to download",
       "cta.btn.source": "Source on GitHub",
 
@@ -758,6 +781,29 @@
         "First release of NEO SSH-Win Manager — a modern Windows desktop app for mounting SSH folders as drive letters.",
       "changelog.v110.gui": "GUI application",
       "changelog.v110.cli": "CLI companion",
+
+      // ─── v1.3.1 ──────────────────────────────────────────────
+      "changelog.v131.li1": "Agent CLI key is now directly visible in the connection editor instead of being masked.",
+      "changelog.v131.li2": "Added two visible SVG actions for the CLI key: copy and regenerate.",
+      "changelog.v131.li3": "Added check-icon feedback after copying the key.",
+      "changelog.v131.li4": "Bumped version and website metadata to 1.3.1.",
+
+      // ─── v1.3.0 ──────────────────────────────────────────────
+      "changelog.v130.li1": "Full-screen Settings and User Management panels via QStackedWidget",
+      "changelog.v130.li2": "Sidebar navigation with active-state highlighting",
+      "changelog.v130.li3": "[i] button exclusively opens the SSH live system-info panel",
+      "changelog.v130.li4": "Edit button always visible, disabled when connection is mounted",
+      "changelog.v130.li5": "Primary buttons: gradient #00b4d8 → #0077b6, black text",
+      "changelog.v130.li6": "Title bar colour adapts to active theme via DwmSetWindowAttribute (Windows 11+)",
+      "changelog.v130.li7": "Checkbox indicator: 14×14 px, white checkmark on red background",
+      "changelog.v130.li8": "Panel headers: 52 px height, kicker labels removed, titles vertically centred",
+      "changelog.v130.li9": "List layout with 4 px colour-coded progress bars for CPU/RAM/Disk",
+      "changelog.v130.li10": "Full static website in website/ (landing, features, docs, changelog, download)",
+      "changelog.v130.li11": "Interactive browser simulation (website/app.html) in pure HTML/CSS/JS",
+      "changelog.v130.li12": "No installation needed, deployable via GitHub Pages",
+      "changelog.v130.li13": "Removed legacy credential_store.py",
+      "changelog.v130.li14": "AppUserModelID prefix changed from dennis. to neo.",
+      "changelog.v130.li15": "Version bump to 1.3.0",
 
       // ─── docs: getting-started ────────────────────────────────
       "gs.title": "Install & first run",

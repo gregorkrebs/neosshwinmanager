@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
         self._panel_conn_id: str | None = None   # which connection the panel belongs to
 
         self.setObjectName("MainWindow")
-        self.setWindowTitle("NEO SSH-Win Manager v1.3.0")
+        self.setWindowTitle("NEO SSH-Win Manager v1.3.1")
         self.setMinimumSize(820, 520)
         self.resize(1100, 640)
 
@@ -478,7 +478,7 @@ class MainWindow(QMainWindow):
         self._mount_count_lbl.setObjectName("versionLabel")
         h.addWidget(self._mount_count_lbl)
 
-        ver_lbl = QLabel("  v1.3.0")
+        ver_lbl = QLabel("  v1.3.1")
         ver_lbl.setObjectName("versionLabel")
         h.addWidget(ver_lbl)
 
@@ -1476,20 +1476,35 @@ class MainWindow(QMainWindow):
         cli_key_row.setSpacing(4)
         self._ef_cli_key = QLineEdit(conn.cli_access_key or "" if is_edit else "")
         self._ef_cli_key.setReadOnly(True)
-        self._ef_cli_key.setEchoMode(QLineEdit.EchoMode.Password)
         self._ef_cli_key.setPlaceholderText(tr("addedit.cli.none"))
         cli_key_row.addWidget(self._ef_cli_key, stretch=1)
-        gen_btn = QPushButton(tr("addedit.cli.generate"))
-        gen_btn.setFixedWidth(80)
-        gen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        gen_btn.clicked.connect(lambda: self._ef_cli_key.setText(_secrets.token_hex(64)))
-        cli_key_row.addWidget(gen_btn)
+
+        self._ef_cli_copy_btn = QPushButton()
+        self._ef_cli_copy_btn.setObjectName("rpHeaderBtn")
+        self._ef_cli_copy_btn.setFixedSize(32, 32)
+        self._ef_cli_copy_btn.setIcon(svg_icon("copy", "#aab4c4", 15))
+        self._ef_cli_copy_btn.setIconSize(QSize(15, 15))
+        self._ef_cli_copy_btn.setToolTip(tr("addedit.cli.copy"))
+        self._ef_cli_copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._ef_cli_copy_btn.clicked.connect(self._ef_copy_cli_key)
+        cli_key_row.addWidget(self._ef_cli_copy_btn)
+
+        self._ef_cli_gen_btn = QPushButton()
+        self._ef_cli_gen_btn.setObjectName("rpHeaderBtn")
+        self._ef_cli_gen_btn.setFixedSize(32, 32)
+        self._ef_cli_gen_btn.setIcon(svg_icon("refresh", "#aab4c4", 15))
+        self._ef_cli_gen_btn.setIconSize(QSize(15, 15))
+        self._ef_cli_gen_btn.setToolTip(tr("addedit.cli.generate"))
+        self._ef_cli_gen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._ef_cli_gen_btn.clicked.connect(self._ef_generate_new_cli_key)
+        cli_key_row.addWidget(self._ef_cli_gen_btn)
+
         cli_inner.addLayout(cli_key_row)
         self._ef_cli_widget.setVisible(conn.cli_access_enabled if is_edit else False)
         v.addWidget(self._ef_cli_widget)
 
         if is_edit and conn.cli_access_enabled and not conn.cli_access_key:
-            self._ef_cli_key.setText(_secrets.token_hex(64))
+            self._ef_generate_new_cli_key()
 
         v.addStretch()
         self._rp_layout.addWidget(body)
@@ -1506,8 +1521,24 @@ class MainWindow(QMainWindow):
     def _ef_cli_toggle(self, checked: bool):
         self._ef_cli_widget.setVisible(checked)
         if checked and not self._ef_cli_key.text():
-            import secrets as _s
-            self._ef_cli_key.setText(_s.token_hex(64))
+            self._ef_generate_new_cli_key()
+
+    def _ef_generate_new_cli_key(self):
+        import secrets as _secrets
+
+        self._ef_cli_key.setText(_secrets.token_hex(64))
+
+    def _ef_copy_cli_key(self):
+        key = self._ef_cli_key.text()
+        if not key:
+            return
+
+        QApplication.clipboard().setText(key)
+        self._ef_cli_copy_btn.setIcon(svg_icon("check", "#00d464", 15))
+        QTimer.singleShot(
+            1500,
+            lambda: self._ef_cli_copy_btn.setIcon(svg_icon("copy", "#aab4c4", 15))
+        )
 
     # ------------------------------------------------------------------
     # Settings form

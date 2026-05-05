@@ -32,6 +32,9 @@ dist/
 crash_report.txt
 *.log
 config.json
+commits.md
+commits_*
+sshfs-web-manager/
 
 # OS
 Thumbs.db
