@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <a href="https://gregorkrebs.github.io/neosshwinmanager/website/app.html">
+  <a href="https://gregorkrebs.github.io/neosshwinmanager/app.html">
     <img src="https://img.shields.io/badge/Interactive%20Demo-Live%20in%20Browser-%2300b4d8?style=for-the-badge&logo=html5&logoColor=white" alt="Interactive browser demo"/>
   </a>
 </p>
@@ -85,7 +85,7 @@ Manage multiple SSH connections, mount them with one click, switch languages per
 ## Browser Demo
 **The live demo works via GitHub Pages:**
 
-👉 **<https://gregorkrebs.github.io/neosshwinmanager/website/app.html>**
+👉 **<https://gregorkrebs.github.io/neosshwinmanager/app.html>**
 
 ## Prerequisites
 
