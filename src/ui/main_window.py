@@ -75,6 +75,9 @@ class MainWindow(QMainWindow):
         self._workers: dict[str, QThread] = {}
         self._panel_mode: str = _PANEL_NONE
         self._panel_conn_id: str | None = None   # which connection the panel belongs to
+        
+        # Debug mode settings
+        self._debug_mode = False  # Can be toggled via F2
 
         self.setObjectName("MainWindow")
         self.setWindowTitle("NEO SSH-Win Manager v1.3.1")
@@ -101,6 +104,11 @@ class MainWindow(QMainWindow):
         self._refresh_list()
         self._apply_debug_mode()
         self._setup_ipc()
+
+        # Setup keyboard shortcut for debug mode toggle (F2)
+        from PyQt6.QtGui import QShortcut, QKeySequence
+        debug_shortcut = QShortcut(QKeySequence("F2"), self)
+        debug_shortcut.activated.connect(self._debug_widget_under_mouse)
 
         self._poll_timer = QTimer(self)
         self._poll_timer.timeout.connect(self._poll_mount_states)
@@ -382,6 +390,17 @@ class MainWindow(QMainWindow):
 
         hh.addWidget(title_wrap)
         hh.addStretch()
+
+        # Info button (shown in info mode - opens system info panel)
+        self._rp_info_btn = QPushButton("i")
+        self._rp_info_btn.setObjectName("cardInfoBtn")
+        self._rp_info_btn.setFixedSize(QSize(32, 32))
+        self._rp_info_btn.setIconSize(QSize(14, 14))
+        self._rp_info_btn.setToolTip(tr("card.tooltip.info"))
+        self._rp_info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rp_info_btn.clicked.connect(self._on_rp_info_clicked)
+        self._rp_info_btn.setVisible(False)
+        hh.addWidget(self._rp_info_btn)
 
         # Edit button (shown in info mode)
         self._rp_edit_btn = QPushButton()
@@ -688,6 +707,7 @@ class MainWindow(QMainWindow):
         """Render the default empty-state panel instead of collapsing the area."""
         self._clear_right_panel_content()
         self._set_right_panel_header()
+        self._rp_info_btn.setVisible(False)
         self._rp_edit_btn.setVisible(False)
         self._rp_del_btn.setVisible(False)
         self._rp_close_btn.setVisible(False)
@@ -761,6 +781,8 @@ class MainWindow(QMainWindow):
         is_mounted = card and card.is_mounted
 
         self._set_right_panel_header(tr("panel.header.details"), conn.name.upper())
+        # Info button - always visible in info mode
+        self._rp_info_btn.setVisible(True)
         # Edit button: enabled=accent color, disabled=muted (theme-aware)
         theme = self._mgr.get_settings().theme or "dark"
         if is_mounted:
@@ -799,6 +821,7 @@ class MainWindow(QMainWindow):
             card.set_info_active(True)
 
         self._set_right_panel_header(tr("panel.header.sysinfo"), conn.name.upper())
+        self._rp_info_btn.setVisible(False)
         self._rp_edit_btn.setVisible(False)
         self._rp_del_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
@@ -820,57 +843,96 @@ class MainWindow(QMainWindow):
         v.setSpacing(14)
 
         def _section(title):
-            lbl = QLabel(title)
+            lbl = QLabel(title.upper())
             lbl.setObjectName("rpSectionLabel")
+            lbl.setStyleSheet("color: #00b4d8; font-size: 11px; font-weight: 600; letter-spacing: 2px;")
             return lbl
 
         def _row(label, value, value_obj_name="rpValue"):
-            row = QWidget()
-            rl = QVBoxLayout(row)
-            rl.setContentsMargins(0, 0, 0, 0)
-            rl.setSpacing(2)
-            lbl = QLabel(label)
-            lbl.setObjectName("rpFieldLabel")
+            container = QFrame()
+            container.setObjectName("rpInfoField")
+            container.setFixedHeight(54)  # Match height of input fields in edit mode
+            container.setStyleSheet("""
+                QFrame#rpInfoField {
+                    background-color: #14141F;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                }
+            """)
+            
+            vl = QVBoxLayout(container)
+            vl.setContentsMargins(16, 8, 16, 8)
+            vl.setSpacing(4)
+            
+            # Label at top in caps, muted grey
+            lbl = QLabel(label.upper())
+            lbl.setObjectName("rpFieldLabelCaps")
+            lbl.setStyleSheet("color: #6a7685; font-size: 11px; font-weight: 500;")
+            
             val = QLabel(str(value) if value else "—")
             val.setObjectName(value_obj_name)
-            val.setWordWrap(True)
-            rl.addWidget(lbl)
-            rl.addWidget(val)
-            return row
+            val.setStyleSheet("color: #ffffff; font-size: 14px; font-weight: 400;")
+            
+            vl.addWidget(lbl)
+            vl.addWidget(val)
+            
+            return container
 
-        # Status badge
+        # Status badge row
         status_row = QHBoxLayout()
-        status_dot = QLabel("●")
-        status_dot.setObjectName("rpStatusDot")
-        status_dot.setProperty("mounted", "true" if is_mounted else "false")
-        status_dot.style().unpolish(status_dot)
-        status_dot.style().polish(status_dot)
-        status_label = QLabel(
-            tr("panel.status.connected") if is_mounted else tr("panel.status.disconnected")
-        )
-        status_label.setObjectName("rpStatusLabel")
-        status_label.setProperty("mounted", "true" if is_mounted else "false")
-        status_label.style().unpolish(status_label)
-        status_label.style().polish(status_label)
-        status_row.addWidget(status_dot)
-        status_row.addWidget(status_label)
+        status_row.setSpacing(12)
+        
+        # Pill-shaped status label (not button) with dot
+        status_container = QFrame()
+        status_container.setObjectName("rpStatusContainer")
+        if is_mounted:
+            status_container.setStyleSheet("""
+                QFrame#rpStatusContainer {
+                    background-color: rgba(0, 212, 100, 0.15);
+                    border: 1px solid rgba(0, 212, 100, 0.3);
+                    border-radius: 16px;
+                }
+            """)
+        else:
+            status_container.setStyleSheet("""
+                QFrame#rpStatusContainer {
+                    background-color: rgba(106, 122, 138, 0.15);
+                    border: 1px solid rgba(106, 122, 138, 0.3);
+                    border-radius: 16px;
+                }
+            """)
+        status_layout = QHBoxLayout(status_container)
+        status_layout.setContentsMargins(12, 6, 16, 6)
+        status_layout.setSpacing(6)
+        
+        # Small status dot
+        dot_container = QWidget()
+        dot_container.setFixedSize(6, 6)
+        dot_container.setStyleSheet(f"""
+            background-color: {'#00d464' if is_mounted else '#8a9aa8'};
+            border-radius: 3px;
+        """)
+        status_layout.addWidget(dot_container)
+        
+        # Status text
+        status_text = QLabel("Verbunden" if is_mounted else "Getrennt")
+        status_text.setStyleSheet(f"color: {'#00d464' if is_mounted else '#8a9aa8'}; font-weight: 600; font-size: 13px;")
+        status_layout.addWidget(status_text)
+        status_row.addWidget(status_container)
         status_row.addStretch()
-
+        
+        # Drive badge - same style as connection card
         drive_badge = QLabel(conn.drive_letter)
         drive_badge.setObjectName("driveBadge")
         drive_badge.setProperty("mounted", "true" if is_mounted else "false")
-        drive_badge.style().unpolish(drive_badge)
-        drive_badge.style().polish(drive_badge)
         drive_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         drive_badge.setFixedSize(QSize(42, 30))
         status_row.addWidget(drive_badge)
+        
         v.addLayout(status_row)
-
-        # Divider
-        div = QFrame()
-        div.setObjectName("rpDivider")
-        div.setFixedHeight(1)
-        v.addWidget(div)
+        
+        # Spacer before section
+        v.addSpacing(8)
 
         v.addWidget(_section(tr("addedit.section.general")))
         v.addWidget(_row(tr("addedit.label.name"), conn.name))
@@ -878,20 +940,12 @@ class MainWindow(QMainWindow):
         v.addWidget(_row(tr("addedit.label.user"), conn.user))
         v.addWidget(_row(tr("addedit.label.port"), str(conn.port)))
 
-        div2 = QFrame()
-        div2.setObjectName("rpDivider")
-        div2.setFixedHeight(1)
-        v.addWidget(div2)
-
+        v.addSpacing(8)
         v.addWidget(_section(tr("addedit.section.path")))
         v.addWidget(_row(tr("addedit.label.path"), conn.remote_path))
         v.addWidget(_row(tr("addedit.label.drive"), conn.drive_letter))
 
-        div3 = QFrame()
-        div3.setObjectName("rpDivider")
-        div3.setFixedHeight(1)
-        v.addWidget(div3)
-
+        v.addSpacing(8)
         v.addWidget(_section(tr("addedit.section.auth")))
         auth_map = {"password": tr("addedit.auth.password"), "key": tr("addedit.auth.key"), "ask": tr("addedit.auth.ask")}
         v.addWidget(_row(tr("addedit.label.method"), auth_map.get(conn.auth_method, conn.auth_method)))
@@ -901,10 +955,7 @@ class MainWindow(QMainWindow):
             v.addWidget(_row(tr("addedit.label.key"), conn.key_path))
 
         if conn.cli_access_enabled:
-            div4 = QFrame()
-            div4.setObjectName("rpDivider")
-            div4.setFixedHeight(1)
-            v.addWidget(div4)
+            v.addSpacing(8)
             v.addWidget(_section(tr("addedit.section.cli")))
             v.addWidget(_row(tr("addedit.cli.label"), tr("addedit.cli.enable") + " ✓"))
 
@@ -966,6 +1017,7 @@ class MainWindow(QMainWindow):
             card.set_info_active(True)
 
         self._set_right_panel_header(tr("addedit.edit_title"), tr("addedit.edit_title").upper())
+        self._rp_info_btn.setVisible(False)
         self._rp_edit_btn.setVisible(False)
         self._rp_del_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
@@ -983,6 +1035,7 @@ class MainWindow(QMainWindow):
         self._panel_conn_id = None
 
         self._set_right_panel_header(tr("addedit.add_title"), tr("addedit.add_title").upper())
+        self._rp_info_btn.setVisible(False)
         self._rp_edit_btn.setVisible(False)
         self._rp_del_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
@@ -1905,6 +1958,14 @@ class MainWindow(QMainWindow):
         if self._panel_conn_id:
             self._open_edit_panel(self._panel_conn_id)
 
+    def _on_rp_info_clicked(self):
+        """Info button in right panel header - opens system info panel with toggle logic."""
+        if self._panel_conn_id:
+            if self._panel_mode == _PANEL_SYSINFO and self._panel_conn_id == self._panel_conn_id:
+                self._close_right_panel()
+            else:
+                self._open_sysinfo_panel(self._panel_conn_id)
+
     # ------------------------------------------------------------------
     # Card selection
     # ------------------------------------------------------------------
@@ -2332,3 +2393,58 @@ class MainWindow(QMainWindow):
                                capture_output=True, creationflags=0x08000000)
             except Exception:
                 pass
+
+    def _debug_widget_under_mouse(self):
+        """Debug the widget currently under the mouse cursor (triggered by F2)."""
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtGui import QCursor
+        
+        # Get widget under mouse cursor using global cursor position
+        cursor_pos = QCursor.pos()
+        widget = QApplication.widgetAt(cursor_pos)
+        
+        if widget:
+            self._log_widget_debug_info(widget)
+        else:
+            msg = "DEBUG: No widget under mouse cursor"
+            print(msg)
+            logger.debug(msg)
+            if hasattr(self, '_debug_window') and self._debug_window:
+                self._debug_window.append_log(msg + "\n")
+
+    def _log_widget_debug_info(self, widget):
+        """Log detailed widget information to debug console, logger, and statusbar."""
+        # Collect widget information
+        widget_info = {
+            'widget_type': type(widget).__name__,
+            'object_name': widget.objectName(),
+            'text': getattr(widget, 'text', lambda: 'N/A')(),
+            'tooltip': getattr(widget, 'toolTip', lambda: 'N/A')(),
+            'accessible_name': getattr(widget, 'accessibleName', lambda: 'N/A')(),
+            'parent': type(widget.parent()).__name__ if widget.parent() else None,
+            'visible': widget.isVisible(),
+            'enabled': widget.isEnabled(),
+            'geometry': f"{widget.geometry().width()}x{widget.geometry().height()} at ({widget.geometry().x()}, {widget.geometry().y()})",
+            'style_sheet': widget.styleSheet()[:100] + '...' if len(widget.styleSheet()) > 100 else widget.styleSheet()
+        }
+        
+        # Format debug message
+        debug_msg = "=== DEBUG: Widget Under Mouse ===\n"
+        for key, value in widget_info.items():
+            debug_msg += f"{key.upper()}: {value}\n"
+        debug_msg += "================================\n"
+        
+        # Log to debug console
+        print(debug_msg)
+        
+        # Log to file logger
+        logger.debug(debug_msg)
+        
+        # Log to debug window if exists
+        if hasattr(self, '_debug_window') and self._debug_window:
+            self._debug_window.append_log(debug_msg)
+        
+        # Log to statusbar
+        status_msg = f"DEBUG: {widget_info['widget_type']} | {widget_info['object_name'] or 'No Name'} | {widget_info['text'][:30] if widget_info['text'] != 'N/A' else 'N/A'}"
+        if hasattr(self, 'statusBar') and self.statusBar():
+            self.statusBar().showMessage(status_msg, 5000)
