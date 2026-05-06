@@ -75,16 +75,6 @@ class ConnectionCard(QFrame):
         self._drive_badge.setFixedSize(QSize(42, 30))
         layout.addWidget(self._drive_badge)
 
-        # [i] info button — opens info/edit panel on the right
-        self._info_btn = QPushButton("i")
-        self._info_btn.setObjectName("cardInfoBtn")
-        self._info_btn.setFixedSize(QSize(32, 32))
-        self._info_btn.setIconSize(QSize(14, 14))
-        self._info_btn.setToolTip(tr("card.tooltip.info"))
-        self._info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._info_btn.clicked.connect(lambda: self.info_requested.emit(self._conn.id))
-        layout.addWidget(self._info_btn)
-
         self._edit_btn = QPushButton()
         self._edit_btn.setObjectName("cardEditBtn")
         self._edit_btn.setFixedSize(QSize(32, 32))
@@ -132,6 +122,9 @@ class ConnectionCard(QFrame):
             tr("card.tooltip.edit_locked") if mounted else tr("card.tooltip.edit")
         )
 
+        self._edit_btn.setCursor(Qt.CursorShape.ArrowCursor if mounted else Qt.CursorShape.PointingHandCursor)
+        self._edit_btn.setStyleSheet("QPushButton#cardEditBtn:hover { border:  1px solid #243243; }" if mounted else "QPushButton#cardEditBtn:hover { border: 1px solid #72add6; }")
+
         if self._loading:
             return
 
@@ -169,10 +162,10 @@ class ConnectionCard(QFrame):
         self._drive_badge.setText(conn.drive_letter)
 
     def set_info_active(self, active: bool):
-        """Highlight [i] button when the info panel is open for this card."""
-        self._info_btn.setProperty("active", "true" if active else "false")
-        self._info_btn.style().unpolish(self._info_btn)
-        self._info_btn.style().polish(self._info_btn)
+        """Highlight card when the info panel is open for this card."""
+        self.setProperty("info_active", "true" if active else "false")
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def _on_icon_clicked(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
@@ -194,7 +187,6 @@ class ConnectionCard(QFrame):
     def show_loading(self, text=""):
         self._loading = True
         self.setProperty("loading", "true")
-        self._info_btn.setVisible(False)
         self._edit_btn.setVisible(False)
         self._ssh_btn.setVisible(False)
         self._mount_btn.setEnabled(False)
@@ -209,7 +201,6 @@ class ConnectionCard(QFrame):
     def hide_loading(self):
         self._loading = False
         self.setProperty("loading", "false")
-        self._info_btn.setVisible(True)
         self._edit_btn.setVisible(True)
         self._ssh_btn.setVisible(True)
         self._mount_btn.setEnabled(True)
