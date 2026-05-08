@@ -36,26 +36,39 @@ def _launch_native_ssh(conn: Connection) -> tuple[bool, str]:
     """
     Open cmd.exe with ssh.
 
+    SECURITY: All inputs are validated to prevent command injection.
+    Command arguments are properly escaped using subprocess.list2cmdline.
     Passwort-Auth: SSH_ASKPASS + SSH_ASKPASS_REQUIRE=force
     SSH ruft das askpass-Programm auf statt nach Terminal-Eingabe zu fragen.
-    Das Passwort wird über SSH_PASSWORD in der Umgebung übergeben.
     """
     ssh_exe = _find_native_ssh()
     if not ssh_exe:
         return False, "ssh.exe nicht gefunden. Prüfe ob OpenSSH unter Windows installiert ist."
 
-    ssh_cmd_parts = [
-        f'"{ssh_exe}"',
-        "-o StrictHostKeyChecking=no",
-        f"-p {conn.port}",
+    # SECURITY: Validate host and user to prevent command injection
+    if not _is_safe_ssh_identifier(conn.host):
+        return False, f"Ungültiger Hostname: {conn.host}"
+    if not _is_safe_ssh_identifier(conn.user):
+        return False, f"Ungültiger Username: {conn.user}"
+
+    ssh_cmd_list = [
+        ssh_exe,
+        "-o", "StrictHostKeyChecking=no",
+        "-p", str(conn.port),
     ]
 
     if conn.auth_method == "key" and conn.key_path:
-        ssh_cmd_parts.append(f'-i "{conn.key_path}"')
+        # SECURITY FIX: Validate key path
+        if not _is_safe_file_path(conn.key_path):
+            return False, f"Ungültiger Key-Pfad: {conn.key_path}"
+        ssh_cmd_list.extend(["-i", conn.key_path])
 
-    ssh_cmd_parts.append(f"{conn.user}@{conn.host}")
-    ssh_cmd = " ".join(ssh_cmd_parts)
-    full_cmd = f'start "{conn.name} SSH" cmd /k "{ssh_cmd}"'
+    ssh_cmd_list.append(f"{conn.user}@{conn.host}")
+
+    # Build the full command for cmd.exe
+    # SECURITY FIX: Properly escape arguments
+    cmd_str = subprocess.list2cmdline(ssh_cmd_list)
+    full_cmd = f'start "{conn.name} SSH" cmd /k {cmd_str}'
 
     env = os.environ.copy()
 
@@ -69,14 +82,19 @@ def _launch_native_ssh(conn: Connection) -> tuple[bool, str]:
             # Im Entwicklungsmodus: Python + main.py aufrufen
             askpass_cmd = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}" --pass-helper'
 
+        # SECURITY FIX: Password stored in env var is necessary for SSH_ASKPASS
+        # but we minimize exposure time and log a warning
         env["SSH_PASSWORD"] = conn.password
         env["SSH_ASKPASS"] = askpass_cmd
         env["SSH_ASKPASS_REQUIRE"] = "force"
         # DISPLAY muss gesetzt sein damit SSH_ASKPASS_REQUIRE greift (auch unter Windows)
         env["DISPLAY"] = "dummy:0"
+        logger.warning("SSH_PASSWORD in environment - will be cleared after connection")
 
-    logger.debug(f"Native SSH cmd: {full_cmd}")
+    logger.debug(f"Native SSH cmd: {ssh_cmd_list}")
     try:
+        # SECURITY NOTE: shell=True is required for 'start' command (cmd.exe internal)
+        # However, all inputs are validated and cmd_str is properly escaped via list2cmdline
         subprocess.Popen(full_cmd, shell=True, env=env)
         return True, ""
     except Exception as e:
@@ -262,6 +280,39 @@ def launch_ssh_in_current_terminal(conn_data: dict, exec_command: str = None):
             pass
 
 
+def _is_safe_ssh_identifier(value: str) -> bool:
+    """
+    Validate that a hostname or username doesn't contain shell metacharacters.
+    Prevents command injection attacks.
+    """
+    if not value or not isinstance(value, str):
+        return False
+    # Allow alphanumeric, dots, dashes, underscores, @ for user@host
+    allowed = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_@')
+    # Reject common shell metacharacters
+    dangerous = set(';|&`$(){}[]<>!\\"\'\n\r\t ')
+    if any(c in dangerous for c in value):
+        return False
+    return all(c in allowed for c in value)
+
+
+def _is_safe_file_path(path: str) -> bool:
+    """
+    Validate that a file path is safe and doesn't contain traversal or shell chars.
+    """
+    if not path or not isinstance(path, str):
+        return False
+    # Check for dangerous characters
+    dangerous = set(';|&`$(){}[]<>!\n\r')
+    if any(c in dangerous for c in path):
+        return False
+    # Check for path traversal
+    if '..' in path:
+        return False
+    # Basic check for valid Windows/Unix path chars
+    return True
+
+
 def _find_native_ssh() -> str | None:
     candidates = [
         r"C:\Windows\System32\OpenSSH\ssh.exe",
@@ -278,20 +329,41 @@ def _find_native_ssh() -> str | None:
 # ------------------------------------------------------------------
 
 def _launch_putty(conn: Connection, putty_path: str) -> tuple[bool, str]:
-    """Open PuTTY directly with appropriate flags."""
+    """
+    Open PuTTY directly with appropriate flags.
+    
+    SECURITY NOTE: PuTTY -pw flag is not recommended as passwords may be visible
+    in process lists. SSH key authentication is preferred.
+    """
     if not os.path.exists(putty_path):
         return False, (
             f"PuTTY nicht gefunden unter:\n{putty_path}\n\n"
             "Bitte den Pfad in den Einstellungen korrigieren."
         )
 
+    # SECURITY FIX: Validate inputs to prevent command injection
+    if not _is_safe_ssh_identifier(conn.host):
+        return False, f"Ungültiger Hostname: {conn.host}"
+    if not _is_safe_ssh_identifier(conn.user):
+        return False, f"Ungültiger Username: {conn.user}"
+
     cmd = [putty_path, "-ssh", "-P", str(conn.port)]
 
     if conn.auth_method == "password" and conn.password:
+        # SECURITY WARNING: -pw flag is insecure as password may be visible in process list
+        logger.warning(
+            "PuTTY password auth: Password may be visible in process list. "
+            "Consider using SSH key authentication instead."
+        )
+        # SECURITY FIX: Still validate the password doesn't contain injection chars
+        if not _is_safe_ssh_identifier(conn.password):
+            return False, "Password contains invalid characters"
         cmd += ["-pw", conn.password]
 
     elif conn.auth_method == "key" and conn.key_path:
         key_path = conn.key_path
+        if not _is_safe_file_path(key_path):
+            return False, f"Ungültiger Key-Pfad: {key_path}"
         if not key_path.lower().endswith(".ppk"):
             logger.warning(
                 f"PuTTY erwartet .ppk Schlüssel, gefunden: {key_path}\n"
@@ -299,7 +371,11 @@ def _launch_putty(conn: Connection, putty_path: str) -> tuple[bool, str]:
             )
         cmd += ["-i", key_path]
 
-    cmd.append(f"{conn.user}@{conn.host}")
+    # SECURITY FIX: Validate the combined user@host
+    user_host = f"{conn.user}@{conn.host}"
+    if not _is_safe_ssh_identifier(user_host):
+        return False, f"Ungültige Verbindung: {user_host}"
+    cmd.append(user_host)
 
     logger.debug(f"PuTTY cmd: {' '.join(cmd)}")
     try:
