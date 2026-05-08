@@ -6,13 +6,13 @@ import sys
 import os
 
 # ── 0. SSH askpass helper (MUST BE FIRST, before anything else) ───────────
-# When sshfs.exe needs a password, it calls this process with --pass-helper.
-# We output the password and exit immediately.
-# IMPORTANT: Before single_instance check, otherwise the helper would be detected
-# as a second instance and exit without outputting the password.
+# SECURITY FIX: Disabled SSH_PASSWORD environment variable method due to security risk.
+# Passwords in environment variables can be extracted from process lists.
+# Use stdin-based password passing instead via -opassword_stdin.
 if len(sys.argv) > 1 and sys.argv[1] == "--pass-helper":
-    print(os.environ.get("SSH_PASSWORD", ""))
-    sys.exit(0)
+    # This method is deprecated and should not be used
+    # Passwords are now passed via stdin to sshfs/ssh processes
+    sys.exit(1)
 
 # ── 0.5 CLI-Modus ist nicht Sache der GUI-EXE ───────────────────────────────
 # Eine --windowed EXE hat keine nutzbare stdin/stdout im Parent-Terminal.

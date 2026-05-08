@@ -347,20 +347,33 @@ class SettingsDialog(QDialog):
     def _apply_autostart(enabled: bool):
         try:
             import winreg, sys
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Run",
-                0, winreg.KEY_SET_VALUE
-            )
             app_name = "NeoSSHWinManager"
-            if enabled:
-                winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, f'"{sys.executable}"')
-            else:
-                try:
-                    winreg.DeleteValue(key, app_name)
-                except FileNotFoundError:
-                    pass
-            winreg.CloseKey(key)
+            dangerous = set(';|&`$(){}[]<>!\\"\'\n\r\t\\')
+            if any(c in dangerous for c in app_name):
+                from src.app_logger import logger
+                logger.warning(f"Rejected unsafe app_name for registry: {app_name}")
+                return
+            
+            try:
+                key = winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER,
+                    "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                    0, winreg.KEY_SET_VALUE
+                )
+                if enabled:
+                    winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, f'"{sys.executable}"')
+                else:
+                    try:
+                        winreg.DeleteValue(key, app_name)
+                    except FileNotFoundError:
+                        pass
+                from src.app_logger import logger
+                logger.info(f"Autostart {'aktiviert' if enabled else 'deaktiviert'}: {app_name}")
+            except Exception as e:
+                from src.app_logger import logger
+                logger.error(f"Autostart konnte nicht {'aktiviert' if enabled else 'deaktiviert'} werden: {e}")
+            finally:
+                winreg.CloseKey(key)
         except Exception as e:
             from src.app_logger import logger
             logger.warning(f"Autostart konnte nicht gesetzt werden: {e}")

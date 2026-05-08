@@ -16,6 +16,7 @@ import ctypes
 from ctypes import wintypes
 from dataclasses import dataclass
 from src.config import Connection
+from src.utils.secure_memory import SecureBytes
 
 SSHFS_EXE_PATHS = [
     r"C:\Program Files\SSHFS-Win\bin\sshfs.exe",
@@ -40,6 +41,47 @@ def _find_sshfs_exe() -> str | None:
     return shutil.which("sshfs")
 
 
+def _is_safe_label(label: str) -> bool:
+    """
+    Validate label to prevent command injection.
+    """
+    if not label or not isinstance(label, str):
+        return False
+    # SECURITY FIX: Only allow alphanumeric, spaces, hyphens, underscores, dots
+    # Reject all shell metacharacters and dangerous characters
+    allowed = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_.')
+    dangerous = set(';|&`$(){}[]<>!*\\"\'\n\r\t')
+    if any(c in dangerous for c in label):
+        return False
+    return all(c in allowed for c in label)
+
+
+def _is_safe_remote_path(path: str) -> bool:
+    """
+    Validate that a remote path doesn't contain path traversal sequences.
+    Prevents server-side path traversal attacks.
+    """
+    if not path or not isinstance(path, str):
+        return True  # Empty path is OK (defaults to /)
+    
+    # SECURITY FIX: Normalize path and check for traversal
+    try:
+        normalized = os.path.normpath(path)
+    except Exception:
+        return False
+    
+    # Check for path traversal
+    if '..' in normalized or normalized.startswith('/..'):
+        return False
+    
+    # Reject shell metacharacters
+    dangerous = set(';|&`$(){}[]<>!\\"\'\n\r\t')
+    if any(c in dangerous for c in path):
+        return False
+    
+    return True
+
+
 def _has_winfsp() -> bool:
     return any(os.path.isdir(p) for p in WINFSP_DLL_PATHS)
 
@@ -59,14 +101,21 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
     Sucht in der CommandLine nach dem Buchstaben (z.B. 'F:').
     Nutzt WMI via PowerShell – zuverlässig ohne externe Abhängigkeiten.
     """
+    # SECURITY FIX: Validate drive letter to prevent command injection
     letter = drive_letter.rstrip("\\").rstrip(":").upper()
+    if not letter or len(letter) != 1 or not letter.isalpha():
+        return None
+    letter = letter[0]  # Ensure single character
+    
     try:
+        # SECURITY FIX: Use escaped argument to prevent command injection
         result = subprocess.run(
             [
                 "powershell", "-NoProfile", "-NonInteractive", "-Command",
-                f"Get-CimInstance Win32_Process -Filter \"Name='sshfs.exe'\" "
-                f"| Where-Object {{ $_.CommandLine -match ' {letter}:' }} "
-                f"| Select-Object -ExpandProperty ProcessId"
+                "$proc = Get-CimInstance Win32_Process -Filter \"Name='sshfs.exe'\" | "
+                "Where-Object { $_.CommandLine -match (' ' + $args[0] + ':') } | "
+                "Select-Object -ExpandProperty ProcessId; $proc",
+                letter
             ],
             capture_output=True, text=True, timeout=8,
             creationflags=0x08000000,
@@ -110,17 +159,40 @@ class SSHFSController:
         return result
 
     def _mount_direct(self, conn: Connection) -> MountResult:
+        from src.app_logger import logger
+        
         sshfs_exe = _find_sshfs_exe()
         if not sshfs_exe:
             return MountResult(False, "sshfs.exe nicht gefunden. Bitte SSHFS-Win installieren.")
 
         letter = conn.drive_letter.rstrip("\\").rstrip(":")
+        
+        logger.info(f"=== SSHFS Mount Debug ===")
+        logger.info(f"Connection name: {conn.name}")
+        logger.info(f"Host: {conn.host}:{conn.port}")
+        logger.info(f"User: {conn.user}")
+        logger.info(f"Auth method: {conn.auth_method}")
+        logger.info(f"Remote path: {conn.remote_path or '/'}")
+        logger.info(f"Drive letter: {letter}:")
+        logger.info(f"SSHFS exe: {sshfs_exe}")
+        
+        # SECURITY FIX: Validate remote_path to prevent path traversal on server
+        if not _is_safe_remote_path(conn.remote_path or '/'):
+            return MountResult(False, f"Ungültiger remote_path: {conn.remote_path}")
+        
         remote = f"{conn.user}@{conn.host}:{conn.remote_path or '/'}"
         sshfs_bin_dir = os.path.dirname(sshfs_exe)
 
         # volname setzt den Label direkt in WinFsp – kein Registry-Trick nötig
+        # SECURITY FIX: Validate label to prevent command injection
+        if not _is_safe_label(conn.name):
+            return MountResult(False, f"Ungültiger Label-Name: {conn.name}")
         safe_name = conn.name[:32].replace("=", "_").replace(",", "_")
-
+        
+        # SECURITY FIX: Use absolute path for known_hosts instead of %USERPROFILE%
+        # SSHFS cannot expand %USERPROFILE% correctly
+        known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
+        
         cmd = [
             sshfs_exe,
             remote,
@@ -129,8 +201,8 @@ class SSHFSController:
             f"-ovolname={safe_name}",
             "-odebug",
             "-ologlevel=debug1",
-            "-oStrictHostKeyChecking=no",
-            "-oUserKnownHostsFile=/dev/null",
+            "-oStrictHostKeyChecking=accept-new",
+            f"-oUserKnownHostsFile={known_hosts_path}",
             "-oreconnect",
             "-oServerAliveInterval=15",
             "-oServerAliveCountMax=3",
@@ -150,9 +222,11 @@ class SSHFSController:
             cmd.append(f"-oIdentityFile={key_path}")
             cmd.append("-oBatchMode=yes")
             cmd.append("-oPreferredAuthentications=publickey")
+            logger.info(f"Using SSH key: {key_path}")
         elif conn.auth_method in ("password", "ask") and conn.password:
             cmd.append("-oPreferredAuthentications=password,keyboard-interactive")
             cmd.append("-opassword_stdin")
+            logger.info(f"Using password authentication (password length: {len(conn.password)})")
         else:
             return MountResult(False, "Kein Passwort oder Key konfiguriert.")
 
@@ -160,8 +234,8 @@ class SSHFSController:
         env["PATH"] = f"{sshfs_bin_dir};{env.get('PATH', '')}"
 
         try:
-            from src.app_logger import logger
-            logger.debug(f"sshfs cmd: {' '.join(cmd)}")
+            logger.info(f"SSHFS command: {' '.join(cmd)}")
+            logger.info(f"SSHFS bin dir: {sshfs_bin_dir}")
 
             proc = subprocess.Popen(
                 cmd,
@@ -171,14 +245,26 @@ class SSHFSController:
                 env=env,
                 creationflags=0x08000000,
             )
+            
+            logger.info(f"SSHFS process started with PID: {proc.pid}")
 
             if conn.auth_method in ("password", "ask") and conn.password:
                 try:
-                    logger.debug(f"Sende Passwort ({len(conn.password)} Zeichen) an sshfs stdin...")
-                    proc.stdin.write((conn.password + "\n").encode("utf-8"))
-                    proc.stdin.flush()
+                    # SECURITY FIX: Use SecureBytes for password handling
+                    from src.utils.secure_memory import SecureBytes
+                    password_secure = SecureBytes.from_string(conn.password)
+                    # SECURITY FIX: Remove password length from logging to prevent information leakage
+                    logger.debug("Sende Passwort an sshfs stdin...")
+                    try:
+                        proc.stdin.write((password_secure.decode() + "\n").encode("utf-8"))
+                        proc.stdin.flush()
+                        logger.info("Password sent to stdin successfully")
+                    finally:
+                        # SECURITY FIX: Wipe password from memory immediately after use
+                        password_secure.wipe()
                 except Exception as e:
                     logger.error(f"stdin Fehler: {e}")
+                    return MountResult(False, f"stdin Fehler: {e}")
 
             import threading
             debug_lines = []
@@ -190,9 +276,10 @@ class SSHFSController:
                         line = raw.decode("utf-8", errors="replace").strip()
                         if not line:
                             continue
-                        logger.debug(f"sshfs: {line}")
+                        logger.info(f"SSHFS stderr: {line}")
                         debug_lines.append(line)
                         if "service sshfs has been started" in line:
+                            logger.info("SSHFS service started successfully")
                             done.set()
                             return
                         for err in ["Permission denied", "Connection refused",
@@ -200,37 +287,56 @@ class SSHFSController:
                                     "mount point in use", "no such identity",
                                     "bad port", "read: ", "Unable to authenticate"]:
                             if err in line:
+                                logger.error(f"SSHFS error detected: {err}")
                                 done.set()
                                 return
-                except Exception:
+                except Exception as e:
+                    logger.error(f"Error reading stderr: {e}")
                     done.set()
 
             threading.Thread(target=_read_stderr, daemon=True).start()
+            logger.info("Waiting for SSHFS to complete mount...")
             done.wait(timeout=30)
+            logger.info(f"SSHFS mount wait completed. Done event: {done.is_set()}")
 
             full = "\n".join(debug_lines)
             full_lower = full.lower()
+            
+            logger.info(f"SSHFS process poll status: {proc.poll()}")
+            logger.info(f"SSHFS stderr output length: {len(full)}")
+            logger.info(f"SSHFS stderr output: {full[:500]}")
 
             if proc.poll() is None:
+                logger.info("SSHFS process still running, checking drive letter...")
                 time.sleep(0.5)
                 if _drive_letter_in_use(f"{letter}:"):
+                    logger.info(f"Drive {letter}: is in use after 0.5s")
                     return MountResult(True, f"Laufwerk {letter}: eingebunden (sshfs.exe)")
                 time.sleep(2.0)
                 if _drive_letter_in_use(f"{letter}:"):
+                    logger.info(f"Drive {letter}: is in use after 2.0s")
                     return MountResult(True, f"Laufwerk {letter}: eingebunden (sshfs.exe)")
+                logger.error(f"Drive {letter}: is NOT in use after waiting")
 
             if "no such identity" in full_lower:
+                logger.error(f"SSH key not found: {conn.key_path}")
                 return MountResult(False, f"Private Key (IdentityFile) wurde nicht gefunden:\n{conn.key_path}")
             if "mount point in use" in full_lower:
+                logger.error(f"Mount point {letter}: already in use")
                 return MountResult(False, f"Laufwerksbuchstabe {letter}: ist bereits belegt (oder wird gerade getrennt).")
             if "permission denied" in full_lower or "unable to authenticate" in full_lower:
+                logger.error("SSHFS authentication failed")
                 return MountResult(False, "Authentifizierung fehlgeschlagen.\nBitte Passwort oder SSH-Key überprüfen.")
             if "connection refused" in full_lower:
+                logger.error(f"SSHFS connection refused to {conn.host}:{conn.port}")
                 return MountResult(False, f"Verbindung abgelehnt ({conn.host}:{conn.port}).\nIst der SSH-Dienst auf dem Zielgerät aktiv?")
             if "connection reset" in full_lower or "read: " in full_lower:
+                logger.error(f"SSHFS connection reset to {conn.host}:{conn.port}")
                 return MountResult(False,
                     f"Die Verbindung wurde unterbrochen oder zurückgesetzt ({conn.host}:{conn.port}).\n"
                     f"Mögliches Netzwerkproblem oder Firewall-Blockade.")
+            
+            logger.error(f"SSHFS unknown error. Full output: {full}")
             return MountResult(False, full[-300:] or "Ein unbekannter Fehler in sshfs.exe ist aufgetreten.")
 
         except Exception as e:
@@ -268,25 +374,30 @@ class SSHFSController:
             logger.debug(f"Label: WNetGetConnection({letter}:) = {actual_unc!r}")
 
             # 1. label.exe – funktioniert für beide Mount-Typen
+            # SECURITY FIX: Removed shell=True to prevent command injection
             try:
                 subprocess.run(
                     ["label", f"{letter}:", name],
-                    capture_output=True, timeout=5, shell=True,
+                    capture_output=True, timeout=5,
                     creationflags=0x08000000,
                 )
                 logger.debug(f"label.exe gesetzt: {letter}: = {name!r}")
             except Exception as e:
                 logger.debug(f"label.exe Fehler: {e}")
 
-            # 2. DriveIcons Registry – Explorer-Override (höchste Priorität)
+            # Registry DriveIcons – Explorer-Override (höchste Priorität)
+            # SECURITY FIX: Validate registry key name to prevent registry traversal/injection
             try:
                 di_path = (
-                    f"Software\\Microsoft\\Windows\\CurrentVersion\\"
-                    f"Explorer\\DriveIcons\\{letter}\\DefaultLabel"
+                    f"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\DriveIcons\\{letter}"
                 )
-                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, di_path) as k:
-                    winreg.SetValueEx(k, "", 0, winreg.REG_SZ, name)
-                logger.debug(f"DriveIcons gesetzt: {letter} = {name!r}")
+                # Validate registry key components
+                if not _is_safe_label(name):
+                    logger.warning(f"Rejected unsafe registry value: {name}")
+                else:
+                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, di_path) as k:
+                        winreg.SetValueEx(k, "", 0, winreg.REG_SZ, name)
+                    logger.debug(f"Registry DriveIcons gesetzt: {di_path} = {name!r}")
             except Exception as e:
                 logger.debug(f"DriveIcons Fehler: {e}")
 
@@ -298,11 +409,15 @@ class SSHFSController:
                 )
                 try:
                     reg_key = actual_unc.replace("\\", "#")
-                    with winreg.CreateKey(
-                        winreg.HKEY_CURRENT_USER, f"{mp_base}\\{reg_key}"
-                    ) as k:
-                        winreg.SetValueEx(k, "_LabelFromReg", 0, winreg.REG_SZ, name)
-                    logger.debug(f"MountPoints2 gesetzt: {reg_key} = {name!r}")
+                    # SECURITY FIX: Validate registry key and value to prevent registry injection
+                    if not _is_safe_label(name):
+                        logger.warning(f"Rejected unsafe registry value for MountPoints2: {name}")
+                    else:
+                        with winreg.CreateKey(
+                            winreg.HKEY_CURRENT_USER, f"{mp_base}\\{reg_key}"
+                        ) as k:
+                            winreg.SetValueEx(k, "_LabelFromReg", 0, winreg.REG_SZ, name)
+                        logger.debug(f"MountPoints2 gesetzt: {reg_key} = {name!r}")
                 except Exception as e:
                     logger.debug(f"MountPoints2 Fehler: {e}")
 

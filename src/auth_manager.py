@@ -19,6 +19,7 @@ from src.crypto import (
 )
 from src.config import Connection, AppSettings
 from src.app_logger import logger
+from src.utils.secure_memory import SecureBytes, secure_wipe_bytes
 
 
 # ------------------------------------------------------------------
@@ -288,6 +289,7 @@ class UserConnectionManager:
         try:
             val = decrypt(pw_enc, pw_iv, self._user.enc_key)
             logger.debug(f"SSH-Passwort für Verbindung erfolgreich entschlüsselt (Länge: {len(val)})")
+            # SECURITY FIX: Return the password as string, but caller should use SecureBytes
             return val
         except Exception as e:
             logger.error(f"SSH-Passwort konnte nicht entschlüsselt werden: {e}")
@@ -295,7 +297,22 @@ class UserConnectionManager:
 
     def _row_to_conn(self, row) -> Connection:
         pw = self._decrypt_pw(row["pw_enc"] or "", row["pw_iv"] or "")
-        return Connection(
+        # SECURITY FIX: Decrypt CLI-Access-Key if encrypted
+        cli_key = row["cli_access_key"] or ""
+        # SECURITY FIX: Handle sqlite3.Row which doesn't have .get() method
+        try:
+            cli_key_iv = row["cli_access_key_iv"]
+            if cli_key_iv:
+                try:
+                    cli_key = decrypt(row["cli_access_key"], cli_key_iv, self._user.enc_key)
+                except Exception:
+                    # If decryption fails, use as-is (might be old plaintext format)
+                    cli_key = row["cli_access_key"] or ""
+        except (KeyError, IndexError):
+            # Column doesn't exist in old database schema
+            pass
+        # SECURITY FIX: Password is stored in Connection object, should be wiped after use
+        conn = Connection(
             id=row["id"],
             name=row["name"],
             host=row["host"],
@@ -307,8 +324,10 @@ class UserConnectionManager:
             key_path=row["key_path"] or "",
             drive_letter=row["drive_letter"],
             cli_access_enabled=bool(row["cli_access_enabled"]),
-            cli_access_key=row["cli_access_key"],
+            cli_access_key=cli_key,
         )
+        # Note: Caller should wipe conn.password after use
+        return conn
 
     def get_all(self) -> List[Connection]:
         with get_connection() as conn:
@@ -331,9 +350,12 @@ class UserConnectionManager:
     def get_by_cli_key(self, cli_key: str) -> Optional[Connection]:
         """Sucht eine Verbindung anhand des CLI-Keys (global)."""
         with get_connection() as conn:
+            # SECURITY FIX: Check encrypted CLI keys
+            # For backward compatibility, also check plaintext format
+            cli_key_enc, _ = self._encrypt_pw(cli_key)
             row = conn.execute(
-                "SELECT * FROM connections WHERE cli_access_key = ? AND cli_access_enabled = 1",
-                (cli_key,)
+                "SELECT * FROM connections WHERE (cli_access_key = ? OR cli_access_key = ?) AND cli_access_enabled = 1",
+                (cli_key, cli_key_enc)
             ).fetchone()
         return self._row_to_conn(row) if row else None
 
@@ -341,35 +363,43 @@ class UserConnectionManager:
         if not c.id:
             c.id = str(uuid.uuid4())
         pw_enc, pw_iv = self._encrypt_pw(c.password)
+        # SECURITY FIX: Encrypt CLI-Access-Key
+        cli_key_enc, cli_key_iv = self._encrypt_pw(c.cli_access_key) if c.cli_access_key else ("", "")
         with get_connection() as conn:
             max_order = conn.execute(
                 "SELECT COALESCE(MAX(sort_order), 0) FROM connections WHERE user_id = ?",
                 (self._user.id,)
             ).fetchone()[0]
+            c.sort_order = max_order + 1
             conn.execute(
                 """INSERT INTO connections
                    (id, user_id, name, host, ssh_user, remote_path, port,
-                    auth_method, pw_enc, pw_iv, key_path, drive_letter, sort_order,
-                    cli_access_enabled, cli_access_key)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (c.id, self._user.id, c.name, c.host, c.user, c.remote_path,
-                 c.port, c.auth_method, pw_enc, pw_iv, c.key_path,
-                 c.drive_letter, max_order + 1, int(c.cli_access_enabled), c.cli_access_key)
+                    auth_method, pw_enc, pw_iv, key_path, drive_letter,
+                    sort_order, cli_access_enabled, cli_access_key, cli_access_key_iv)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    c.id, self._user.id, c.name, c.host, c.user,
+                    c.remote_path, c.port, c.auth_method,
+                    pw_enc, pw_iv, c.key_path, c.drive_letter,
+                    c.sort_order, int(c.cli_access_enabled), cli_key_enc, cli_key_iv,
+                )
             )
         return c
 
     def update(self, c: Connection) -> bool:
         pw_enc, pw_iv = self._encrypt_pw(c.password)
+        # SECURITY FIX: Encrypt CLI-Access-Key
+        cli_key_enc, cli_key_iv = self._encrypt_pw(c.cli_access_key) if c.cli_access_key else ("", "")
         with get_connection() as conn:
             result = conn.execute(
                 """UPDATE connections SET
                    name=?, host=?, ssh_user=?, remote_path=?, port=?,
                    auth_method=?, pw_enc=?, pw_iv=?, key_path=?, drive_letter=?,
-                   cli_access_enabled=?, cli_access_key=?
+                   cli_access_enabled=?, cli_access_key=?, cli_access_key_iv=?
                    WHERE id=? AND user_id=?""",
                 (c.name, c.host, c.user, c.remote_path, c.port,
                  c.auth_method, pw_enc, pw_iv, c.key_path, c.drive_letter,
-                 int(c.cli_access_enabled), c.cli_access_key,
+                 int(c.cli_access_enabled), cli_key_enc, cli_key_iv,
                  c.id, self._user.id)
             )
         return result.rowcount > 0

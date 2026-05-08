@@ -54,9 +54,13 @@ class SSHSystemInfoThread(QThread):
             info["error"] = "ssh.exe not found"
             return info
 
+        # SECURITY FIX: Use absolute path for known_hosts instead of %USERPROFILE%
+        known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
+        
         cmd_base = [
             ssh_exe,
-            "-o", "StrictHostKeyChecking=no",
+            "-o", "StrictHostKeyChecking=accept-new",
+            "-o", f"UserKnownHostsFile={known_hosts_path}",
             "-o", "ConnectTimeout=10",
             "-o", "BatchMode=yes" if self._conn.auth_method == "key" else "PreferredAuthentications=password,keyboard-interactive",
             "-p", str(self._conn.port),
@@ -153,16 +157,14 @@ class SSHSystemInfoThread(QThread):
 
     def _get_ssh_env(self) -> dict:
         env = os.environ.copy()
+        # SECURITY FIX: Removed SSH_PASSWORD environment variable method
+        # Passwords in environment variables can be extracted from process lists
+        # System info panel should only work with key authentication
         if self._conn.auth_method == "password" and self._conn.password:
-            is_frozen = getattr(sys, "frozen", False)
-            if is_frozen:
-                askpass_cmd = f'"{sys.executable}" --pass-helper'
-            else:
-                askpass_cmd = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}" --pass-helper'
-            env["SSH_PASSWORD"] = self._conn.password
-            env["SSH_ASKPASS"] = askpass_cmd
-            env["SSH_ASKPASS_REQUIRE"] = "force"
-            env["DISPLAY"] = "dummy:0"
+            logger.warning(
+                "System info panel does not support password authentication for security reasons. "
+                "Please use SSH key authentication."
+            )
         return env
 
 

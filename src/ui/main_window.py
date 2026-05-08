@@ -2222,6 +2222,15 @@ class MainWindow(QMainWindow):
             is_admin = bool(ctypes.windll.shell32.IsUserAnAdmin())
         except Exception:
             is_admin = False
+        # SECURITY FIX: Validate path to prevent command injection
+        if not path or not isinstance(path, str):
+            return
+        # Reject dangerous characters
+        dangerous = set(';|&`$(){}[]<>!\\"\'\n\r\t')
+        if any(c in dangerous for c in path):
+            logger.warning(f"Rejected potentially dangerous path: {path}")
+            return
+        
         try:
             if is_admin:
                 subprocess.Popen(["explorer.exe", path], creationflags=0x00000010)

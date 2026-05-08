@@ -135,7 +135,8 @@ def init_db() -> None:
                 drive_letter TEXT NOT NULL DEFAULT 'Z:',
                 sort_order   INTEGER NOT NULL DEFAULT 0,
                 cli_access_enabled INTEGER NOT NULL DEFAULT 0,
-                cli_access_key     TEXT UNIQUE,
+                cli_access_key     TEXT UNIQUE,  -- CLI-Access-Key AES verschlüsselt (hex)
+                cli_access_key_iv  TEXT,         -- IV für cli_access_key (hex)
                 created_at   TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
@@ -172,6 +173,8 @@ def init_db() -> None:
                 conn.execute("ALTER TABLE connections ADD COLUMN cli_access_enabled INTEGER NOT NULL DEFAULT 0")
             if "cli_access_key" not in cols:
                 conn.execute("ALTER TABLE connections ADD COLUMN cli_access_key TEXT UNIQUE")
+            if "cli_access_key_iv" not in cols:
+                conn.execute("ALTER TABLE connections ADD COLUMN cli_access_key_iv TEXT")
         except Exception:
             pass
 
