@@ -203,8 +203,8 @@ QPushButton#dialogMaximizeBtn:checked {
     font-size: 10px;
     font-weight: 700;
     border: 1px solid rgba(125, 223, 255, 0.24);
-    border-radius: 12px;
-    padding: 4px 10px;
+    border-radius: 8px;
+    padding: 8px 10px;
 }
 #sysinfoStatePill[connected="false"] {
     background-color: rgba(239, 68, 68, 0.12);
@@ -428,7 +428,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 }
 
 #connectionCard {
-    background-color: #121822;
+    background-color: #13131E;
     border: 1px solid #1f2b3a;
     border-radius: 16px;
     margin: 0px;
@@ -500,7 +500,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
     font-size: 11px;
     font-weight: 700;
     border-radius: 9px;
-    padding: 5px 9px;
+    padding: 2px 4px;
     border: 1px solid rgba(125, 223, 255, 0.24);
 }
 #driveBadge[mounted="true"] {
@@ -561,7 +561,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 }
 
 #connectionsHeader {
-    background-color: #0f141b;
+    background-color: #0E0E19;
     border-bottom: 1px solid #1c2633;
     min-height: 52px;
     max-height: 52px;
@@ -583,16 +583,16 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 }
 
 #connectionsBadge {
-    background-color: #131c27;
+    background-color: #14141F;
     color: #607489;
     font-family: "Consolas";
     font-size: 11px;
     font-weight: 600;
     border: 1px solid rgba(96, 116, 137, 0.26);
-    border-radius: 999px;
-    min-height: 24px;
-    max-height: 24px;
-    padding: 0 9px;
+    border-radius: 8px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0 8px;
 }
 
 /* ---- Splitter handle ---------------------------------------- */
@@ -605,12 +605,12 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 
 /* ---- Right Panel (System Info) ---------------------------- */
 #rightPanel {
-    background-color: #0f141b;
+    background-color: #0E0E19;
     border-left: 1px solid #1c2633;
 }
 
 #rightPanelHeader {
-    background-color: #111822;
+    background-color: #0E0E19;
     border-bottom: 1px solid #1f2b3a;
     min-height: 52px;
     max-height: 52px;
@@ -648,6 +648,8 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
     color: #8fa4b8;
     font-size: 13px;
     padding: 0;
+    min-height: 45px;
+    max-height: 45px;
 }
 
 #rightPanelPlaceholder,
@@ -706,7 +708,7 @@ QPushButton#sidebarBtn[btn_type="warning"]:hover {
 
 /* ---- Small Add button in header --------------------------- */
 QPushButton#headerAddBtn {
-    background-color: #141d28;
+    background-color: 14141F;
     border: 1px solid #243243;
     border-radius: 10px;
     min-width: 32px;
@@ -733,6 +735,7 @@ QPushButton#headerAddBtn:hover {
 }
 #rightPanelContent {
     background-color: transparent;
+    min-width: 100%;
 }
 
 /* Info body rows */
@@ -752,13 +755,12 @@ QPushButton#headerAddBtn:hover {
     font-size: 11px;
 }
 #rpValue {
-    color: #deebf7;
-    font-size: 12px;
-    font-weight: 500;
-    background-color: #111f2c;
-    border: 1px solid #1f2b3a;
+    color: #14141F;
+    font-size: 18px;
+    font-weight: 800;
+    background-color: #14141F;
+    border: 0px solid #1f2b3a;
     border-radius: 12px;
-    padding: 12px 14px;
 }
 #rpDivider {
     background-color: #1f2b3a;
@@ -781,7 +783,7 @@ QPushButton#headerAddBtn:hover {
 
 /* Header action buttons (edit, trash, close in right panel) */
 QPushButton#rpHeaderBtn {
-    background-color: #141d28;
+    background-color: #14141F;
     border: 1px solid #243243;
     border-radius: 10px;
     min-width: 32px;
@@ -809,10 +811,10 @@ QPushButton#rpActionBtn {
     background-color: #141d28;
     border: 1px solid #243243;
     border-radius: 12px;
-    color: #deebf7;
+    color: #E4EAF0;
     font-size: 12px;
     font-weight: 600;
-    padding: 7px 12px;
+    padding: 4px 12px;
     min-height: 32px;
 }
 QPushButton#rpActionBtn:hover {
@@ -823,7 +825,7 @@ QPushButton#rpActionBtn[btn_type="primary"] {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 #00b4d8, stop:1 #0077b6);
     border: none;
-    color: #071118;
+    color: #deebf7;
 }
 QPushButton#rpActionBtn[btn_type="primary"]:hover {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -884,7 +886,7 @@ QPushButton#cardInfoBtn[active="true"] {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 #00b4d8, stop:1 #0077b6);
     border: none;
-    color: #071118;
+    color: #deebf7;
     font-weight: 700;
     padding: 0 14px;
     border-radius: 10px;
@@ -1046,12 +1048,12 @@ QComboBox QAbstractItemView {
     selection-background-color: rgba(0, 180, 216, 0.18);
     selection-color: #e4eaf0;
     outline: none;
-    padding: 4px;
+    padding: 1px;
 }
 QComboBox QAbstractItemView::item {
-    padding: 6px 12px;
-    min-height: 32px;
-    border-radius: 8px;
+    padding: 4px 8px;
+    min-height: 24px;
+    border-radius: 12px;
 }
 QComboBox QAbstractItemView::item:selected {
     background-color: rgba(0, 180, 216, 0.18);
@@ -1345,7 +1347,7 @@ QPushButton#dialogMaximizeBtn:checked {
     font-size: 10px;
     font-weight: 700;
     border: 1px solid rgba(0, 119, 182, 0.18);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 4px 10px;
 }
 #sysinfoStatePill[connected="false"] {
@@ -1595,9 +1597,10 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
     font-size: 11px;
     font-weight: 700;
     border-radius: 9px;
-    padding: 5px 9px;
+    padding: 2px 4px;
     border: 1px solid #c7dfef;
 }
+
 #driveBadge[mounted="true"] {
     background-color: rgba(0, 180, 80, 0.12);
     color: #007a3d;
@@ -1671,10 +1674,10 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
     font-size: 11px;
     font-weight: 600;
     border: 1px solid rgba(0, 119, 182, 0.22);
-    border-radius: 999px;
-    min-height: 24px;
-    max-height: 24px;
-    padding: 0 10px;
+    border-radius: 8px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0 8px;
 }
 
 /* ---- Splitter handle (Light) -------------------------------- */
@@ -1790,7 +1793,7 @@ QPushButton#headerAddBtn:hover {
     background-color: transparent;
     border: none;
 }
-#rightPanelContent { background-color: transparent; }
+#rightPanelContent { background-color: transparent; min-width: 100%;}
 #rpInfoBody { background-color: transparent; }
 #rpSectionLabel {
     color: #0077b6;
@@ -1848,7 +1851,7 @@ QPushButton#rpActionBtn {
     background-color: #ffffff;
     border: 1px solid #d5dde7;
     border-radius: 12px;
-    color: #1a2332;
+    color: #E4EAF0;
     font-size: 12px;
     font-weight: 600;
     padding: 7px 12px;
@@ -1862,7 +1865,7 @@ QPushButton#rpActionBtn[btn_type="primary"] {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 #00b4d8, stop:1 #0077b6);
     border: none;
-    color: #071118;
+    color: #deebf7;
 }
 QPushButton#rpActionBtn[btn_type="primary"]:hover {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -1889,10 +1892,10 @@ QPushButton#cardInfoBtn[active="true"] {
 }
 
 #actionBtn {
-    background-color: #ffffff;
+    background-color: #E4EAF0;
     border: 1px solid #d5dde7;
     border-radius: 12px;
-    color: #4a5a6a;
+    color: #E4EAF0;
     font-size: 12px;
     padding: 7px 12px;
     text-align: left;
@@ -1907,7 +1910,7 @@ QPushButton#cardInfoBtn[active="true"] {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 #00b4d8, stop:1 #0077b6);
     border: none;
-    color: #071118;
+    color: #deebf7;
     font-weight: 700;
     padding: 0 14px;
     border-radius: 10px;
@@ -1920,7 +1923,7 @@ QPushButton#cardInfoBtn[active="true"] {
 }
 
 #secondaryBtn {
-    background-color: #ffffff;
+    background-color: #E4EAF0;
     border: 1px solid #d5dde7;
     border-radius: 10px;
     color: #4a5a6a;
@@ -1974,7 +1977,7 @@ QPushButton#sshBtn:hover {
 }
 
 QPushButton#cardInfoBtn, QPushButton#cardEditBtn {
-    background: #ffffff;
+    background: #E4EAF0;
     border: 1px solid #d5dde7;
     color: #4a5a6a;
     border-radius: 10px;
@@ -2058,12 +2061,12 @@ QComboBox QAbstractItemView {
     selection-background-color: rgba(0, 119, 182, 0.12);
     selection-color: #0077b6;
     outline: none;
-    padding: 4px;
+    padding: 1px;
 }
 QComboBox QAbstractItemView::item {
-    padding: 6px 12px;
-    min-height: 32px;
-    border-radius: 8px;
+    padding: 4px 4px;
+    min-height: 24px;
+    border-radius: 12px;
 }
 QComboBox QAbstractItemView::item:selected {
     background-color: rgba(0, 119, 182, 0.12);

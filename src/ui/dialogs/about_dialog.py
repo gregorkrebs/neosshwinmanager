@@ -25,14 +25,12 @@ class AboutDialog(QDialog):
         self.setMaximumWidth(520)
         self.setModal(True)
         self._build_ui()
-        # Max-Höhe = Bildschirm, Start-Höhe = volle Hauptfenster-Höhe (Inhalt scrollt bei Overflow).
         screen = QApplication.primaryScreen()
         if screen:
             self.setMaximumHeight(int(screen.availableGeometry().height() * 0.95))
         match_parent_height(self, parent)
 
     def _build_ui(self):
-        # Äußeres Layout: scrollbarer Content oben, fixer Close-Button unten.
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
@@ -59,7 +57,7 @@ class AboutDialog(QDialog):
         icon_lbl = QLabel()
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # Get icon path (robust discovery)
+        # Get icon path
         def get_resource_path(relative_path):
             import sys
             if hasattr(sys, '_MEIPASS'):
@@ -129,7 +127,6 @@ class AboutDialog(QDialog):
         layout.addWidget(details)
         layout.addStretch()
 
-        # Fixe Button-Leiste außerhalb der Scroll-Area.
         btn_bar = QWidget()
         btn_bar.setObjectName("dialogBtnBar")
         btn_bar_layout = QVBoxLayout(btn_bar)
