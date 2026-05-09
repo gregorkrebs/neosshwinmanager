@@ -68,6 +68,7 @@
   "delete.select_one": "Bitte eine Verbindung auswählen.",
   "delete.mounted_confirm": "'{name}' ist verbunden. Trennen und löschen?",
   "delete.confirm": "Verbindung '{name}' löschen?",
+  "error.unmount_failed": "Laufwerk konnte nicht getrennt werden: {error}\n\nLöschung abgebrochen.",
 
   "edit.locked.title": "Bearbeiten gesperrt",
   "edit.locked.msg": "Diese Verbindung ist aktuell gemountet und kann nicht bearbeitet werden.\nBitte zuerst trennen.",

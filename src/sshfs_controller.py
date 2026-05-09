@@ -145,17 +145,16 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
     Sucht in der CommandLine nach dem Buchstaben (z.B. 'F:').
     Nutzt psutil für blitzschnelle Suche ohne PowerShell-Overhead.
     """
-    import psutil
-    
     # SECURITY FIX: Validate drive letter to prevent command injection
     letter = drive_letter.rstrip("\\").rstrip(":").upper()
     if not letter or len(letter) != 1 or not letter.isalpha():
         return None
     letter = letter[0]  # Ensure single character
-    
+
     target_arg = f"{letter}:"
-    
+
     try:
+        import psutil
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
                 name = proc.info.get('name', '')
@@ -165,9 +164,12 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
                         return proc.info['pid']
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
+    except ImportError:
+        logger.warning("psutil nicht installiert — kann SSHFS-PID nicht lokalisieren. Unmount via WinFsp fallback.")
+        return None
     except Exception:
         pass
-        
+
     return None
 
 

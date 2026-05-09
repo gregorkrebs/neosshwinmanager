@@ -68,6 +68,7 @@
   "delete.select_one": "Please select a connection.",
   "delete.mounted_confirm": "'{name}' is connected. Disconnect and delete?",
   "delete.confirm": "Delete connection '{name}'?",
+  "error.unmount_failed": "Failed to disconnect drive: {error}\n\nDelete operation cancelled.",
 
   "edit.locked.title": "Editing locked",
   "edit.locked.msg": "This connection is currently mounted and cannot be edited.\nPlease disconnect first.",

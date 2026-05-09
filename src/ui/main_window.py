@@ -2479,7 +2479,15 @@ class MainWindow(QMainWindow):
             )
             if reply != QMessageBox.StandardButton.Yes:
                 return
-            self._controller.unmount(conn.drive_letter)
+            try:
+                self._controller.unmount(conn.drive_letter)
+            except Exception as e:
+                logger.error(f"Unmount fehlgeschlagen für {conn.drive_letter}: {e}")
+                QMessageBox.warning(
+                    self, tr("delete.title"),
+                    tr("error.unmount_failed", error=str(e))
+                )
+                return
         else:
             reply = QMessageBox.question(
                 self, tr("delete.title"),
