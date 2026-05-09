@@ -373,6 +373,7 @@ class SystemInfoPanel(QFrame):
         root.setSpacing(12)
 
         hero = QFrame()
+        self._hero_card = hero
         hero.setObjectName("sysinfoHeroCard")
         hero_l = QVBoxLayout(hero)
         hero_l.setContentsMargins(18, 16, 18, 16)
@@ -572,8 +573,9 @@ class SystemInfoPanel(QFrame):
         self._loading_icon.setText(icon)
         self._loading_title.setText(title)
         self._loading_dots.setText(body)
-        self._loading_overlay.show()
+        self._hero_card.hide()
         self._content.hide()
+        self._loading_overlay.show()
         self._loading_dots.show()
 
     def _make_section_card(self, title: str):
@@ -636,6 +638,7 @@ class SystemInfoPanel(QFrame):
         bar.style().polish(bar)
 
     def _fetch_info(self):
+        self._hero_card.show()
         self._loading_lbl.show()
         self._state_card.show()
         self._content.show()
