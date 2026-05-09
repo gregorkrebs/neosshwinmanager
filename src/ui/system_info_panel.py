@@ -68,7 +68,7 @@ class SSHSystemInfoThread(QThread):
                 self.info_ready.emit(info)
         except AuthLevelError as e:
             if not self._stopped:
-                self.error.emit(e.level, "auth_denied")
+                self.error.emit(e.level, "auth_missing")
         except ValueError as e:
             # ValueError from _build_ssh_command when key is missing
             if not self._stopped:
@@ -81,23 +81,11 @@ class SSHSystemInfoThread(QThread):
         self._stopped = True
 
     def _validate_auth(self) -> None:
-        """Raise AuthLevelError if the connection's auth method is blocked by the current security level."""
-        try:
-            sec_level = int(getattr(self._settings, 'security_level', 0) or 0)
-        except (TypeError, ValueError):
-            sec_level = 0
+        """Raise AuthLevelError if neither key nor password is configured."""
         has_key = bool(self._conn.key_path or self._conn.putty_key_path)
-        # Use auth_method intent, not the runtime password value — decryption failures
-        # or empty stored passwords are handled by the SSH layer, not here.
-        can_use_password = self._conn.auth_method == "password"
-
-        if sec_level <= 1:
-            if not has_key:
-                raise AuthLevelError(str(sec_level))
-        else:
-            # Level 2: key or password connection accepted
-            if not has_key and not can_use_password:
-                raise AuthLevelError("2")
+        has_password = self._conn.auth_method == "password" and bool(self._conn.password)
+        if not has_key and not has_password:
+            raise AuthLevelError("missing")
 
     def _gather_info(self) -> dict:
         self._validate_auth()
@@ -247,31 +235,23 @@ class SSHSystemInfoThread(QThread):
         return None
 
     def _build_ssh_command(self, ssh_exe: str) -> tuple[list, str]:
-        """Build SSH command for native ssh.exe respecting the current security level."""
-        sec_level = getattr(self._settings, 'security_level', 0) if self._settings else 0
+        """Build SSH command for native ssh.exe. Password auth uses SSH_ASKPASS from _get_ssh_env()."""
         has_key = bool(self._conn.key_path)
-        has_password = self._conn.auth_method == "password" and bool(self._conn.password)
-
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
 
-        if sec_level <= 1:
-            # Key-only auth; password not permitted regardless of configuration
+        if has_key:
             auth_options = [
                 "-o", "BatchMode=yes",
                 "-o", "PreferredAuthentications=publickey",
             ]
         else:
-            # Level 2: prefer key, fall back to password
-            if has_key:
-                auth_options = [
-                    "-o", "BatchMode=yes",
-                    "-o", "PreferredAuthentications=publickey",
-                ]
-            else:
-                auth_options = [
-                    "-o", "BatchMode=no",
-                    "-o", "PreferredAuthentications=password,keyboard-interactive",
-                ]
+            # BatchMode=no required so OpenSSH actually invokes SSH_ASKPASS.
+            # With BatchMode=yes OpenSSH suppresses all credential prompts,
+            # including the SSH_ASKPASS helper, which causes "Permission denied".
+            auth_options = [
+                "-o", "BatchMode=no",
+                "-o", "PreferredAuthentications=password,keyboard-interactive",
+            ]
 
         cmd_base = [
             ssh_exe,
@@ -317,8 +297,8 @@ class SSHSystemInfoThread(QThread):
                     "Bitte konvertieren Sie den Key mit PuTTYgen oder verwenden Sie nativen SSH."
                 )
             cmd_base.extend(["-i", key_to_use])
-        elif has_password and sec_level >= 2:
-            logger.warning("Using password authentication with plink - password visible in process list")
+        elif has_password:
+            logger.warning("Using password authentication with plink — password briefly visible in process list.")
             cmd_base.extend(["-pw", self._conn.password])
         else:
             raise ValueError("Bitte hinterlegen Sie einen SSH-Key oder Passwort für diese Verbindung.")
@@ -328,8 +308,7 @@ class SSHSystemInfoThread(QThread):
 
     def _get_ssh_env(self) -> dict:
         env = os.environ.copy()
-        sec_level = getattr(self._settings, 'security_level', 0) if self._settings else 0
-        if sec_level >= 2 and self._conn.auth_method == "password" and self._conn.password:
+        if self._conn.auth_method == "password" and self._conn.password:
             is_frozen = getattr(sys, "frozen", False)
             if is_frozen:
                 askpass_cmd = f'"{sys.executable}" --pass-helper'
@@ -743,14 +722,13 @@ class SystemInfoPanel(QFrame):
 
     def _on_error(self, msg: str, error_type: str = "generic"):
         self._set_loading_overlay_visible(False)
-        if error_type == "auth_denied":
-            level = msg  # "0", "1", or "2"
+        if error_type == "auth_missing":
             self._loading_lbl.hide()
             self._state_card.hide()
             self._show_overlay_error(
-                "🤷",
-                tr(f"sysinfo.auth.level{level}.title"),
-                tr(f"sysinfo.auth.level{level}.desc"),
+                "🔑",
+                tr("sysinfo.auth.missing.title"),
+                tr("sysinfo.auth.missing.desc"),
             )
             self._refresh_btn.setEnabled(True)
             return
