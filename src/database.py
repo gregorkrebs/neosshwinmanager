@@ -131,7 +131,8 @@ def init_db() -> None:
                 auth_method  TEXT NOT NULL DEFAULT 'password',
                 pw_enc       TEXT,   -- SSH-Passwort AES verschlüsselt (hex)
                 pw_iv        TEXT,   -- IV für pw_enc (hex)
-                key_path     TEXT,
+                key_path      TEXT,
+                putty_key_path TEXT,  -- .ppk format key for PuTTY/plink
                 drive_letter TEXT NOT NULL DEFAULT 'Z:',
                 sort_order   INTEGER NOT NULL DEFAULT 0,
                 cli_access_enabled INTEGER NOT NULL DEFAULT 0,
@@ -175,6 +176,8 @@ def init_db() -> None:
                 conn.execute("ALTER TABLE connections ADD COLUMN cli_access_key TEXT UNIQUE")
             if "cli_access_key_iv" not in cols:
                 conn.execute("ALTER TABLE connections ADD COLUMN cli_access_key_iv TEXT")
+            if "putty_key_path" not in cols:
+                conn.execute("ALTER TABLE connections ADD COLUMN putty_key_path TEXT")
         except Exception:
             pass
 

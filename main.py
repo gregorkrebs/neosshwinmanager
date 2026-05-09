@@ -4,6 +4,8 @@ main.py - Entry point for NEO SSH-Win Manager.
 
 import sys
 import os
+import threading
+import traceback
 
 # ── 0. SSH askpass helper (MUST BE FIRST, before anything else) ───────────
 # SECURITY FIX: Disabled SSH_PASSWORD environment variable method due to security risk.
@@ -91,6 +93,64 @@ from src.ui.main_window import MainWindow
 from src.database import init_db
 from src.ui.dialogs.login_dialog import LoginDialog
 from src.auth_manager import Session
+from src.i18n import tr
+
+
+def _install_global_exception_handlers():
+    """
+    Install process-wide exception handlers for UI and worker threads.
+    Goal: log/notify on unexpected errors and avoid silent hard-crashes.
+    """
+    _in_handler = {"active": False}
+
+    def _handle(exc_type, exc_value, exc_tb):
+        # Keep standard behavior for Ctrl+C.
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_tb)
+            return
+
+        if _in_handler["active"]:
+            # Avoid recursive exception handling loops.
+            return
+        _in_handler["active"] = True
+
+        try:
+            err_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+
+            # Persist for diagnostics.
+            try:
+                with open("crash_report.txt", "a", encoding="utf-8") as f:
+                    f.write("\n" + "=" * 80 + "\n")
+                    f.write(err_text)
+            except Exception:
+                pass
+
+            # App logger (if already initialized).
+            try:
+                from src.app_logger import logger as _logger
+                _logger.error("UNHANDLED EXCEPTION\n%s", err_text)
+            except Exception:
+                pass
+
+            # User-visible error without aborting process.
+            try:
+                from PyQt6.QtWidgets import QMessageBox
+                msg = tr("app.unexpected_error.body")
+                QMessageBox.warning(None, tr("app.unexpected_error.title"), msg)
+            except Exception:
+                # Last-resort stderr output.
+                try:
+                    print(err_text, file=sys.stderr)
+                except Exception:
+                    pass
+        finally:
+            _in_handler["active"] = False
+
+    def _threading_hook(args: threading.ExceptHookArgs):
+        _handle(args.exc_type, args.exc_value, args.exc_traceback)
+
+    sys.excepthook = _handle
+    threading.excepthook = _threading_hook
 
 
 def main():
@@ -115,7 +175,7 @@ def main():
 
     # Windows taskbar icon fix (AppUserModelID)
     try:
-        myappid = 'neo.sshwinmanager.v1.3.1.rev1'
+        myappid = 'neo.sshwinmanager.v1.3.2.rev1'
         if os.name == 'nt':
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
@@ -124,8 +184,10 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("NEO SSH-Win Manager")
     app.setApplicationDisplayName("NEO SSH-Win Manager")
-    app.setApplicationVersion("1.3.1")
+    app.setApplicationVersion("1.3.2")
     app.setOrganizationName("NeoSSHWinManager")
+
+    _install_global_exception_handlers()
 
     def get_resource_path(relative_path):
         if hasattr(sys, '_MEIPASS'):
@@ -205,7 +267,6 @@ def main():
 
         sys.exit(app.exec())
     except Exception as e:
-        import traceback
         err_msg = f"FATAL CRASH during startup/main loop: {e}\n{traceback.format_exc()}"
         print(err_msg, file=sys.stderr)
         with open("crash_report.txt", "w", encoding="utf-8") as f:

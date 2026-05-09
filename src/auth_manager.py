@@ -322,6 +322,7 @@ class UserConnectionManager:
             auth_method=row["auth_method"],
             password=pw,
             key_path=row["key_path"] or "",
+            putty_key_path=row["putty_key_path"] or "",
             drive_letter=row["drive_letter"],
             cli_access_enabled=bool(row["cli_access_enabled"]),
             cli_access_key=cli_key,
@@ -364,7 +365,11 @@ class UserConnectionManager:
             c.id = str(uuid.uuid4())
         pw_enc, pw_iv = self._encrypt_pw(c.password)
         # SECURITY FIX: Encrypt CLI-Access-Key
-        cli_key_enc, cli_key_iv = self._encrypt_pw(c.cli_access_key) if c.cli_access_key else ("", "")
+        # Store NULL for empty CLI keys to avoid UNIQUE constraint conflicts
+        if c.cli_access_key:
+            cli_key_enc, cli_key_iv = self._encrypt_pw(c.cli_access_key)
+        else:
+            cli_key_enc, cli_key_iv = None, None
         with get_connection() as conn:
             max_order = conn.execute(
                 "SELECT COALESCE(MAX(sort_order), 0) FROM connections WHERE user_id = ?",
@@ -374,13 +379,13 @@ class UserConnectionManager:
             conn.execute(
                 """INSERT INTO connections
                    (id, user_id, name, host, ssh_user, remote_path, port,
-                    auth_method, pw_enc, pw_iv, key_path, drive_letter,
+                    auth_method, pw_enc, pw_iv, key_path, putty_key_path, drive_letter,
                     sort_order, cli_access_enabled, cli_access_key, cli_access_key_iv)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     c.id, self._user.id, c.name, c.host, c.user,
                     c.remote_path, c.port, c.auth_method,
-                    pw_enc, pw_iv, c.key_path, c.drive_letter,
+                    pw_enc, pw_iv, c.key_path, c.putty_key_path, c.drive_letter,
                     c.sort_order, int(c.cli_access_enabled), cli_key_enc, cli_key_iv,
                 )
             )
@@ -389,16 +394,20 @@ class UserConnectionManager:
     def update(self, c: Connection) -> bool:
         pw_enc, pw_iv = self._encrypt_pw(c.password)
         # SECURITY FIX: Encrypt CLI-Access-Key
-        cli_key_enc, cli_key_iv = self._encrypt_pw(c.cli_access_key) if c.cli_access_key else ("", "")
+        # Store NULL for empty CLI keys to avoid UNIQUE constraint conflicts
+        if c.cli_access_key:
+            cli_key_enc, cli_key_iv = self._encrypt_pw(c.cli_access_key)
+        else:
+            cli_key_enc, cli_key_iv = None, None
         with get_connection() as conn:
             result = conn.execute(
                 """UPDATE connections SET
                    name=?, host=?, ssh_user=?, remote_path=?, port=?,
-                   auth_method=?, pw_enc=?, pw_iv=?, key_path=?, drive_letter=?,
+                   auth_method=?, pw_enc=?, pw_iv=?, key_path=?, putty_key_path=?, drive_letter=?,
                    cli_access_enabled=?, cli_access_key=?, cli_access_key_iv=?
                    WHERE id=? AND user_id=?""",
                 (c.name, c.host, c.user, c.remote_path, c.port,
-                 c.auth_method, pw_enc, pw_iv, c.key_path, c.drive_letter,
+                 c.auth_method, pw_enc, pw_iv, c.key_path, c.putty_key_path, c.drive_letter,
                  int(c.cli_access_enabled), cli_key_enc, cli_key_iv,
                  c.id, self._user.id)
             )

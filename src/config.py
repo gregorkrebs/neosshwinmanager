@@ -28,6 +28,7 @@ class Connection:
     auth_method: str = "password"   # "password" | "key" | "ask"
     password: str = ""              # runtime only – never written to disk here
     key_path: str = ""
+    putty_key_path: str = ""        # .ppk format key for PuTTY/plink
     drive_letter: str = "Z:"
     cli_access_enabled: bool = False
     cli_access_key: Optional[str] = None
