@@ -209,11 +209,17 @@ class SSHSystemInfoThread(QThread):
         """Find SSH client (ssh.exe or plink.exe) based on settings.
         Returns (executable_path, client_type) where client_type is 'ssh' or 'plink'."""
         use_putty = getattr(self._settings, 'use_putty', False) if self._settings else False
-        
-        if use_putty:
-            # Use putty_key_path if available, otherwise fall back to key_path
+        sec_level = int(getattr(self._settings, 'security_level', 0) or 0) if self._settings else 0
+        has_key = bool(self._conn.putty_key_path or self._conn.key_path)
+
+        # Password-only connections at level 2 always use native ssh.exe + SSH_ASKPASS,
+        # even when PuTTY is active — plink's -pw flag exposes the password in the process list.
+        is_password_only = self._conn.auth_method == "password" and not has_key
+
+        if use_putty and not (is_password_only and sec_level >= 2):
+            # Use plink for key-based auth when PuTTY is active
             key_to_use = self._conn.putty_key_path or self._conn.key_path
-            
+
             # Check if key is .ppk format (required by plink)
             if key_to_use and not key_to_use.lower().endswith('.ppk'):
                 logger.warning(f"plink requires .ppk format keys, but '{key_to_use}' is not .ppk. Falling back to ssh.exe.")
@@ -223,11 +229,11 @@ class SSHSystemInfoThread(QThread):
                 if plink_exe:
                     return plink_exe, 'plink'
                 # Fallback to ssh.exe if plink not found
-        
+
         ssh_exe = self._find_ssh()
         if ssh_exe:
             return ssh_exe, 'ssh'
-        
+
         return None, 'none'
 
     def _find_ssh(self) -> str | None:
