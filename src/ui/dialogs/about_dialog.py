@@ -14,7 +14,7 @@ from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.ui.widgets.no_wheel import NoWheelScrollArea
 from src.i18n import tr
 
-APP_VERSION = "1.3.2"
+APP_VERSION = "1.4.0"
 
 _URL_PROJECT_WEBSITE = "https://www.neosshwinmanager.org/"
 _URL_PROJECT_DOCS    = "https://gregorkrebs.github.io/neosshwinmanager/"

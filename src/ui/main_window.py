@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         self._debug_mode = False  # Can be toggled via F2
 
         self.setObjectName("MainWindow")
-        self.setWindowTitle("NEO SSH-Win Manager v1.3.2")
+        self.setWindowTitle("NEO SSH-Win Manager v1.4.0")
         self.setMinimumSize(820, 520)
         self.resize(1100, 640)
 
