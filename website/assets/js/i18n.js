@@ -71,6 +71,75 @@
       "footer.troubleshooting": "Troubleshooting",
       "footer.projectStructure": "Projektstruktur",
       "footer.apiReference": "API-Referenz",
+      // ── Footer-Links (in jeder Seite sichtbar) ──
+      "footer.imprint": "Impressum",
+      "footer.privacy": "Datenschutz",
+
+      // ── Header der Legal-Seite ──
+      "legal.eyebrow": "Rechtliches",
+      "legal.title": "Impressum & Datenschutz",
+      "legal.lead":
+        "Pflichtangaben gemäß § 5 DDG sowie Datenschutzhinweise zu diesem privaten Open-Source-Projekt.",
+      "legal.meta.private": "Privates Projekt",
+      "legal.meta.noncommercial": "Nicht kommerziell",
+      "legal.meta.opensource": "Open Source · MIT",
+
+      // ── TOC (linke Sidebar) ──
+      "legal.toc.imprintGroup": "Impressum",
+      "legal.toc.imprint": "Angaben gemäß § 5 DDG",
+      "legal.toc.privacyGroup": "Datenschutz",
+      "legal.toc.controller": "Verantwortlicher",
+      "legal.toc.processing": "Verarbeitung",
+      "legal.toc.externalLinks": "Externe Links",
+      "legal.toc.rights": "Rechte Betroffener",
+      "legal.toc.contact": "Kontakt",
+
+      // ── Impressum-Block ──
+      "legal.imprint.heading": "Impressum",
+      "legal.imprint.intro": "Angaben gemäß § 5 DDG (Digitale-Dienste-Gesetz).",
+      "legal.imprint.contactBlock": "Diensteanbieter",
+      "legal.imprint.emailBlock": "E-Mail",
+      "legal.imprint.note":
+        "Dieses Projekt ist ein privates, nicht kommerzielles Open-Source-Projekt. Es werden weder Werbung noch entgeltliche Leistungen angeboten.",
+
+      // ── Datenschutz ──
+      "legal.privacy.heading": "Datenschutzerklärung",
+      "legal.privacy.controllerTitle": "Verantwortlicher",
+      "legal.privacy.controllerIntro":
+        "Verantwortlich für die Datenverarbeitung im Sinne von Art. 4 Nr. 7 DSGVO ist:",
+      "legal.privacy.addressBlock": "Anschrift",
+
+      "legal.privacy.processingTitle": "Verarbeitung personenbezogener Daten",
+      "legal.privacy.processingP1":
+        "Nach unserem aktuellen Stand werden über diese Website keine personenbezogenen Zugriffslogs dauerhaft gespeichert oder ausgewertet.",
+      "legal.privacy.processingP2":
+        "Es werden keine Benutzerkonten, Kommentare, Analyse- oder Tracking-Tools, Werbedienste oder eingebettete Drittanbieter-Inhalte eingesetzt.",
+      "legal.privacy.processingNote":
+        "Technisch notwendige kurzfristige Verarbeitungen auf Infrastruktur- oder Netzwerkebene durch Hostinganbieter oder Netzwerkbetreiber können nicht vollständig ausgeschlossen werden.",
+
+      "legal.privacy.externalTitle": "Externe Links",
+      "legal.privacy.externalBody":
+        "Diese Website kann Links zu externen Websites enthalten. Für deren Inhalte und Datenschutzpraktiken sind ausschließlich die jeweiligen Betreiber verantwortlich.",
+
+      "legal.privacy.rightsTitle": "Rechte betroffener Personen",
+      "legal.privacy.rightsIntro":
+        "Soweit personenbezogene Daten verarbeitet werden, bestehen im Rahmen der gesetzlichen Vorschriften insbesondere folgende Rechte:",
+      "legal.privacy.right.access": "Auskunft",
+      "legal.privacy.right.rectify": "Berichtigung",
+      "legal.privacy.right.erase": "Löschung",
+      "legal.privacy.right.restrict": "Einschränkung",
+      "legal.privacy.right.object": "Widerspruch",
+      "legal.privacy.right.portability": "Datenübertragbarkeit",
+      "legal.privacy.rightsAuthority":
+        "Zudem besteht das Recht auf Beschwerde bei einer Datenschutzaufsichtsbehörde (Art. 77 DSGVO).",
+
+      "legal.privacy.contactTitle": "Kontakt",
+      "legal.privacy.contactBody":
+        "Bei Fragen zum Datenschutz oder zur Geltendmachung Ihrer Rechte:",
+
+      "legal.stand": "Stand",
+      "legal.standDate": "Mai 2026",
+      "legal.standNote": "Änderungen dieser Hinweise behalten wir uns vor.",
 
       // ─── docs sidebar ─────────────────────────────────────────
       "side.firstSteps": "Erste Schritte",
@@ -672,6 +741,147 @@
       "footer.troubleshooting": "Troubleshooting",
       "footer.projectStructure": "Project structure",
       "footer.apiReference": "API reference",
+      // ── Footer links (visible on every page) ──
+      "footer.imprint": "Imprint",
+      "footer.privacy": "Privacy",
+
+      // ── Footer links (visible on every page) ──
+      "footer.imprint": "Imprint",
+      "footer.privacy": "Privacy",
+
+      // ── Legal page header ──
+      "legal.eyebrow": "Legal",
+      "legal.title": "Imprint & Privacy Policy",
+      "legal.lead":
+        "Mandatory information pursuant to § 5 DDG and the privacy notice for this private open-source project.",
+      "legal.meta.private": "Private project",
+      "legal.meta.noncommercial": "Non-commercial",
+      "legal.meta.opensource": "Open source · MIT",
+
+      // ── TOC (left sidebar) ──
+      "legal.toc.imprintGroup": "Imprint",
+      "legal.toc.imprint": "Information per § 5 DDG",
+      "legal.toc.privacyGroup": "Privacy",
+      "legal.toc.controller": "Controller",
+      "legal.toc.processing": "Processing",
+      "legal.toc.externalLinks": "External links",
+      "legal.toc.rights": "Data subject rights",
+      "legal.toc.contact": "Contact",
+
+      // ── Imprint block ──
+      "legal.imprint.heading": "Imprint",
+      "legal.imprint.intro": "Mandatory information pursuant to § 5 of the German Digital Services Act (DDG).",
+      "legal.imprint.contactBlock": "Service provider",
+      "legal.imprint.emailBlock": "Email",
+      "legal.imprint.note":
+        "This project is a private, non-commercial open-source project. Neither advertising nor paid services are offered.",
+
+      // ── Privacy ──
+      "legal.privacy.heading": "Privacy policy",
+      "legal.privacy.controllerTitle": "Controller",
+      "legal.privacy.controllerIntro":
+        "The controller responsible for data processing within the meaning of Art. 4(7) GDPR is:",
+      "legal.privacy.addressBlock": "Address",
+
+      "legal.privacy.processingTitle": "Processing of personal data",
+      "legal.privacy.processingP1":
+        "To the best of our current knowledge, no personal access logs from this website are permanently stored or analysed.",
+      "legal.privacy.processingP2":
+        "No user accounts, comments, analytics or tracking tools, advertising services or embedded third-party content are used.",
+      "legal.privacy.processingNote":
+        "Technically necessary short-term processing on infrastructure or network level by hosting providers or network operators cannot be entirely ruled out.",
+
+      "legal.privacy.externalTitle": "External links",
+      "legal.privacy.externalBody":
+        "This website may contain links to external sites. Their content and privacy practices are the sole responsibility of the respective operators.",
+
+      "legal.privacy.rightsTitle": "Data subject rights",
+      "legal.privacy.rightsIntro":
+        "Where personal data is processed, you have the following rights under applicable law in particular:",
+      "legal.privacy.right.access": "Access",
+      "legal.privacy.right.rectify": "Rectification",
+      "legal.privacy.right.erase": "Erasure",
+      "legal.privacy.right.restrict": "Restriction",
+      "legal.privacy.right.object": "Objection",
+      "legal.privacy.right.portability": "Data portability",
+      "legal.privacy.rightsAuthority":
+        "You also have the right to lodge a complaint with a data protection supervisory authority (Art. 77 GDPR).",
+
+      "legal.privacy.contactTitle": "Contact",
+      "legal.privacy.contactBody":
+        "For questions about data protection or to exercise your rights:",
+
+      "legal.stand": "As of",
+      "legal.standDate": "May 2026",
+      "legal.standNote": "We reserve the right to amend this notice.",
+
+
+      // ── Legal page header ──
+      "legal.eyebrow": "Legal",
+      "legal.title": "Imprint & Privacy Policy",
+      "legal.lead":
+        "Mandatory information pursuant to § 5 DDG and the privacy notice for this private open-source project.",
+      "legal.meta.private": "Private project",
+      "legal.meta.noncommercial": "Non-commercial",
+      "legal.meta.opensource": "Open source · MIT",
+
+      // ── TOC (left sidebar) ──
+      "legal.toc.imprintGroup": "Imprint",
+      "legal.toc.imprint": "Information per § 5 DDG",
+      "legal.toc.privacyGroup": "Privacy",
+      "legal.toc.controller": "Controller",
+      "legal.toc.processing": "Processing",
+      "legal.toc.externalLinks": "External links",
+      "legal.toc.rights": "Data subject rights",
+      "legal.toc.contact": "Contact",
+
+      // ── Imprint block ──
+      "legal.imprint.heading": "Imprint",
+      "legal.imprint.intro":
+        "Mandatory information pursuant to § 5 of the German Digital Services Act (DDG).",
+      "legal.imprint.contactBlock": "Service provider",
+      "legal.imprint.emailBlock": "Email",
+      "legal.imprint.note":
+        "This project is a private, non-commercial open-source project. Neither advertising nor paid services are offered.",
+
+      // ── Privacy ──
+      "legal.privacy.heading": "Privacy policy",
+      "legal.privacy.controllerTitle": "Controller",
+      "legal.privacy.controllerIntro":
+        "The controller responsible for data processing within the meaning of Art. 4(7) GDPR is:",
+      "legal.privacy.addressBlock": "Address",
+
+      "legal.privacy.processingTitle": "Processing of personal data",
+      "legal.privacy.processingP1":
+        "To the best of our current knowledge, no personal access logs from this website are permanently stored or analysed.",
+      "legal.privacy.processingP2":
+        "No user accounts, comments, analytics or tracking tools, advertising services or embedded third-party content are used.",
+      "legal.privacy.processingNote":
+        "Technically necessary short-term processing on infrastructure or network level by hosting providers or network operators cannot be entirely ruled out.",
+
+      "legal.privacy.externalTitle": "External links",
+      "legal.privacy.externalBody":
+        "This website may contain links to external sites. Their content and privacy practices are the sole responsibility of the respective operators.",
+
+      "legal.privacy.rightsTitle": "Data subject rights",
+      "legal.privacy.rightsIntro":
+        "Where personal data is processed, you have the following rights under applicable law in particular:",
+      "legal.privacy.right.access": "Access",
+      "legal.privacy.right.rectify": "Rectification",
+      "legal.privacy.right.erase": "Erasure",
+      "legal.privacy.right.restrict": "Restriction",
+      "legal.privacy.right.object": "Objection",
+      "legal.privacy.right.portability": "Data portability",
+      "legal.privacy.rightsAuthority":
+        "You also have the right to lodge a complaint with a data protection supervisory authority (Art. 77 GDPR).",
+
+      "legal.privacy.contactTitle": "Contact",
+      "legal.privacy.contactBody":
+        "For questions about data protection or to exercise your rights:",
+
+      "legal.stand": "As of",
+      "legal.standDate": "May 2026",
+      "legal.standNote": "We reserve the right to amend this notice.",
 
       // ─── docs sidebar ─────────────────────────────────────────
       "side.firstSteps": "First steps",
