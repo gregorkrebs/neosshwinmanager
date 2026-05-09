@@ -82,17 +82,21 @@ class SSHSystemInfoThread(QThread):
 
     def _validate_auth(self) -> None:
         """Raise AuthLevelError if the connection's auth method is blocked by the current security level."""
-        sec_level = getattr(self._settings, 'security_level', 0) if self._settings else 0
+        try:
+            sec_level = int(getattr(self._settings, 'security_level', 0) or 0)
+        except (TypeError, ValueError):
+            sec_level = 0
         has_key = bool(self._conn.key_path or self._conn.putty_key_path)
-        has_password = self._conn.auth_method == "password" and bool(self._conn.password)
+        # Use auth_method intent, not the runtime password value — decryption failures
+        # or empty stored passwords are handled by the SSH layer, not here.
+        can_use_password = self._conn.auth_method == "password"
 
         if sec_level <= 1:
-            # Levels 0 and 1: key auth only, password not permitted
             if not has_key:
                 raise AuthLevelError(str(sec_level))
         else:
-            # Level 2: key or password accepted
-            if not has_key and not has_password:
+            # Level 2: key or password connection accepted
+            if not has_key and not can_use_password:
                 raise AuthLevelError("2")
 
     def _gather_info(self) -> dict:

@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QIcon, QPainter, QColor, QPen, QBrush, QShortcut, QKeySequence
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot, QSize
 import os
+from PyQt6 import sip
 import ctypes
 import ctypes.wintypes
 import json
@@ -122,6 +123,12 @@ class MainWindow(QMainWindow):
         self._check_prerequisites()
         QTimer.singleShot(2000, self._auto_reconnect_mounts)
         QTimer.singleShot(0, self._apply_titlebar_color)
+
+        import src.app_logger as _log_mod
+        _em = _log_mod.log_emitter
+        if _em is not None:
+            _em.new_record.connect(self._on_log_record_for_status)
+
         logger.info("NEO SSH-Win Manager gestartet.")
 
     # ------------------------------------------------------------------
@@ -1903,6 +1910,27 @@ class MainWindow(QMainWindow):
         self._sf_auto_remount.setChecked(s.auto_remount_on_lost)
         v.addWidget(self._sf_auto_remount)
 
+        # Security Level
+        v.addWidget(self._section_label(tr("settings.section.security")))
+        sec_row = QHBoxLayout()
+        sec_row.addWidget(self._field_label(tr("settings.security.level.label")))
+        sec_row.addStretch()
+        self._sf_security_level = NoWheelComboBox()
+        self._sf_security_level.addItem(tr("settings.security.level.strict"), 0)
+        self._sf_security_level.addItem(tr("settings.security.level.key_no_passphrase"), 1)
+        self._sf_security_level.addItem(tr("settings.security.level.password_arg"), 2)
+        _cur_level = getattr(s, 'security_level', 0)
+        self._sf_security_level.setCurrentIndex(min(_cur_level, 2))
+        self._sf_security_level.setFixedWidth(230)
+        sec_row.addWidget(self._sf_security_level)
+        v.addLayout(sec_row)
+        self._sf_sec_warning = QLabel()
+        self._sf_sec_warning.setObjectName("errorLabel")
+        self._sf_sec_warning.setWordWrap(True)
+        v.addWidget(self._sf_sec_warning)
+        self._sf_security_level.currentIndexChanged.connect(self._on_sf_security_changed)
+        self._on_sf_security_changed(_cur_level)
+
         # SSH Terminal
         v.addWidget(self._section_label(tr("settings.section.terminal")))
         self._sf_putty = QCheckBox(tr("settings.use_putty"))
@@ -1965,6 +1993,16 @@ class MainWindow(QMainWindow):
         v.addStretch()
         self._fs_layout.addWidget(body)
 
+    def _on_sf_security_changed(self, index: int):
+        _WARNINGS = [
+            "",
+            tr("settings.security.warning.level1"),
+            tr("settings.security.warning.level2"),
+        ]
+        txt = _WARNINGS[index] if index < len(_WARNINGS) else ""
+        self._sf_sec_warning.setText(txt)
+        self._sf_sec_warning.setVisible(bool(txt))
+
     def _sf_putty_toggled(self, checked: bool):
         self._sf_putty_widget.setVisible(checked)
 
@@ -2004,8 +2042,7 @@ class MainWindow(QMainWindow):
             elif self._panel_mode == _PANEL_ADD:
                 self._save_add_form()
         except RuntimeError:
-            QMessageBox.warning(
-                self,
+            self._err_popup(
                 tr("dialog.error"),
                 tr("sysinfo.error") + " Formular wurde neu geladen. Bitte Eingaben prüfen und erneut speichern."
             )
@@ -2014,7 +2051,7 @@ class MainWindow(QMainWindow):
             else:
                 self._open_add_panel()
         except Exception as e:
-            QMessageBox.warning(self, tr("dialog.error"), str(e))
+            self._err_popup(tr("dialog.error"), str(e))
         finally:
             self._set_saving_state(False)
             if self._panel_mode in (_PANEL_EDIT, _PANEL_ADD):
@@ -2275,6 +2312,7 @@ class MainWindow(QMainWindow):
                 return
 
         old_lang = current_language()
+        _sec = self._sf_security_level.currentIndex()
         new_settings = AppSettings(
             start_with_windows=self._sf_start.isChecked(),
             minimize_to_tray=self._sf_tray.isChecked(),
@@ -2287,6 +2325,9 @@ class MainWindow(QMainWindow):
             putty_path=self._sf_putty_path.text().strip(),
             language=self._sf_lang.currentData() or "en",
             theme=self._sf_theme.currentData() or "dark",
+            security_level=_sec,
+            allow_passwordless_key_auth=_sec >= 1,
+            allow_insecure_password_auth=_sec >= 2,
         )
         self._mgr.save_settings(new_settings)
         self._apply_settings_object(new_settings)
@@ -2302,6 +2343,58 @@ class MainWindow(QMainWindow):
     def _show_inline_message(self, title: str, msg: str, is_error: bool = False):
         """Show a brief status message in the status bar."""
         self._set_status(f"{'⚠ ' if is_error else ''}{title + ': ' if title else ''}{msg.splitlines()[0]}")
+
+    def _err_popup(self, title: str, message: str) -> None:
+        """Error dialog with a copy-to-clipboard button. Also persists title+first line in status bar."""
+        self._set_error_status(f"⚠ {title}: {message.splitlines()[0]}")
+
+        dlg = QDialog(self)
+        dlg.setObjectName("dialogSurface")
+        dlg.setWindowTitle(title)
+        dlg.setModal(True)
+        dlg.setMinimumWidth(420)
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        title_lbl = QLabel(title)
+        title_lbl.setObjectName("dialogTitle")
+        layout.addWidget(title_lbl)
+
+        msg_lbl = QLabel(message)
+        msg_lbl.setObjectName("errorLabel")
+        msg_lbl.setWordWrap(True)
+        layout.addWidget(msg_lbl, stretch=1)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        copy_btn = QPushButton()
+        copy_btn.setObjectName("rpHeaderBtn")
+        copy_btn.setFixedSize(32, 32)
+        copy_btn.setIcon(svg_icon("copy", "#aab4c4", 16))
+        copy_btn.setIconSize(QSize(16, 16))
+        copy_btn.setToolTip("Fehlermeldung kopieren")
+        copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        _clip_text = f"{title}\n\n{message}"
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(_clip_text))
+        btn_row.addWidget(copy_btn)
+        btn_row.addStretch()
+
+        ok_btn = QPushButton("OK")
+        ok_btn.setObjectName("primaryBtn")
+        ok_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        ok_btn.clicked.connect(dlg.accept)
+        ok_btn.setDefault(True)
+        btn_row.addWidget(ok_btn)
+
+        layout.addLayout(btn_row)
+        dlg.exec()
+
+    def _set_error_status(self, msg: str) -> None:
+        """Set a persistent error message in the status bar (no timeout)."""
+        self._set_status(msg)
 
     def _show_mount_failure_dialog(self, conn: Connection | None, message: str) -> bool:
         """Show a richer failure dialog that mirrors the website demo's guidance blocks."""
@@ -2479,15 +2572,7 @@ class MainWindow(QMainWindow):
             )
             if reply != QMessageBox.StandardButton.Yes:
                 return
-            try:
-                self._controller.unmount(conn.drive_letter)
-            except Exception as e:
-                logger.error(f"Unmount fehlgeschlagen für {conn.drive_letter}: {e}")
-                QMessageBox.warning(
-                    self, tr("delete.title"),
-                    tr("error.unmount_failed", error=str(e))
-                )
-                return
+            self._controller.unmount(conn.drive_letter)
         else:
             reply = QMessageBox.question(
                 self, tr("delete.title"),
@@ -2607,30 +2692,45 @@ class MainWindow(QMainWindow):
         worker.start()
 
     def _on_unmount_finished(self, conn_id: str, result):
-        if conn_id in self._workers:
-            self._workers[conn_id].deleteLater()
-            del self._workers[conn_id]
-        conn = self._mgr.get_by_id(conn_id)
-        card = self._cards.get(conn_id)
-        if card:
-            card.hide_loading()
-        if result.success:
+        try:
+            worker = self._workers.pop(conn_id, None)
+            if worker is not None:
+                worker.finished.disconnect()
+                worker.deleteLater()
+        except Exception as e:
+            logger.warning(f"Unmount worker cleanup error: {e}")
+
+        try:
+            conn = self._mgr.get_by_id(conn_id)
+            card = self._cards.get(conn_id)
             if card:
-                card.update_mount_state(False)
-            self._save_active_mount(conn_id, False)
-            self._set_status(tr("status.disconnected", name=conn.name if conn else "?"))
-            if self._panel_conn_id == conn_id:
-                if self._panel_mode == _PANEL_INFO:
-                    self._open_info_panel(conn_id)
-                elif self._panel_mode == _PANEL_SYSINFO:
-                    self._open_sysinfo_panel(conn_id)
-                else:
-                    self._sync_rp_mount_button(conn_id)
-        else:
-            QMessageBox.critical(self, tr("unmount.failed.title"), result.message)
-            if conn:
-                self._set_status(tr("status.disconnect_failed", name=conn.name))
-        self._update_status()
+                card.hide_loading()
+            if result.success:
+                if card:
+                    card.update_mount_state(False)
+                self._save_active_mount(conn_id, False)
+                self._set_status(tr("status.disconnected", name=conn.name if conn else "?"))
+                try:
+                    if self._panel_conn_id == conn_id:
+                        if self._panel_mode == _PANEL_INFO:
+                            self._open_info_panel(conn_id)
+                        elif self._panel_mode == _PANEL_SYSINFO:
+                            self._open_sysinfo_panel(conn_id)
+                        else:
+                            self._sync_rp_mount_button(conn_id)
+                except Exception as e:
+                    logger.warning(f"Panel refresh after unmount failed: {e}")
+            else:
+                self._err_popup(tr("unmount.failed.title"), result.message)
+                if conn:
+                    self._set_status(tr("status.disconnect_failed", name=conn.name))
+        except Exception as e:
+            logger.error(f"Unexpected error in unmount callback for {conn_id}: {e}")
+        finally:
+            try:
+                self._update_status()
+            except Exception:
+                pass
 
     @pyqtSlot(str)
     def _on_ssh_terminal(self, conn_id: str):
@@ -2646,7 +2746,7 @@ class MainWindow(QMainWindow):
             backend = "PuTTY" if self._mgr.get_settings().use_putty else "SSH"
             self._set_status(tr("status.ssh_started", backend=backend, name=conn.name))
         else:
-            QMessageBox.critical(self, "SSH-Terminal", error)
+            self._err_popup("SSH-Terminal", error)
 
     def _on_open_mounted_path(self, conn_id: str):
         import subprocess
@@ -2679,7 +2779,7 @@ class MainWindow(QMainWindow):
                 os.startfile(path)
             self._set_status(tr("status.opening_explorer", path=path))
         except Exception as e:
-            QMessageBox.warning(self, tr("dialog.error"), str(e))
+            self._err_popup(tr("dialog.error"), str(e))
 
     def _on_settings(self):
         self._open_settings_panel()
@@ -2787,6 +2887,13 @@ class MainWindow(QMainWindow):
     def _set_status(self, msg: str):
         self._status_lbl.setText(msg)
 
+    @pyqtSlot(str)
+    def _on_log_record_for_status(self, line: str):
+        lu = line.upper()
+        if "[ERROR" in lu or "[CRITICAL" in lu:
+            short = line.split(" — ", 1)[-1] if " — " in line else line
+            self._set_status(f"⚠ Fehler: {short[:140]}")
+
     def _check_prerequisites(self):
         status = SSHFSController.get_install_status()
         if not status["winfsp"] and not status["sshfs_win"]:
@@ -2848,111 +2955,53 @@ class MainWindow(QMainWindow):
         """Debug the widget currently under the mouse cursor (triggered by F2)."""
         from PyQt6.QtWidgets import QApplication
         from PyQt6.QtGui import QCursor
-
-        try:
-            # Get widget under mouse cursor using global cursor position
-            cursor_pos = QCursor.pos()
-            widget = QApplication.widgetAt(cursor_pos)
-
-            if widget:
-                self._log_widget_debug_info(widget)
-            else:
-                msg = "DEBUG: No widget under mouse cursor"
-                print(msg)
-                logger.debug(msg)
-                try:
-                    if hasattr(self, '_debug_window') and self._debug_window:
-                        self._debug_window.append_log(msg + "\n")
-                except RuntimeError:
-                    pass  # _debug_window C++ object deleted
-        except Exception as e:
-            logger.exception(f"F2 debug: Error getting widget under mouse: {e}")
+        
+        # Get widget under mouse cursor using global cursor position
+        cursor_pos = QCursor.pos()
+        widget = QApplication.widgetAt(cursor_pos)
+        
+        if widget:
+            self._log_widget_debug_info(widget)
+        else:
+            msg = "DEBUG: No widget under mouse cursor"
+            print(msg)
+            logger.debug(msg)
+            if hasattr(self, '_debug_window') and self._debug_window and not sip.isdeleted(self._debug_window):
+                self._debug_window.append_log(msg + "\n")
 
     def _log_widget_debug_info(self, widget):
         """Log detailed widget information to debug console, logger, and statusbar."""
-        try:
-            # Safe text extraction — handle non-callable attributes
-            text_attr = getattr(widget, 'text', None)
-            if callable(text_attr):
-                try:
-                    widget_text = text_attr()
-                except Exception:
-                    widget_text = 'N/A'
-            else:
-                widget_text = str(text_attr) if text_attr is not None else 'N/A'
-
-            # Safe tooltip extraction
-            tooltip_attr = getattr(widget, 'toolTip', None)
-            if callable(tooltip_attr):
-                try:
-                    widget_tooltip = tooltip_attr()
-                except Exception:
-                    widget_tooltip = 'N/A'
-            else:
-                widget_tooltip = str(tooltip_attr) if tooltip_attr is not None else 'N/A'
-
-            # Safe accessible name extraction
-            acc_name_attr = getattr(widget, 'accessibleName', None)
-            if callable(acc_name_attr):
-                try:
-                    widget_acc_name = acc_name_attr()
-                except Exception:
-                    widget_acc_name = 'N/A'
-            else:
-                widget_acc_name = str(acc_name_attr) if acc_name_attr is not None else 'N/A'
-
-            # Safe stylesheet extraction — read once to avoid deleted C++ object errors
-            try:
-                stylesheet = widget.styleSheet()
-            except RuntimeError:
-                stylesheet = ''
-            style_sheet = stylesheet[:100] + '...' if len(stylesheet) > 100 else stylesheet
-
-            # Safe parent class name
-            try:
-                parent = type(widget.parent()).__name__ if widget.parent() else None
-            except RuntimeError:
-                parent = 'N/A'
-
-            # Collect widget information
-            widget_info = {
-                'widget_type': type(widget).__name__,
-                'object_name': widget.objectName(),
-                'text': widget_text,
-                'tooltip': widget_tooltip,
-                'accessible_name': widget_acc_name,
-                'parent': parent,
-                'visible': widget.isVisible(),
-                'enabled': widget.isEnabled(),
-                'geometry': f"{widget.geometry().width()}x{widget.geometry().height()} at ({widget.geometry().x()}, {widget.geometry().y()})",
-                'style_sheet': style_sheet,
-            }
-
-            # Format debug message
-            debug_msg = "=== DEBUG: Widget Under Mouse ===\n"
-            for key, value in widget_info.items():
-                debug_msg += f"{key.upper()}: {value}\n"
-            debug_msg += "================================\n"
-
-            # Log to debug console
-            print(debug_msg)
-
-            # Log to file logger
-            logger.debug(debug_msg)
-
-            # Log to debug window if exists — with RuntimeError protection
-            try:
-                if hasattr(self, '_debug_window') and self._debug_window:
-                    self._debug_window.append_log(debug_msg)
-            except RuntimeError:
-                pass  # _debug_window C++ object deleted
-
-            # Log to statusbar
-            status_msg = f"DEBUG: {widget_info['widget_type']} | {widget_info['object_name'] or 'No Name'} | {widget_info['text'][:30] if widget_info['text'] != 'N/A' else 'N/A'}"
-            if hasattr(self, 'statusBar') and self.statusBar():
-                self.statusBar().showMessage(status_msg, 5000)
-
-        except RuntimeError as e:
-            logger.debug(f"F2 debug: Widget already deleted: {e}")
-        except Exception as e:
-            logger.exception(f"F2 debug: Unexpected error while logging widget info: {e}")
+        # Collect widget information
+        widget_info = {
+            'widget_type': type(widget).__name__,
+            'object_name': widget.objectName(),
+            'text': getattr(widget, 'text', lambda: 'N/A')(),
+            'tooltip': getattr(widget, 'toolTip', lambda: 'N/A')(),
+            'accessible_name': getattr(widget, 'accessibleName', lambda: 'N/A')(),
+            'parent': type(widget.parent()).__name__ if widget.parent() else None,
+            'visible': widget.isVisible(),
+            'enabled': widget.isEnabled(),
+            'geometry': f"{widget.geometry().width()}x{widget.geometry().height()} at ({widget.geometry().x()}, {widget.geometry().y()})",
+            'style_sheet': widget.styleSheet()[:100] + '...' if len(widget.styleSheet()) > 100 else widget.styleSheet()
+        }
+        
+        # Format debug message
+        debug_msg = "=== DEBUG: Widget Under Mouse ===\n"
+        for key, value in widget_info.items():
+            debug_msg += f"{key.upper()}: {value}\n"
+        debug_msg += "================================\n"
+        
+        # Log to debug console
+        print(debug_msg)
+        
+        # Log to file logger
+        logger.debug(debug_msg)
+        
+        # Log to debug window if exists
+        if hasattr(self, '_debug_window') and self._debug_window and not sip.isdeleted(self._debug_window):
+            self._debug_window.append_log(debug_msg)
+        
+        # Log to statusbar
+        status_msg = f"DEBUG: {widget_info['widget_type']} | {widget_info['object_name'] or 'No Name'} | {widget_info['text'][:30] if widget_info['text'] != 'N/A' else 'N/A'}"
+        if hasattr(self, 'statusBar') and self.statusBar():
+            self.statusBar().showMessage(status_msg, 5000)
