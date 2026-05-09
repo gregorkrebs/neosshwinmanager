@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt
 from src.config import AppSettings
 from src.sshfs_controller import SSHFSController
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
+from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelScrollArea, NoWheelSpinBox
 from src.i18n import tr, available_languages
 
 
@@ -54,7 +55,7 @@ class SettingsDialog(QDialog):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        scroll = QScrollArea()
+        scroll = NoWheelScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -94,7 +95,7 @@ class SettingsDialog(QDialog):
         lang_row.setContentsMargins(0, 0, 0, 0)
         lang_lbl = QLabel(tr("settings.language.label"))
         lang_lbl.setObjectName("fieldLabel")
-        self._lang_combo = QComboBox()
+        self._lang_combo = NoWheelComboBox()
         for code in available_languages():
             self._lang_combo.addItem(_LANG_LABELS.get(code, code), code)
         self._lang_combo.setFixedWidth(140)
@@ -115,7 +116,7 @@ class SettingsDialog(QDialog):
         theme_row.setContentsMargins(0, 0, 0, 0)
         theme_lbl = QLabel(tr("settings.theme.label"))
         theme_lbl.setObjectName("fieldLabel")
-        self._theme_combo = QComboBox()
+        self._theme_combo = NoWheelComboBox()
         self._theme_combo.addItem(tr("settings.theme.dark"), "dark")
         self._theme_combo.addItem(tr("settings.theme.light"), "light")
         self._theme_combo.setFixedWidth(140)
@@ -142,7 +143,7 @@ class SettingsDialog(QDialog):
         interval_row.setContentsMargins(0, 0, 0, 0)
         interval_lbl = QLabel(tr("settings.check_interval"))
         interval_lbl.setObjectName("fieldLabel")
-        self._interval_spin = QSpinBox()
+        self._interval_spin = NoWheelSpinBox()
         self._interval_spin.setRange(5, 300)
         self._interval_spin.setValue(30)
         self._interval_spin.setFixedWidth(80)

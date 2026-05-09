@@ -41,7 +41,7 @@ class ConnectionCard(QFrame):
         self._cloud_lbl.setFixedSize(QSize(32, 32))
         self._cloud_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._cloud_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._cloud_lbl.mousePressEvent = self._on_icon_clicked
+        self._cloud_lbl.mousePressEvent = self._on_cloud_clicked
         layout.addWidget(self._cloud_lbl)
 
         info_col = QVBoxLayout()
@@ -73,6 +73,7 @@ class ConnectionCard(QFrame):
         self._drive_badge.setObjectName("driveBadge")
         self._drive_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._drive_badge.setFixedSize(QSize(42, 30))
+        self._drive_badge.mousePressEvent = self._on_drive_badge_clicked
         layout.addWidget(self._drive_badge)
 
         self._edit_btn = QPushButton()
@@ -112,9 +113,13 @@ class ConnectionCard(QFrame):
         self._cloud_lbl.setPixmap(svg_pixmap("cloud", cloud_color, 32))
 
         if mounted:
-            self._cloud_lbl.setToolTip(tr("card.tooltip.open_path"))
+            self._cloud_lbl.setToolTip(tr("card.tooltip.mount_on"))
+            self._drive_badge.setToolTip(tr("card.tooltip.open_path"))
+            self._drive_badge.setCursor(Qt.CursorShape.PointingHandCursor)
         else:
             self._cloud_lbl.setToolTip(tr("card.tooltip.mount_off"))
+            self._drive_badge.setToolTip("")
+            self._drive_badge.setCursor(Qt.CursorShape.ArrowCursor)
 
         self._ssh_btn.setIcon(svg_icon("terminal", "#aab4c4", 16))
         self._edit_btn.setIcon(svg_icon("edit", "#aab4c4" if not mounted else "#6a7a8a", 15))
@@ -167,14 +172,20 @@ class ConnectionCard(QFrame):
         self.style().unpolish(self)
         self.style().polish(self)
 
-    def _on_icon_clicked(self, event):
+    def _on_cloud_clicked(self, event):
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        if not self._mounted:
+            self.show_loading(tr("card.loading.connect"))
+            self.mount_requested.emit(self._conn.id)
+        else:
+            self.open_path_requested.emit(self._conn.id)
+
+    def _on_drive_badge_clicked(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
             return
         if self._mounted:
             self.open_path_requested.emit(self._conn.id)
-        else:
-            self.show_loading(tr("card.loading.connect"))
-            self.mount_requested.emit(self._conn.id)
 
     def _on_toggle(self):
         if self._mounted:

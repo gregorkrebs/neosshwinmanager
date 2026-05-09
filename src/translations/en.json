@@ -87,8 +87,11 @@
   "card.tooltip.mount_on": "Click to DISCONNECT",
   "card.tooltip.mount_off": "Click to CONNECT",
   "card.tooltip.open_path": "Open mounted path in Explorer",
+  "card.tooltip.save_top": "Save changes (Ctrl+S)",
+  "card.tooltip.cancel_top": "Discard (Esc)",
   "card.loading.connect": "Connecting…",
   "card.loading.disconnect": "Disconnecting…",
+  "card.loading.saving": "Saving ...",
 
   "settings.title": "Settings",
   "settings.section.general": "GENERAL",
@@ -216,6 +219,9 @@
   "addedit.cli.generate": "Generate new",
   "addedit.cli.copy": "Copy to clipboard",
   "addedit.select_key": "Select private key",
+  "addedit.putty_key.label": "PuTTY Key (.ppk)",
+  "addedit.putty_key.hint": "Required for PuTTY terminal and system info. Convert OpenSSH keys with PuTTYgen.",
+  "addedit.putty_key.select": "Select PuTTY .ppk key",
   "addedit.required.title": "Required fields",
   "addedit.required.name": "Name must not be empty.",
   "addedit.required.host": "Host must not be empty.",
@@ -243,5 +249,13 @@
   "sysinfo.uptime": "Uptime",
   "sysinfo.temperature": "Temperature",
   "sysinfo.active_users": "Active users",
-  "sysinfo.error": "Error:"
+  "sysinfo.error": "Error:",
+  "sysinfo.key_required": "Please set an SSH key for this connection to display system information.",
+  "dirty.title": "Unsaved changes",
+  "dirty.body": "There are unsaved changes. Discard them?",
+  "dirty.discard": "Discard",
+  "dirty.keep": "Keep editing",
+  "status.saved": "Changes saved.",
+  "app.unexpected_error.title": "Unexpected error",
+  "app.unexpected_error.body": "An unexpected error occurred.\nThe application will try to continue running.\n\nDetails were written to crash_report.txt."
 }

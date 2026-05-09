@@ -12,8 +12,9 @@ from PyQt6.QtCore import Qt
 import os
 from PyQt6.QtGui import QIcon, QPixmap
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
+from src.ui.widgets.no_wheel import NoWheelScrollArea
 from src.i18n import tr
-APP_VERSION = "1.3.1"
+APP_VERSION = "1.3.2"
 
 
 class AboutDialog(QDialog):
@@ -35,7 +36,7 @@ class AboutDialog(QDialog):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        scroll = QScrollArea()
+        scroll = NoWheelScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)

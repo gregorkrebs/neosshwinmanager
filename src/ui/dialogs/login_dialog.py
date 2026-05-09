@@ -19,6 +19,7 @@ from src.auth_manager import AuthManager, Session
 from src.crypto import is_available
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.ui.icons import icon as svg_icon
+from src.ui.widgets.no_wheel import NoWheelScrollArea
 from src.i18n import tr
 
 class LoginDialog(QDialog):
@@ -292,7 +293,7 @@ class UserManagementDialog(QDialog):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        scroll = QScrollArea()
+        scroll = NoWheelScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)

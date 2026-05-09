@@ -87,8 +87,11 @@
   "card.tooltip.mount_on": "Klicken zum TRENNEN",
   "card.tooltip.mount_off": "Klicken zum VERBINDEN",
   "card.tooltip.open_path": "Gemounteten Pfad im Explorer öffnen",
+  "card.tooltip.save_top": "Aenderungen speichern (Strg+S)",
+  "card.tooltip.cancel_top": "Verwerfen (Esc)",
   "card.loading.connect": "Verbinde…",
   "card.loading.disconnect": "Trenne…",
+  "card.loading.saving": "Speichere ...",
 
   "settings.title": "Einstellungen",
   "settings.section.general": "ALLGEMEIN",
@@ -216,6 +219,9 @@
   "addedit.cli.generate": "Neu generieren",
   "addedit.cli.copy": "In Zwischenablage kopieren",
   "addedit.select_key": "Privaten Schlüssel auswählen",
+  "addedit.putty_key.label": "PuTTY Key (.ppk)",
+  "addedit.putty_key.hint": "Erforderlich für PuTTY-Terminal und System-Info. OpenSSH-Keys mit PuTTYgen konvertieren.",
+  "addedit.putty_key.select": "PuTTY .ppk Key auswählen",
   "addedit.required.title": "Pflichtfelder",
   "addedit.required.name": "Name darf nicht leer sein.",
   "addedit.required.host": "Host darf nicht leer sein.",
@@ -243,5 +249,13 @@
   "sysinfo.uptime": "Uptime",
   "sysinfo.temperature": "Temperatur",
   "sysinfo.active_users": "Aktive Nutzer",
-  "sysinfo.error": "Fehler:"
+  "sysinfo.error": "Fehler:",
+  "sysinfo.key_required": "SSH-Key ist erforderlich, um Systeminformationen anzuzeigen.",
+  "dirty.title": "Ungespeicherte Aenderungen",
+  "dirty.body": "Es gibt ungespeicherte Aenderungen. Verwerfen?",
+  "dirty.discard": "Verwerfen",
+  "dirty.keep": "Weiter bearbeiten",
+  "status.saved": "Aenderungen gespeichert.",
+  "app.unexpected_error.title": "Unerwarteter Fehler",
+  "app.unexpected_error.body": "Ein unerwarteter Fehler ist aufgetreten.\nDie Anwendung versucht weiterzulaufen.\n\nDetails wurden in crash_report.txt protokolliert."
 }

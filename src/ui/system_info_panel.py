@@ -13,9 +13,33 @@ from src.ui.icons import icon as svg_icon
 import subprocess
 import os
 import sys
+import shutil
 from src.config import Connection
 from src.app_logger import logger
 from src.i18n import tr
+
+def _is_safe_file_path(path: str) -> bool:
+    """
+    Validate file path to prevent path traversal and command injection.
+    """
+    if not path or not isinstance(path, str):
+        return False
+    
+    # Normalize path and check for traversal
+    try:
+        normalized = os.path.normpath(path)
+    except Exception:
+        return False
+    
+    if '..' in normalized or normalized.startswith('/..'):
+        return False
+    
+    # Reject shell metacharacters
+    dangerous = set(';|&`$(){}[]<>!\\"\'\n\r\t')
+    if any(c in dangerous for c in path):
+        return False
+    
+    return True
 
 
 class SSHSystemInfoThread(QThread):
@@ -24,9 +48,10 @@ class SSHSystemInfoThread(QThread):
     info_ready = pyqtSignal(dict)
     error = pyqtSignal(str)
 
-    def __init__(self, conn: Connection):
+    def __init__(self, conn: Connection, settings=None):
         super().__init__()
         self._conn = conn
+        self._settings = settings
         self._stopped = False
 
     def run(self):
@@ -49,27 +74,16 @@ class SSHSystemInfoThread(QThread):
             "error": None,
         }
 
-        ssh_exe = self._find_ssh()
-        if not ssh_exe:
-            info["error"] = "ssh.exe not found"
+        ssh_client, client_type = self._find_ssh_client()
+        if not ssh_client:
+            info["error"] = "SSH client not found (ssh.exe or plink.exe)"
             return info
 
-        # SECURITY FIX: Use absolute path for known_hosts instead of %USERPROFILE%
-        known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
-        
-        cmd_base = [
-            ssh_exe,
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", f"UserKnownHostsFile={known_hosts_path}",
-            "-o", "ConnectTimeout=10",
-            "-o", "BatchMode=yes" if self._conn.auth_method == "key" else "PreferredAuthentications=password,keyboard-interactive",
-            "-p", str(self._conn.port),
-        ]
-
-        if self._conn.auth_method == "key" and self._conn.key_path:
-            cmd_base.extend(["-i", self._conn.key_path])
-
-        target = f"{self._conn.user}@{self._conn.host}"
+        # Build command based on client type
+        if client_type == 'plink':
+            cmd_base, target = self._build_plink_command(ssh_client)
+        else:
+            cmd_base, target = self._build_ssh_command(ssh_client)
 
         run_opts = {}
         if os.name == "nt":
@@ -145,6 +159,42 @@ class SSHSystemInfoThread(QThread):
 
         return info
 
+    def _find_plink(self) -> str | None:
+        """Find plink.exe for PuTTY-based system info."""
+        candidates = [
+            r"C:\Program Files\PuTTY\plink.exe",
+            r"C:\Program Files (x86)\PuTTY\plink.exe",
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                return p
+        return shutil.which("plink")
+
+    def _find_ssh_client(self) -> tuple[str | None, str]:
+        """Find SSH client (ssh.exe or plink.exe) based on settings.
+        Returns (executable_path, client_type) where client_type is 'ssh' or 'plink'."""
+        use_putty = getattr(self._settings, 'use_putty', False) if self._settings else False
+        
+        if use_putty:
+            # Use putty_key_path if available, otherwise fall back to key_path
+            key_to_use = self._conn.putty_key_path or self._conn.key_path
+            
+            # Check if key is .ppk format (required by plink)
+            if key_to_use and not key_to_use.lower().endswith('.ppk'):
+                logger.warning(f"plink requires .ppk format keys, but '{key_to_use}' is not .ppk. Falling back to ssh.exe.")
+                # Fallback to ssh.exe for non-.ppk keys
+            else:
+                plink_exe = self._find_plink()
+                if plink_exe:
+                    return plink_exe, 'plink'
+                # Fallback to ssh.exe if plink not found
+        
+        ssh_exe = self._find_ssh()
+        if ssh_exe:
+            return ssh_exe, 'ssh'
+        
+        return None, 'none'
+
     def _find_ssh(self) -> str | None:
         candidates = [
             r"C:\Windows\System32\OpenSSH\ssh.exe",
@@ -155,16 +205,75 @@ class SSHSystemInfoThread(QThread):
                 return p
         return None
 
+    def _build_ssh_command(self, ssh_exe: str) -> tuple[list, str]:
+        """Build SSH command for native ssh.exe."""
+        # SECURITY FIX: System info panel requires an SSH key to be configured
+        # This works regardless of whether password or key auth is set as primary method
+        if not self._conn.key_path:
+            raise ValueError(tr("sysinfo.key_required"))
+        
+        # SECURITY FIX: Use absolute path for known_hosts instead of %USERPROFILE%
+        known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
+        
+        cmd_base = [
+            ssh_exe,
+            "-o", "StrictHostKeyChecking=accept-new",
+            "-o", f"UserKnownHostsFile={known_hosts_path}",
+            "-o", "ConnectTimeout=10",
+            "-o", "BatchMode=yes",
+            "-o", "PreferredAuthentications=publickey",
+            "-p", str(self._conn.port),
+        ]
+
+        if self._conn.key_path:
+            cmd_base.extend(["-i", self._conn.key_path])
+
+        target = f"{self._conn.user}@{self._conn.host}"
+        return cmd_base, target
+
+    def _build_plink_command(self, plink_exe: str) -> tuple[list, str]:
+        """Build plink command for PuTTY-based system info."""
+        # SECURITY: Validate plink path to prevent command injection
+        if not _is_safe_file_path(plink_exe):
+            raise ValueError(f"Ungültiger plink.exe Pfad: {plink_exe}")
+        
+        cmd_base = [
+            plink_exe,
+            "-batch",  # Non-interactive mode
+            "-sshlog", os.devnull,  # Suppress SSH log
+            "-P", str(self._conn.port),
+        ]
+
+        # Add key authentication if key is configured
+        # Use putty_key_path if available, otherwise fall back to key_path
+        key_to_use = self._conn.putty_key_path or self._conn.key_path
+        if key_to_use:
+            # SECURITY: Validate key path
+            if not _is_safe_file_path(key_to_use):
+                raise ValueError(f"Ungültiger Key-Pfad: {key_to_use}")
+            # plink requires .ppk format
+            if not key_to_use.lower().endswith('.ppk'):
+                raise ValueError(
+                    "plink.exe erfordert .ppk-formatierte Keys. "
+                    f"Der Key '{key_to_use}' ist nicht im .ppk Format. "
+                    "Bitte konvertieren Sie den Key mit PuTTYgen oder verwenden Sie nativen SSH."
+                )
+            cmd_base.extend(["-i", key_to_use])
+        elif self._conn.auth_method == "password" and self._conn.password:
+            # SECURITY WARNING: Password in command line is visible in process list
+            # This is a security risk but user has enabled plink for this purpose
+            logger.warning("Using password authentication with plink - password visible in process list")
+            cmd_base.extend(["-pw", self._conn.password])
+        else:
+            raise ValueError("Bitte hinterlegen Sie einen SSH-Key oder Passwort für diese Verbindung.")
+
+        target = f"{self._conn.user}@{self._conn.host}"
+        return cmd_base, target
+
     def _get_ssh_env(self) -> dict:
         env = os.environ.copy()
         # SECURITY FIX: Removed SSH_PASSWORD environment variable method
         # Passwords in environment variables can be extracted from process lists
-        # System info panel should only work with key authentication
-        if self._conn.auth_method == "password" and self._conn.password:
-            logger.warning(
-                "System info panel does not support password authentication for security reasons. "
-                "Please use SSH key authentication."
-            )
         return env
 
 
@@ -173,10 +282,13 @@ class SystemInfoPanel(QFrame):
 
     closed = pyqtSignal()
 
-    def __init__(self, conn: Connection, parent=None):
+    def __init__(self, conn: Connection, parent=None, settings=None):
         super().__init__(parent)
         self._conn = conn
+        self._settings = settings
         self._info_thread: SSHSystemInfoThread | None = None
+        self._loading_anim_timer: QTimer | None = None
+        self._loading_anim_phase: int = 0
 
         self.setObjectName("systemInfoPanel")
         self._build_ui()
@@ -257,7 +369,7 @@ class SystemInfoPanel(QFrame):
         root.addWidget(self._state_card)
 
         self._content = QWidget()
-        self._content.hide()
+        # Content stays visible to avoid layout jumps; values are placeholders while loading.
         content_v = QVBoxLayout(self._content)
         content_v.setContentsMargins(0, 0, 0, 0)
         content_v.setSpacing(12)
@@ -321,6 +433,66 @@ class SystemInfoPanel(QFrame):
 
         root.addWidget(self._content, stretch=1)
 
+        # Loading overlay (single, styled tile) shown while fetching info
+        self._loading_overlay = QWidget(self)
+        self._loading_overlay.setObjectName("sysinfoLoadingOverlay")
+        self._loading_overlay.hide()
+
+        ov = QVBoxLayout(self._loading_overlay)
+        ov.setContentsMargins(0, 0, 0, 0)
+        ov.setSpacing(0)
+        ov.addStretch(1)
+
+        loading_card = QFrame()
+        loading_card.setObjectName("sysinfoLoadingCard")
+        loading_l = QVBoxLayout(loading_card)
+        loading_l.setContentsMargins(18, 16, 18, 16)
+        loading_l.setSpacing(8)
+
+        self._loading_icon = QLabel("⏳")
+        self._loading_icon.setObjectName("sysinfoLoadingIcon")
+        self._loading_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        loading_l.addWidget(self._loading_icon)
+
+        self._loading_title = QLabel(tr("sysinfo.loading"))
+        self._loading_title.setObjectName("sysinfoLoadingTitle")
+        self._loading_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._loading_title.setWordWrap(True)
+        loading_l.addWidget(self._loading_title)
+
+        self._loading_dots = QLabel("…")
+        self._loading_dots.setObjectName("sysinfoLoadingDots")
+        self._loading_dots.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        loading_l.addWidget(self._loading_dots)
+
+        ov.addWidget(loading_card, 0, Qt.AlignmentFlag.AlignHCenter)
+        ov.addStretch(1)
+
+        self._loading_anim_timer = QTimer(self)
+        self._loading_anim_timer.setInterval(320)
+        self._loading_anim_timer.timeout.connect(self._tick_loading_overlay)
+
+    def resizeEvent(self, event):  # noqa: N802
+        super().resizeEvent(event)
+        if hasattr(self, "_loading_overlay") and self._loading_overlay is not None:
+            self._loading_overlay.setGeometry(self.rect())
+
+    def _tick_loading_overlay(self):
+        self._loading_anim_phase = (self._loading_anim_phase + 1) % 4
+        dots = "." * self._loading_anim_phase
+        self._loading_dots.setText(dots if dots else " ")
+
+    def _set_loading_overlay_visible(self, visible: bool):
+        if not hasattr(self, "_loading_overlay"):
+            return
+        self._loading_overlay.setVisible(visible)
+        if self._loading_anim_timer:
+            if visible and not self._loading_anim_timer.isActive():
+                self._loading_anim_phase = 0
+                self._loading_anim_timer.start()
+            elif not visible and self._loading_anim_timer.isActive():
+                self._loading_anim_timer.stop()
+
     def _make_section_card(self, title: str):
         frame = QFrame()
         frame.setObjectName("sysinfoSectionCard")
@@ -383,9 +555,10 @@ class SystemInfoPanel(QFrame):
     def _fetch_info(self):
         self._loading_lbl.show()
         self._state_card.show()
-        self._content.hide()
+        self._content.show()
         self._error_lbl.hide()
         self._refresh_btn.setEnabled(False)
+        self._set_loading_overlay_visible(True)
 
         if self._info_thread:
             self._info_thread.stop()
@@ -400,6 +573,7 @@ class SystemInfoPanel(QFrame):
         self._loading_lbl.hide()
         self._state_card.hide()
         self._refresh_btn.setEnabled(True)
+        self._set_loading_overlay_visible(False)
 
         if info.get("error") and not info.get("connected"):
             self._on_error(info["error"])
@@ -482,6 +656,7 @@ class SystemInfoPanel(QFrame):
         self._ip_row._value_lbl.setText(ip)
 
     def _on_error(self, msg: str):
+        self._set_loading_overlay_visible(False)
         self._loading_lbl.hide()
         self._content.hide()
         self._state_card.show()
@@ -502,4 +677,6 @@ class SystemInfoPanel(QFrame):
         if self._info_thread:
             self._info_thread.stop()
             self._info_thread.wait()
+        if self._loading_anim_timer and self._loading_anim_timer.isActive():
+            self._loading_anim_timer.stop()
         event.accept()

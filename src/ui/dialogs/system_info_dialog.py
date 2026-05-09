@@ -63,7 +63,7 @@ class SystemInfoDialog(QDialog):
         content_l = QVBoxLayout(content)
         content_l.setContentsMargins(0, 0, 0, 0)
         content_l.setSpacing(0)
-        content_l.addWidget(SystemInfoPanel(self._conn, parent=content))
+        content_l.addWidget(SystemInfoPanel(self._conn, parent=content, settings=self._settings))
         outer.addWidget(content, stretch=1)
 
         footer = QWidget()
@@ -85,4 +85,5 @@ class SystemInfoDialog(QDialog):
         btn_row.addWidget(close_btn)
 
         footer_l.addLayout(btn_row)
+        outer.addWidget(footer)row)
         outer.addWidget(footer)

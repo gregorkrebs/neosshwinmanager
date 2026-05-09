@@ -185,6 +185,32 @@ QPushButton#dialogMaximizeBtn:checked {
     border-radius: 18px;
 }
 
+#sysinfoLoadingOverlay {
+    background-color: rgba(8, 12, 18, 120);
+}
+#sysinfoLoadingCard {
+    background-color: rgba(17, 24, 34, 246);
+    border: 1px solid rgba(71, 195, 255, 0.26);
+    border-radius: 18px;
+    min-width: 260px;
+}
+#sysinfoLoadingIcon {
+    color: #7ddfff;
+    font-size: 26px;
+}
+#sysinfoLoadingTitle {
+    color: #edf4fb;
+    font-size: 14px;
+    font-weight: 700;
+}
+#sysinfoLoadingDots {
+    color: #7ddfff;
+    font-family: "Consolas";
+    font-size: 16px;
+    font-weight: 700;
+    min-height: 18px;
+}
+
 #sysinfoHeroTitle {
     color: #edf4fb;
     font-size: 18px;
@@ -742,6 +768,11 @@ QPushButton#headerAddBtn:hover {
 #rpInfoBody {
     background-color: transparent;
 }
+QFrame#rpInfoField {
+    background-color: #14141F;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+}
 #rpSectionLabel {
     color: #00b4d8;
     font-size: 10px;
@@ -755,7 +786,7 @@ QPushButton#headerAddBtn:hover {
     font-size: 11px;
 }
 #rpValue {
-    color: #14141F;
+    color: #ffffff;
     font-size: 18px;
     font-weight: 800;
     background-color: #14141F;
@@ -795,10 +826,41 @@ QPushButton#rpHeaderBtn:hover {
     background-color: #192433;
     border: 1px solid #36506c;
 }
+QPushButton#rpHeaderBtn[btn_type="danger"] {
+    background-color: rgba(239, 68, 68, 0.16);
+    border: 1px solid rgba(239, 68, 68, 0.38);
+}
+QPushButton#rpHeaderBtn[btn_type="danger"]:hover {
+    background-color: rgba(239, 68, 68, 0.24);
+    border: 1px solid #ef4444;
+}
 QPushButton#rpHeaderBtn:disabled {
     background-color: #111822;
     border: 1px solid #1a2330;
     color: #2a3a4a;
+}
+QPushButton#rpHeaderBtn[btn_type="danger"]:disabled,
+QPushButton#rpHeaderBtn[btn_type="danger"]:disabled:hover {
+    background-color: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.18);
+}
+QPushButton#rpHeaderSaveBtn {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #00d464, stop:1 #008f48);
+    border: none;
+    border-radius: 10px;
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 32px;
+    max-height: 32px;
+}
+QPushButton#rpHeaderSaveBtn:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #1ce080, stop:1 #00a258);
+}
+QPushButton#rpHeaderSaveBtn:disabled {
+    background: #1a2330;
+    border: 1px solid #243243;
 }
 
 /* Right panel save/cancel button bar */
@@ -897,6 +959,12 @@ QPushButton#cardInfoBtn[active="true"] {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 #22c4e8, stop:1 #0088c8);
 }
+#actionBtn[btn_type="primary"]:disabled, #primaryBtn:disabled,
+#actionBtn[btn_type="primary"]:disabled:hover, #primaryBtn:disabled:hover {
+    background: #111822;
+    border: 1px solid #1a2330;
+    color: #607489;
+}
 
 /* Secondary / Cancel Button */
 #secondaryBtn {
@@ -913,6 +981,15 @@ QPushButton#cardInfoBtn[active="true"] {
     background-color: #192433;
     border: 1px solid #36506c;
     color: #deebf7;
+}
+QLineEdit[invalid="true"] {
+    border: 2px solid #0077b6;
+}
+QLineEdit[invalid="true"]:focus {
+    border: 2px solid #0077b6;
+}
+QLineEdit:focus, QPushButton:focus {
+    border: 2px solid #00b4d8;
 }
 
 /* Dialog Button Bar */
@@ -1329,6 +1406,32 @@ QPushButton#dialogMaximizeBtn:checked {
     border-radius: 18px;
 }
 
+#sysinfoLoadingOverlay {
+    background-color: rgba(235, 241, 247, 165);
+}
+#sysinfoLoadingCard {
+    background-color: rgba(255, 255, 255, 248);
+    border: 1px solid rgba(0, 119, 182, 0.20);
+    border-radius: 18px;
+    min-width: 260px;
+}
+#sysinfoLoadingIcon {
+    color: #0077b6;
+    font-size: 26px;
+}
+#sysinfoLoadingTitle {
+    color: #182536;
+    font-size: 14px;
+    font-weight: 800;
+}
+#sysinfoLoadingDots {
+    color: #0077b6;
+    font-family: "Consolas";
+    font-size: 16px;
+    font-weight: 800;
+    min-height: 18px;
+}
+
 #sysinfoHeroTitle {
     color: #182536;
     font-size: 18px;
@@ -1717,6 +1820,8 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
     color: #617386;
     font-size: 13px;
     padding: 0;
+    min-height: 45px;
+    max-height: 45px;
 }
 
 #rightPanelPlaceholder,
@@ -1795,6 +1900,11 @@ QPushButton#headerAddBtn:hover {
 }
 #rightPanelContent { background-color: transparent; min-width: 100%;}
 #rpInfoBody { background-color: transparent; }
+QFrame#rpInfoField {
+    background-color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+}
 #rpSectionLabel {
     color: #0077b6;
     font-size: 10px;
@@ -1803,15 +1913,17 @@ QPushButton#headerAddBtn:hover {
     letter-spacing: 1px;
     padding-top: 4px;
 }
-#rpFieldLabel { color: #6a7a8a; font-size: 11px; padding: 6px 0 1px 0; }
+#rpFieldLabel { color: #000000; font-size: 11px; padding: 6px 0 1px 0; }
 #rpValue {
     color: #1a2332;
     font-size: 12px;
     font-weight: 500;
-    background-color: #ffffff;
-    border: 1px solid #d5dde7;
-    border-radius: 12px;
-    padding: 12px 14px;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+}
+QFrame#rpInfoField QLabel#rpFieldLabelCaps {
+    color: #6a7685;
 }
 #rpDivider {
     background-color: #d5dde7;
@@ -1833,6 +1945,14 @@ QPushButton#rpHeaderBtn:hover {
     background-color: #edf5fb;
     border: 1px solid #aec6dd;
 }
+QPushButton#rpHeaderBtn[btn_type="danger"] {
+    background-color: rgba(220, 38, 38, 0.16);
+    border: 1px solid rgba(220, 38, 38, 0.34);
+}
+QPushButton#rpHeaderBtn[btn_type="danger"]:hover {
+    background-color: rgba(220, 38, 38, 0.22);
+    border: 1px solid #dc2626;
+}
 QPushButton#rpHeaderBtn:disabled {
     background-color: #f4f7fa;
     border: 1px solid #e2e8ef;
@@ -1841,6 +1961,29 @@ QPushButton#rpHeaderBtn:disabled {
 QPushButton#rpHeaderBtn:disabled:hover {
     background-color: #f4f7fa;
     border: 1px solid #e2e8ef;
+}
+QPushButton#rpHeaderBtn[btn_type="danger"]:disabled,
+QPushButton#rpHeaderBtn[btn_type="danger"]:disabled:hover {
+    background-color: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.20);
+}
+QPushButton#rpHeaderSaveBtn {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #00d464, stop:1 #008f48);
+    border: none;
+    border-radius: 10px;
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 32px;
+    max-height: 32px;
+}
+QPushButton#rpHeaderSaveBtn:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #1ce080, stop:1 #00a258);
+}
+QPushButton#rpHeaderSaveBtn:disabled {
+    background: #f4f7fa;
+    border: 1px solid #d5dde7;
 }
 #rpBtnBar {
     background-color: #edf2f7;
@@ -1851,7 +1994,7 @@ QPushButton#rpActionBtn {
     background-color: #ffffff;
     border: 1px solid #d5dde7;
     border-radius: 12px;
-    color: #E4EAF0;
+    color: #4a5a6a;
     font-size: 12px;
     font-weight: 600;
     padding: 7px 12px;
@@ -1860,6 +2003,7 @@ QPushButton#rpActionBtn {
 QPushButton#rpActionBtn:hover {
     background-color: #edf5fb;
     border: 1px solid #aec6dd;
+    color: #1a2332;
 }
 QPushButton#rpActionBtn[btn_type="primary"] {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -1885,6 +2029,11 @@ QPushButton#rpActionBtn:disabled {
     border: 1px solid #e2e8ef;
     color: #95a6b8;
 }
+QPushButton#rpActionBtn:disabled:hover {
+    background-color: #f4f7fa;
+    border: 1px solid #e2e8ef;
+    color: #95a6b8;
+}
 QPushButton#cardInfoBtn[active="true"] {
     background: rgba(0, 119, 182, 0.12);
     border: 1px solid rgba(0, 119, 182, 0.5);
@@ -1892,10 +2041,10 @@ QPushButton#cardInfoBtn[active="true"] {
 }
 
 #actionBtn {
-    background-color: #E4EAF0;
+    background-color: #ffffff;
     border: 1px solid #d5dde7;
     border-radius: 12px;
-    color: #E4EAF0;
+    color: #4a5a6a;
     font-size: 12px;
     padding: 7px 12px;
     text-align: left;
@@ -1904,6 +2053,16 @@ QPushButton#cardInfoBtn[active="true"] {
     background-color: #edf5fb;
     border: 1px solid #aec6dd;
     color: #1a2332;
+}
+QPushButton#actionBtn:disabled {
+    background-color: #f4f7fa;
+    border: 1px solid #e2e8ef;
+    color: #95a6b8;
+}
+QPushButton#actionBtn:disabled:hover {
+    background-color: #f4f7fa;
+    border: 1px solid #e2e8ef;
+    color: #95a6b8;
 }
 
 #actionBtn[btn_type="primary"], #primaryBtn {
@@ -1921,6 +2080,12 @@ QPushButton#cardInfoBtn[active="true"] {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 #22c4e8, stop:1 #0088c8);
 }
+#actionBtn[btn_type="primary"]:disabled, #primaryBtn:disabled,
+#actionBtn[btn_type="primary"]:disabled:hover, #primaryBtn:disabled:hover {
+    background: #e4e8ef;
+    border: 1px solid #d5dde7;
+    color: #9aacbe;
+}
 
 #secondaryBtn {
     background-color: #E4EAF0;
@@ -1936,6 +2101,15 @@ QPushButton#cardInfoBtn[active="true"] {
     background-color: #edf5fb;
     border: 1px solid #aec6dd;
     color: #1a2332;
+}
+QLineEdit[invalid="true"] {
+    border: 1px solid #0077b6;
+}
+QLineEdit[invalid="true"]:focus {
+    border: 1px solid #0077b6;
+}
+QLineEdit:focus, QPushButton:focus {
+    border: 1px solid #00b4d8;
 }
 
 #dialogBtnBar {
@@ -1975,6 +2149,12 @@ QPushButton#sshBtn:hover {
     background: rgba(0, 119, 182, 0.10);
     border: 1px solid #72add6;
 }
+QPushButton#sshBtn:disabled,
+QPushButton#sshBtn:disabled:hover {
+    background-color: #f4f7fa;
+    border: 1px solid #e2e8ef;
+    color: #95a6b8;
+}
 
 QPushButton#cardInfoBtn, QPushButton#cardEditBtn {
     background: #E4EAF0;
@@ -2009,6 +2189,12 @@ QPushButton#mountBtn:hover {
     background-color: rgba(0, 119, 182, 0.10);
     border: 1px solid #72add6;
     color: #0077b6;
+}
+QPushButton#mountBtn:disabled,
+QPushButton#mountBtn:disabled:hover {
+    background-color: #f4f7fa;
+    border: 1px solid #e2e8ef;
+    color: #95a6b8;
 }
 QPushButton#mountBtn[mounted="true"] {
     background-color: rgba(0, 180, 80, 0.10);
@@ -2079,7 +2265,6 @@ QComboBox QAbstractItemView::item:selected {
     font-family: "Consolas";
     font-size: 12px;
     padding: 10px 14px;
-    min-height: 40px;
 }
 #statusDot { color: #007a3d; font-size: 9px; margin-right: 4px; }
 #statusText {

@@ -18,10 +18,11 @@ from PyQt6.QtWidgets import QApplication
 from typing import List, Optional
 import secrets
 
-from src.config import Connection
+from src.config import Connection, AppSettings
 from src.drive_utils import get_available_drives
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.ui.icons import icon as svg_icon
+from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelScrollArea, NoWheelSpinBox
 from src.i18n import tr
 
 
@@ -33,11 +34,13 @@ class AddEditDialog(QDialog):
         connection: Connection = None,
         used_letters: List[str] = None,
         existing_connections: List[Connection] = None,
+        settings: AppSettings = None,
     ):
         super().__init__(parent)
         self._connection = connection          # None = Add-Modus
         self._used_letters = used_letters or []
         self._existing = existing_connections or []
+        self._settings = settings or AppSettings()
         self._is_edit = connection is not None
 
         self.setObjectName("dialogSurface")
@@ -81,7 +84,7 @@ class AddEditDialog(QDialog):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        scroll = QScrollArea()
+        scroll = NoWheelScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -125,7 +128,7 @@ class AddEditDialog(QDialog):
             template_row.setContentsMargins(0, 0, 0, 0)
             template_row.setSpacing(8)
 
-            self._template_combo = QComboBox()
+            self._template_combo = NoWheelComboBox()
             self._template_combo.addItem(tr("addedit.template.none"), userData=None)
             for conn in self._existing:
                 self._template_combo.addItem(
@@ -171,7 +174,7 @@ class AddEditDialog(QDialog):
         port_col = QVBoxLayout()
         port_col.setSpacing(4)
         port_col.addWidget(self._field_label(tr("addedit.label.port")))
-        self._port_spin = QSpinBox()
+        self._port_spin = NoWheelSpinBox()
         self._port_spin.setRange(1, 65535)
         self._port_spin.setValue(22)
         port_col.addWidget(self._port_spin)
@@ -190,7 +193,7 @@ class AddEditDialog(QDialog):
         form.addWidget(self._path_edit)
 
         form.addWidget(self._field_label(tr("addedit.label.drive")))
-        self._drive_combo = QComboBox()
+        self._drive_combo = NoWheelComboBox()
         self._populate_drive_combo()
         form.addWidget(self._drive_combo)
 
@@ -199,7 +202,7 @@ class AddEditDialog(QDialog):
         form.addWidget(self._section(tr("addedit.section.auth")))
 
         form.addWidget(self._field_label(tr("addedit.label.method")))
-        self._auth_combo = QComboBox()
+        self._auth_combo = NoWheelComboBox()
         self._auth_combo.addItem(tr("addedit.auth.password"), "password")
         self._auth_combo.addItem(tr("addedit.auth.key"), "key")
         self._auth_combo.addItem(tr("addedit.auth.ask"), "ask")
@@ -285,6 +288,38 @@ class AddEditDialog(QDialog):
         self._cli_key_widget.setVisible(False)
         form.addWidget(self._cli_key_widget)
 
+        # ── PUTTY KEY ───────────────────────────────────────────────
+        # Only visible when PuTTY is enabled globally
+        self._putty_key_widget = QWidget()
+        putty_key_layout = QVBoxLayout(self._putty_key_widget)
+        putty_key_layout.setContentsMargins(0, 4, 0, 0)
+        putty_key_layout.setSpacing(4)
+
+        putty_key_layout.addWidget(self._field_label(tr("addedit.putty_key.label")))
+
+        putty_row = QHBoxLayout()
+        putty_row.setContentsMargins(0, 0, 0, 0)
+        putty_row.setSpacing(6)
+        self._putty_key_edit = QLineEdit()
+        self._putty_key_edit.setPlaceholderText("C:/Users/user/.ssh/id_rsa.ppk")
+        putty_row.addWidget(self._putty_key_edit, stretch=1)
+        putty_browse_btn = QPushButton("…")
+        putty_browse_btn.setObjectName("rpHeaderBtn")
+        putty_browse_btn.setFixedWidth(36)
+        putty_browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        putty_browse_btn.clicked.connect(self._browse_putty_key)
+        putty_row.addWidget(putty_browse_btn)
+        putty_key_layout.addLayout(putty_row)
+
+        putty_hint = QLabel(tr("addedit.putty_key.hint"))
+        putty_hint.setObjectName("fieldLabel")
+        putty_hint.setWordWrap(True)
+        putty_key_layout.addWidget(putty_hint)
+
+        # Only show if PuTTY is enabled globally
+        self._putty_key_widget.setVisible(self._settings.use_putty)
+        form.addWidget(self._putty_key_widget)
+
         form.addStretch()
         layout.addWidget(form_card)
 
@@ -312,20 +347,40 @@ class AddEditDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         btn_row.addWidget(cancel_btn)
 
-        save_btn = QPushButton(tr("dialog.save"))
-        save_btn.setObjectName("primaryBtn")
-        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        save_btn.setFixedHeight(36)
-        save_btn.setMinimumWidth(140)
-        save_btn.clicked.connect(self._on_save)
-        btn_row.addWidget(save_btn)
+        self._save_btn = QPushButton(tr("dialog.save"))
+        self._save_btn.setObjectName("primaryBtn")
+        self._save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._save_btn.setFixedHeight(36)
+        self._save_btn.setMinimumWidth(140)
+        self._save_btn.clicked.connect(self._on_save)
+        btn_row.addWidget(self._save_btn)
 
         btn_outer.addLayout(btn_row)
         outer.addWidget(btn_frame)
 
+        self._name_edit.textChanged.connect(self._validate_form)
+        self._host_edit.textChanged.connect(self._validate_form)
+        self._user_edit.textChanged.connect(self._validate_form)
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._validate_form)
+
     # ------------------------------------------------------------------
     # Drive combo
     # ------------------------------------------------------------------
+
+    def _validate_form(self):
+        fields = [self._name_edit, self._host_edit, self._user_edit]
+        all_valid = True
+        for widget in fields:
+            is_empty = not bool(widget.text().strip())
+            widget.setProperty("invalid", "true" if is_empty else "false")
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+            if is_empty:
+                all_valid = False
+        
+        if hasattr(self, '_save_btn'):
+            self._save_btn.setEnabled(all_valid)
 
     def _populate_drive_combo(self, preselect: str = None):
         """Fülle den Laufwerksbuchstaben-Combo mit verfügbaren Buchstaben."""
@@ -411,6 +466,13 @@ class AddEditDialog(QDialog):
         if path:
             self._key_edit.setText(path)
 
+    def _browse_putty_key(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, tr("addedit.putty_key.select"), "", "PuTTY Private Key (*.ppk)"
+        )
+        if path:
+            self._putty_key_edit.setText(path)
+
     # ------------------------------------------------------------------
     # Load / Save
     # ------------------------------------------------------------------
@@ -428,6 +490,7 @@ class AddEditDialog(QDialog):
 
         self._pw_edit.setText(conn.password)
         self._key_edit.setText(conn.key_path)
+        self._putty_key_edit.setText(conn.putty_key_path or "")
         
         self._cli_key_edit.setText(conn.cli_access_key or "")
         self._cli_enabled_cb.setChecked(conn.cli_access_enabled)
@@ -489,6 +552,7 @@ class AddEditDialog(QDialog):
             auth_method=auth_method,
             password=self._pw_edit.text(),
             key_path=self._key_edit.text().strip(),
+            putty_key_path=self._putty_key_edit.text().strip(),
             drive_letter=drive,
             cli_access_enabled=self._cli_enabled_cb.isChecked(),
             cli_access_key=self._cli_key_edit.text() if self._cli_enabled_cb.isChecked() else None
