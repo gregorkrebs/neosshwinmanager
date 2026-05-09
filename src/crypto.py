@@ -276,15 +276,43 @@ def decrypt(ciphertext_hex: str, iv_hex: str, key: bytes) -> str:
     return aesgcm.decrypt(iv, ct, None).decode("utf-8")
 
 
-def encrypt_key(enc_key: bytes, password: str, salt_hex: str) -> Tuple[str, str]:
-    """Verschlüsselt den Encryption Key mit dem abgeleiteten Passwort-Key."""
-    derived = derive_key(password, salt_hex)
+def encrypt_key(enc_key: bytes, password: str, salt_hex: str, kdf: str = 'pbkdf2') -> Tuple[str, str]:
+    """Verschlüsselt den Encryption Key mit dem abgeleiteten Passwort-Key.
+
+    Args:
+        kdf: 'pbkdf2' (legacy) oder 'argon2' (empfohlen).
+    """
+    if kdf == 'argon2':
+        if not _CRYPTO_AVAILABLE:
+            raise RuntimeError("cryptography nicht installiert.")
+        salt = bytes.fromhex(salt_hex)
+        pw_secure = SecureBytes.from_string(password)
+        try:
+            derived, _ = derive_key_argon2(pw_secure, salt)
+        finally:
+            pw_secure.wipe()
+    else:
+        derived = derive_key(password, salt_hex)
     return encrypt(enc_key.hex(), derived)
 
 
-def decrypt_key(enc_key_hex: str, iv_hex: str, password: str, salt_hex: str) -> bytes:
-    """Entschlüsselt den Encryption Key mit dem abgeleiteten Passwort-Key."""
-    derived = derive_key(password, salt_hex)
+def decrypt_key(enc_key_hex: str, iv_hex: str, password: str, salt_hex: str, kdf: str = 'pbkdf2') -> bytes:
+    """Entschlüsselt den Encryption Key mit dem abgeleiteten Passwort-Key.
+
+    Args:
+        kdf: 'pbkdf2' (legacy) oder 'argon2'.
+    """
+    if kdf == 'argon2':
+        if not _CRYPTO_AVAILABLE:
+            raise RuntimeError("cryptography nicht installiert.")
+        salt = bytes.fromhex(salt_hex)
+        pw_secure = SecureBytes.from_string(password)
+        try:
+            derived, _ = derive_key_argon2(pw_secure, salt)
+        finally:
+            pw_secure.wipe()
+    else:
+        derived = derive_key(password, salt_hex)
     key_hex = decrypt(enc_key_hex, iv_hex, derived)
     return bytes.fromhex(key_hex)
 

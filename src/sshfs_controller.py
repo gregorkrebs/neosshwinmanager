@@ -82,6 +82,50 @@ def _is_safe_remote_path(path: str) -> bool:
     return True
 
 
+def _is_host_known(host: str, port: int, known_hosts_path: str) -> bool:
+    """
+    Prüft ob ein Host bereits in known_hosts verifiziert wurde.
+    Nutzt ssh-keygen -F für korrekte Behandlung von gehashten Einträgen.
+    Fallback: direkte Textsuche für nicht-gehashte Einträge.
+    """
+    if not os.path.exists(known_hosts_path):
+        return False
+
+    # Primär: ssh-keygen -F (behandelt auch gehashte known_hosts korrekt)
+    ssh_keygen = shutil.which("ssh-keygen") or r"C:\Windows\System32\OpenSSH\ssh-keygen.exe"
+    if os.path.exists(ssh_keygen if os.path.isabs(ssh_keygen) else "") or shutil.which("ssh-keygen"):
+        try:
+            target = f"[{host}]:{port}" if port != 22 else host
+            result = subprocess.run(
+                [ssh_keygen, "-F", target, "-f", known_hosts_path],
+                capture_output=True, timeout=5
+            )
+            return result.returncode == 0
+        except Exception:
+            pass
+
+    # Fallback: direkte Textsuche (funktioniert nur für nicht-gehashte Einträge)
+    try:
+        target_plain = host
+        target_port = f"[{host}]:{port}" if port != 22 else None
+        with open(known_hosts_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                hosts_field = parts[0]
+                for h in hosts_field.split(','):
+                    if h == target_plain or (target_port and h == target_port):
+                        return True
+    except Exception:
+        pass
+
+    return False
+
+
 def _has_winfsp() -> bool:
     return any(os.path.isdir(p) for p in WINFSP_DLL_PATHS)
 
@@ -187,7 +231,20 @@ class SSHFSController:
         # SECURITY FIX: Use absolute path for known_hosts instead of %USERPROFILE%
         # SSHFS cannot expand %USERPROFILE% correctly
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
-        
+
+        # SECURITY FIX: Verweigere Mount für unbekannte Hosts (MITM-Schutz).
+        # Bekannte Hosts → StrictHostKeyChecking=yes (kein accept-new mehr).
+        # Unbekannte Hosts → Benutzer muss zuerst per SSH-Terminal verbinden
+        # und den Fingerprint dort interaktiv bestätigen.
+        if not _is_host_known(conn.host, conn.port, known_hosts_path):
+            return MountResult(
+                False,
+                f"Host '{conn.host}:{conn.port}' ist noch nicht in known_hosts verifiziert.\n\n"
+                "Bitte zuerst eine SSH-Terminal-Verbindung zu diesem Server aufbauen "
+                "und den Host-Key-Fingerprint dort bestätigen. "
+                "Danach kann der Mount durchgeführt werden."
+            )
+
         cmd = [
             sshfs_exe,
             remote,
@@ -196,7 +253,7 @@ class SSHFSController:
             f"-ovolname={safe_name}",
             "-odebug",
             "-ologlevel=debug1",
-            "-oStrictHostKeyChecking=accept-new",
+            "-oStrictHostKeyChecking=yes",
             f"-oUserKnownHostsFile={known_hosts_path}",
             "-oreconnect",
             "-oServerAliveInterval=15",
@@ -236,7 +293,7 @@ class SSHFSController:
         elif conn.auth_method in ("password", "ask") and conn.password:
             cmd.append("-oPreferredAuthentications=password,keyboard-interactive")
             cmd.append("-opassword_stdin")
-            logger.info(f"Using password authentication (password length: {len(conn.password)})")
+            logger.info("Using password authentication")
         else:
             return MountResult(False, "Kein Passwort oder Key konfiguriert.")
 
@@ -244,7 +301,7 @@ class SSHFSController:
         env["PATH"] = f"{sshfs_bin_dir};{env.get('PATH', '')}"
 
         try:
-            logger.info(f"SSHFS command: {' '.join(cmd)}")
+            logger.debug(f"SSHFS command: {' '.join(cmd)}")
             logger.info(f"SSHFS bin dir: {sshfs_bin_dir}")
 
             proc = subprocess.Popen(
@@ -295,7 +352,9 @@ class SSHFSController:
                         for err in ["Permission denied", "Connection refused",
                                     "Connection reset", "No route to host",
                                     "mount point in use", "no such identity",
-                                    "bad port", "read: ", "Unable to authenticate"]:
+                                    "bad port", "read: ", "Unable to authenticate",
+                                    "Host key verification failed",
+                                    "REMOTE HOST IDENTIFICATION HAS CHANGED"]:
                             if err in line:
                                 logger.error(f"SSHFS error detected: {err}")
                                 done.set()

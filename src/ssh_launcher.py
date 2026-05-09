@@ -16,6 +16,7 @@ import shutil
 from src.config import Connection, AppSettings
 from src.app_logger import logger
 from src.utils.secure_memory import SecureBytes
+from src.sshfs_controller import _is_safe_label
 
 
 def launch_ssh_terminal(conn: Connection, settings: AppSettings) -> tuple[bool, str]:
@@ -46,18 +47,20 @@ def _launch_native_ssh(conn: Connection) -> tuple[bool, str]:
     if not ssh_exe:
         return False, "ssh.exe nicht gefunden. Prüfe ob OpenSSH unter Windows installiert ist."
 
-    # SECURITY: Validate host and user to prevent command injection
+    # SECURITY: Validate host, user and name to prevent command injection
     if not _is_safe_ssh_identifier(conn.host):
         return False, f"Ungültiger Hostname: {conn.host}"
     if not _is_safe_ssh_identifier(conn.user):
         return False, f"Ungültiger Username: {conn.user}"
+    if not _is_safe_label(conn.name):
+        return False, f"Ungültiger Verbindungsname: {conn.name}"
 
     # SECURITY FIX: Use absolute path for known_hosts instead of %USERPROFILE%
     known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
     
     ssh_cmd_list = [
         ssh_exe,
-        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "StrictHostKeyChecking=ask",
         "-o", f"UserKnownHostsFile={known_hosts_path}",
         "-p", str(conn.port),
     ]
@@ -72,34 +75,14 @@ def _launch_native_ssh(conn: Connection) -> tuple[bool, str]:
 
     env = os.environ.copy()
 
-    # SECURITY FIX: Use SSH_ASKPASS method for password authentication
-    # This is more secure than SSH_PASSWORD env var and works with Windows ssh.exe
-    # For maximum security, use SSH key authentication instead.
-    
-    if conn.auth_method == "password" and conn.password:
-        # SECURITY FIX: Use cmd.exe 'start' with SSH_PASSWORD env var for Windows ssh.exe
-        # This is less secure than SSH keys but more reliable than SSH_ASKPASS on Windows
-        # The password is in env var briefly, which is visible in process lists during that time
-        # For maximum security, use SSH key authentication instead.
-        
-        env['SSH_PASSWORD'] = conn.password
-        cmd_str = subprocess.list2cmdline(ssh_cmd_list)
-        full_cmd = f'start "{conn.name} SSH" cmd /k {cmd_str}'
-        
-        logger.debug(f"Native SSH cmd with password: {ssh_cmd_list}")
-        try:
-            subprocess.Popen(full_cmd, shell=True, env=env)
-            # Clear password from env after launch
-            del env['SSH_PASSWORD']
-            return True, ""
-        except Exception as e:
-            return False, str(e)
+    # Passwort-Auth: Kein automatisches Eintippen beim nativen SSH-Client.
+    # SSH öffnet eine interaktive CMD-Session — der User gibt das Passwort
+    # bei Bedarf manuell ein (oder SSH_ASKPASS wird vom Betriebssystem gerufen).
+    # SSH_PASSWORD env var wurde entfernt: sie war für andere Prozesse im gleichen
+    # User-Kontext sichtbar und wurde von Windows ssh.exe ohnehin nicht konsumiert.
 
     logger.debug(f"Native SSH cmd: {ssh_cmd_list}")
     try:
-        # SECURITY FIX: Use cmd.exe 'start' command to open new window
-        # This is required for interactive SSH sessions
-        # Inputs are validated and escaped to prevent command injection
         cmd_str = subprocess.list2cmdline(ssh_cmd_list)
         full_cmd = f'start "{conn.name} SSH" cmd /k {cmd_str}'
         subprocess.Popen(full_cmd, shell=True, env=env)

@@ -102,15 +102,16 @@ class AuthManager:
 
             pw_hash, salt = hash_password(password)
             enc_key = generate_enc_key()
-            enc_key_enc, enc_key_iv = encrypt_key(enc_key, password, salt)
+            # Neue Benutzer erhalten Argon2 als KDF
+            enc_key_enc, enc_key_iv = encrypt_key(enc_key, password, salt, kdf='argon2')
             user_id = str(uuid.uuid4())
 
             conn.execute(
                 """INSERT INTO users
-                   (id, username, pw_hash, pw_salt, enc_key_enc, enc_key_iv, is_admin)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                   (id, username, pw_hash, pw_salt, enc_key_enc, enc_key_iv, enc_key_kdf, is_admin)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (user_id, username.strip(), pw_hash, salt,
-                 enc_key_enc, enc_key_iv, int(is_admin))
+                 enc_key_enc, enc_key_iv, 'argon2', int(is_admin))
             )
             # Default-Einstellungen anlegen
             conn.execute(
@@ -147,14 +148,28 @@ class AuthManager:
             logger.warning(f"Login fehlgeschlagen: Falsches Passwort für '{username}'.")
             return None
 
+        kdf = row["enc_key_kdf"] if "enc_key_kdf" in row.keys() else "pbkdf2"
         try:
             enc_key = decrypt_key(
                 row["enc_key_enc"], row["enc_key_iv"],
-                password, row["pw_salt"]
+                password, row["pw_salt"], kdf=kdf
             )
         except Exception as e:
             logger.error(f"Encryption Key konnte nicht entschlüsselt werden: {e}")
             return None
+
+        # Transparente Migration: PBKDF2 → Argon2 beim ersten Login nach Update
+        if kdf == "pbkdf2":
+            try:
+                new_enc, new_iv = encrypt_key(enc_key, password, row["pw_salt"], kdf='argon2')
+                with get_connection() as db:
+                    db.execute(
+                        "UPDATE users SET enc_key_enc=?, enc_key_iv=?, enc_key_kdf='argon2' WHERE id=?",
+                        (new_enc, new_iv, row["id"])
+                    )
+                logger.info(f"KDF-Migration zu Argon2 abgeschlossen für Benutzer '{row['username']}'.")
+            except Exception as e:
+                logger.warning(f"KDF-Migration fehlgeschlagen (nicht kritisch): {e}")
 
         return AppUser(
             id=row["id"],
@@ -183,11 +198,11 @@ class AuthManager:
             return False
 
         new_hash, new_salt = hash_password(new_pw)
-        new_enc_key_enc, new_enc_key_iv = encrypt_key(enc_key, new_pw, new_salt)
+        new_enc_key_enc, new_enc_key_iv = encrypt_key(enc_key, new_pw, new_salt, kdf='argon2')
 
         with get_connection() as conn:
             conn.execute(
-                """UPDATE users SET pw_hash=?, pw_salt=?, enc_key_enc=?, enc_key_iv=?
+                """UPDATE users SET pw_hash=?, pw_salt=?, enc_key_enc=?, enc_key_iv=?, enc_key_kdf='argon2'
                    WHERE id=?""",
                 (new_hash, new_salt, new_enc_key_enc, new_enc_key_iv, user_id)
             )
@@ -222,10 +237,10 @@ class AuthManager:
 
             new_hash, new_salt = hash_password(new_pw)
             new_enc_key = generate_enc_key()
-            new_enc_key_enc, new_enc_key_iv = encrypt_key(new_enc_key, new_pw, new_salt)
+            new_enc_key_enc, new_enc_key_iv = encrypt_key(new_enc_key, new_pw, new_salt, kdf='argon2')
 
             conn.execute(
-                """UPDATE users SET pw_hash=?, pw_salt=?, enc_key_enc=?, enc_key_iv=?
+                """UPDATE users SET pw_hash=?, pw_salt=?, enc_key_enc=?, enc_key_iv=?, enc_key_kdf='argon2'
                    WHERE id=?""",
                 (new_hash, new_salt, new_enc_key_enc, new_enc_key_iv, user_id)
             )
@@ -288,8 +303,6 @@ class UserConnectionManager:
             return ""
         try:
             val = decrypt(pw_enc, pw_iv, self._user.enc_key)
-            logger.debug(f"SSH-Passwort für Verbindung erfolgreich entschlüsselt (Länge: {len(val)})")
-            # SECURITY FIX: Return the password as string, but caller should use SecureBytes
             return val
         except Exception as e:
             logger.error(f"SSH-Passwort konnte nicht entschlüsselt werden: {e}")

@@ -21,6 +21,9 @@ import stat
 import sys
 from pathlib import Path
 
+import logging
+_db_logger = logging.getLogger(__name__)
+
 
 def _set_secure_permissions(path: Path) -> None:
     """
@@ -69,8 +72,10 @@ def _set_secure_permissions(path: Path) -> None:
                     str(path), win32security.DACL_SECURITY_INFORMATION, sd
                 )
             except ImportError:
-                # win32security not available, skip
-                pass
+                _db_logger.warning(
+                    "win32security nicht verfügbar — Datenbankdatei-ACL kann nicht gesetzt werden. "
+                    "Installiere pywin32 für vollständigen Datei-Zugriffsschutz."
+                )
         else:
             # Unix/Linux/macOS: chmod 600
             os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
@@ -116,6 +121,7 @@ def init_db() -> None:
                 pw_salt     TEXT NOT NULL,   -- random salt hex
                 enc_key_enc TEXT NOT NULL,   -- AES-key verschlüsselt mit user-pw
                 enc_key_iv  TEXT NOT NULL,   -- IV für enc_key_enc
+                enc_key_kdf TEXT NOT NULL DEFAULT 'pbkdf2',  -- KDF: 'pbkdf2' | 'argon2'
                 is_admin    INTEGER NOT NULL DEFAULT 0,
                 created_at  TEXT NOT NULL DEFAULT (datetime('now'))
             );
@@ -178,6 +184,15 @@ def init_db() -> None:
                 conn.execute("ALTER TABLE connections ADD COLUMN cli_access_key_iv TEXT")
             if "putty_key_path" not in cols:
                 conn.execute("ALTER TABLE connections ADD COLUMN putty_key_path TEXT")
+        except Exception:
+            pass
+
+        # Migration: enc_key_kdf column in users
+        try:
+            cursor = conn.execute("PRAGMA table_info(users)")
+            cols = [row[1] for row in cursor.fetchall()]
+            if "enc_key_kdf" not in cols:
+                conn.execute("ALTER TABLE users ADD COLUMN enc_key_kdf TEXT NOT NULL DEFAULT 'pbkdf2'")
         except Exception:
             pass
 

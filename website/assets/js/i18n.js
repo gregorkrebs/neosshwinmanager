@@ -114,7 +114,7 @@
       "auth.key.cert": "SSH-Zertifikate funktionieren genauso — der signierte Public-Key-Teil muss neben dem privaten Schlüssel als <code>&lt;key&gt;-cert.pub</code> liegen, OpenSSH und SSHFS-Win finden ihn automatisch.",
 
       // ─── hero (index) ─────────────────────────────────────────
-      "hero.eyebrow": "v1.3.1 · Open Source · Windows · MIT",
+      "hero.eyebrow": "v1.3.2 · Open Source · Windows · MIT",
       "hero.title": "Mehrere Server.",
       "hero.titleAccent": "Mehrere Admins.",
       "hero.titleEnd": "Ein Klick zum Mounten.",
@@ -202,7 +202,7 @@
       // ─── CTA ──────────────────────────────────────────────────
       "cta.eyebrow": "Loslegen",
       "cta.title": "Lade dir die aktuelle Version herunter.",
-      "cta.sub": "Aktuell v1.3.1 — kostenlos, ohne Tracking, ohne Account.",
+      "cta.sub": "Aktuell v1.3.2 — kostenlos, ohne Tracking, ohne Account.",
       "cta.btn.download": "Zum Download",
       "cta.btn.source": "Quellcode auf GitHub",
 
@@ -226,6 +226,16 @@
         "Erste Veröffentlichung des NEO SSH-Win Manager — moderner Windows-Desktop-Client zum Einbinden von SSH-Ordnern als Laufwerksbuchstaben.",
       "changelog.v110.gui": "GUI-Anwendung",
       "changelog.v110.cli": "CLI-Companion",
+
+      // ─── v1.3.2 ──────────────────────────────────────────────
+      "changelog.v132.li1": "Security: Argon2id als KDF für Schlüsselableitung; Windows Credential Manager (Keyring) für Master-Key.",
+      "changelog.v132.li2": "Security: Sicheres Überschreiben sensibler Daten im Arbeitsspeicher (SecureBytes) und strikte Eingabevalidierung gegen Command-Injection.",
+      "changelog.v132.li3": "Security: SSH-Host-Key-Verifikation gehärtet — unbekannte Hosts werden bei Mounts abgelehnt (kein accept-new mehr).",
+      "changelog.v132.li4": "Security: SSH_PASSWORD-Umgebungsvariable entfernt — Passwort nicht mehr im Prozess-Environment sichtbar.",
+      "changelog.v132.li5": "Authentifizierung: Separates Feld für PuTTY-Keys (.ppk).",
+      "changelog.v132.li6": "Terminal: Native SSH-Sessions zuverlässig in isoliertem CMD-Fenster.",
+      "changelog.v132.li7": "Stabilität: Massen-Disconnect-Bug durch Stabilisierung des SSHFS-Mount-Prozesses behoben.",
+      "changelog.v132.li8": "UI/UX: Mausrad-Scroll-Verhalten in Formularen gefixt; strikte Live-Validierung für Pflichtfelder.",
 
       // ─── v1.3.1 ──────────────────────────────────────────────
       "changelog.v131.li1": "Agent-CLI-Key im Verbindungseditor direkt sichtbar statt maskiert.",
@@ -677,7 +687,7 @@
       "side.apiReference": "API reference",
 
       // ─── hero ─────────────────────────────────────────────────
-      "hero.eyebrow": "v1.3.1 · Open Source · Windows · MIT",
+      "hero.eyebrow": "v1.3.2 · Open Source · Windows · MIT",
       "hero.title": "Multiple servers.",
       "hero.titleAccent": "Multiple users.",
       "hero.titleEnd": "One click to mount.",
@@ -765,7 +775,7 @@
       // ─── CTA ──────────────────────────────────────────────────
       "cta.eyebrow": "Get started",
       "cta.title": "Download the latest release.",
-      "cta.sub": "Currently v1.3.1 — free, no tracking, no account required.",
+      "cta.sub": "Currently v1.3.2 — free, no tracking, no account required.",
       "cta.btn.download": "Go to download",
       "cta.btn.source": "Source on GitHub",
 
@@ -789,6 +799,16 @@
         "First release of NEO SSH-Win Manager — a modern Windows desktop app for mounting SSH folders as drive letters.",
       "changelog.v110.gui": "GUI application",
       "changelog.v110.cli": "CLI companion",
+
+      // ─── v1.3.2 ──────────────────────────────────────────────
+      "changelog.v132.li1": "Security: Argon2id key derivation and Windows Credential Manager (Keyring) for master key storage.",
+      "changelog.v132.li2": "Security: Secure memory wiping (SecureBytes) and strict input validation against command injection.",
+      "changelog.v132.li3": "Security: SSH host key verification hardened — unknown hosts are rejected on mount (no more silent accept-new).",
+      "changelog.v132.li4": "Security: SSH_PASSWORD environment variable removed — password no longer exposed in process environment.",
+      "changelog.v132.li5": "Auth: Separate field for PuTTY keys (.ppk format).",
+      "changelog.v132.li6": "Terminal: Native SSH sessions reliably open in an isolated CMD window.",
+      "changelog.v132.li7": "Stability: Mass-disconnect bug fixed by stabilising the SSHFS mount process.",
+      "changelog.v132.li8": "UI/UX: Fixed unwanted mouse-wheel scroll in forms; added strict live validation for required fields.",
 
       // ─── v1.3.1 ──────────────────────────────────────────────
       "changelog.v131.li1": "Agent CLI key is now directly visible in the connection editor instead of being masked.",
