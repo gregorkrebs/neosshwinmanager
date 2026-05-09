@@ -24,6 +24,10 @@ from pathlib import Path
 import logging
 _db_logger = logging.getLogger(__name__)
 
+if sys.platform == 'win32':
+    import win32security
+    import ntsecuritycon as con
+
 
 def _set_secure_permissions(path: Path) -> None:
     """
@@ -31,57 +35,29 @@ def _set_secure_permissions(path: Path) -> None:
     - Unix/Linux/macOS: 600 (owner read/write only)
     - Windows: Restricted ACL (owner only)
     """
-    try:
-        if sys.platform == 'win32':
-            # Windows: Set restrictive permissions
-            import ctypes
-            from ctypes import wintypes
-            
-            # Get current user SID
-            SECURITY_WORLD_SID_AUTHORITY = (0, 0, 0, 0, 0, 1)
-            SECURITY_LOCAL_SID_AUTHORITY = (0, 0, 0, 0, 0, 2)
-            
-            # Set file to be readable/writable by owner only
-            # This is a best-effort approach on Windows
-            try:
-                import win32security
-                import ntsecuritycon as con
-                
-                # Get the file's security descriptor
-                sd = win32security.GetFileSecurity(
-                    str(path), win32security.DACL_SECURITY_INFORMATION
-                )
-                
-                # Create a new DACL
-                dacl = win32security.ACL()
-                
-                # Get the current user's SID
-                username = os.environ.get('USERNAME') or os.environ.get('USER')
-                if username:
-                    user_sid = win32security.LookupAccountName(None, username)[0]
-                    # Add allow access for current user only
-                    dacl.AddAccessAllowedAce(
-                        win32security.ACL_REVISION,
-                        con.FILE_GENERIC_READ | con.FILE_GENERIC_WRITE,
-                        user_sid
-                    )
-                
-                # Set the DACL
-                sd.SetSecurityDescriptorDacl(1, dacl, 0)
-                win32security.SetFileSecurity(
-                    str(path), win32security.DACL_SECURITY_INFORMATION, sd
-                )
-            except ImportError:
-                _db_logger.warning(
-                    "win32security nicht verfügbar — Datenbankdatei-ACL kann nicht gesetzt werden. "
-                    "Installiere pywin32 für vollständigen Datei-Zugriffsschutz."
-                )
-        else:
-            # Unix/Linux/macOS: chmod 600
-            os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
-    except Exception:
-        # If setting permissions fails, continue anyway
-        pass
+    if sys.platform == 'win32':
+        sd = win32security.GetFileSecurity(
+            str(path), win32security.DACL_SECURITY_INFORMATION
+        )
+        dacl = win32security.ACL()
+        username = os.environ.get('USERNAME') or os.environ.get('USER')
+        if not username:
+            raise RuntimeError(
+                "ACL-Setzung fehlgeschlagen: Kein Benutzername in der Umgebung (USERNAME/USER)."
+            )
+        user_sid = win32security.LookupAccountName(None, username)[0]
+        dacl.AddAccessAllowedAce(
+            win32security.ACL_REVISION,
+            con.FILE_GENERIC_READ | con.FILE_GENERIC_WRITE,
+            user_sid
+        )
+        sd.SetSecurityDescriptorDacl(1, dacl, 0)
+        win32security.SetFileSecurity(
+            str(path), win32security.DACL_SECURITY_INFORMATION, sd
+        )
+        _db_logger.debug(f"ACL gesetzt (nur Eigentümer): {path}")
+    else:
+        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
 
 
 def get_db_path() -> Path:
@@ -109,11 +85,10 @@ def get_connection() -> sqlite3.Connection:
 
 def init_db() -> None:
     """Erstellt alle Tabellen falls sie noch nicht existieren."""
-    # SECURITY FIX: Set secure permissions on database directory
     db_path = get_db_path()
-    _set_secure_permissions(db_path)
+    # Verzeichnis existiert immer (get_db_path() legt es an)
     _set_secure_permissions(db_path.parent)
-    
+
     with get_connection() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS users (
@@ -162,6 +137,9 @@ def init_db() -> None:
                 auto_login               INTEGER DEFAULT 0,  -- Windows Auto-Login
                 auto_reconnect           INTEGER DEFAULT 1,  -- Beim Start automatisch reconnecten
                 language                 TEXT    DEFAULT 'en',  -- UI Sprache (en, de)
+                security_level           INTEGER DEFAULT 0,  -- 0=Strict, 1=Key-Auth, 2=Insecure-PW
+                allow_passwordless_key_auth INTEGER DEFAULT 0,
+                allow_insecure_password_auth INTEGER DEFAULT 0,
                 updated_at               TEXT DEFAULT (datetime('now'))
             );
 
@@ -186,6 +164,11 @@ def init_db() -> None:
                 conn.execute("ALTER TABLE connections ADD COLUMN cli_access_key_iv TEXT")
             if "putty_key_path" not in cols:
                 conn.execute("ALTER TABLE connections ADD COLUMN putty_key_path TEXT")
+            # CWE-312: Verschlüsselte Metadaten-Spalten
+            for col in ("host_enc", "host_iv", "ssh_user_enc", "ssh_user_iv",
+                        "name_enc", "name_iv", "remote_path_enc", "remote_path_iv"):
+                if col not in cols:
+                    conn.execute(f"ALTER TABLE connections ADD COLUMN {col} TEXT")
         except Exception:
             pass
 
@@ -206,5 +189,14 @@ def init_db() -> None:
                 conn.execute("ALTER TABLE app_settings ADD COLUMN language TEXT DEFAULT 'en'")
             if "theme" not in cols:
                 conn.execute("ALTER TABLE app_settings ADD COLUMN theme TEXT DEFAULT 'dark'")
+            if "security_level" not in cols:
+                conn.execute("ALTER TABLE app_settings ADD COLUMN security_level INTEGER DEFAULT 0")
+            if "allow_passwordless_key_auth" not in cols:
+                conn.execute("ALTER TABLE app_settings ADD COLUMN allow_passwordless_key_auth INTEGER DEFAULT 0")
+            if "allow_insecure_password_auth" not in cols:
+                conn.execute("ALTER TABLE app_settings ADD COLUMN allow_insecure_password_auth INTEGER DEFAULT 0")
         except Exception:
             pass
+
+    # DB-Datei existiert jetzt garantiert (sqlite3.connect hat sie angelegt)
+    _set_secure_permissions(db_path)

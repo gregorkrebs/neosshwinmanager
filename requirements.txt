@@ -7,3 +7,4 @@ cryptography>=42.0.0
 paramiko>=3.4.0
 keyring>=25.0.0
 pwinput>=1.0.3
+psutil>=5.9.0
