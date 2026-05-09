@@ -50,6 +50,9 @@ class AppSettings:
     auto_reconnect_mounts: bool = True
     language: str = "en"
     theme: str = "dark"
+    allow_passwordless_key_auth: bool = False
+    security_level: int = 0  # 0=Strict, 1=Keys, 2=Passwords
+    allow_insecure_password_auth: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)

@@ -9,6 +9,8 @@
 
 import uuid
 import sqlite3
+import threading
+import time
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -20,6 +22,52 @@ from src.crypto import (
 from src.config import Connection, AppSettings
 from src.app_logger import logger
 from src.utils.secure_memory import SecureBytes, secure_wipe_bytes
+
+# CWE-307: Brute-Force-Schutz — Tier-basiertes Lockout-Schema
+#
+# Jede Zeile: (Fehlversuche_im_Tier, Sperrdauer_in_Sekunden)
+# Nach Ablauf der Sperre bekommt der Nutzer die nächste Tier-Menge an Versuchen.
+# Der letzte Tier wiederholt sich unbegrenzt.
+#
+# Tier 1:  5 Versuche  →  30 s   (Tippfehler toleriert)
+# Tier 2: 10 Versuche  →  10 min
+# Tier 3:  5 Versuche  →   1 h
+# Tier 4:  3 Versuche  →  24 h
+# Tier 5+: 2 Versuche  →   7 Tage (Wiederholung)
+_LOCKOUT_SCHEDULE: list[tuple[int, int]] = [
+    (5,       30),
+    (10,     600),
+    (5,    3_600),
+    (3,   86_400),
+    (2,  604_800),
+]
+_login_attempts: dict = {}   # key: username.lower() → {"count": int, "locked_until": float}
+_LOGIN_LOCK = threading.Lock()
+
+
+def _lockout_for_count(count: int) -> int:
+    """Gibt Sperrdauer in Sekunden zurück, wenn `count` eine Tier-Grenze trifft, sonst 0."""
+    cumulative = 0
+    for threshold, duration in _LOCKOUT_SCHEDULE:
+        cumulative += threshold
+        if count == cumulative:
+            return duration
+    # Hinter dem letzten Tier: alle 2 weiteren Fehlversuche → 7 Tage
+    last_boundary = sum(t for t, _ in _LOCKOUT_SCHEDULE)
+    last_step, last_dur = _LOCKOUT_SCHEDULE[-1]
+    if count > last_boundary and (count - last_boundary) % last_step == 0:
+        return last_dur
+    return 0
+
+
+class LoginLockedError(Exception):
+    """Wird geworfen, wenn ein Account wegen zu vieler Fehlversuche gesperrt ist."""
+    def __init__(self, seconds_remaining: int, total_failures: int):
+        self.seconds_remaining = seconds_remaining
+        self.total_failures = total_failures
+        super().__init__(
+            f"Login gesperrt für {seconds_remaining}s ({total_failures} Fehlversuche)"
+        )
 
 
 # ------------------------------------------------------------------
@@ -45,29 +93,43 @@ class AppUser:
 
 class Session:
     _current_user: Optional[AppUser] = None
+    # CWE-362: Lock verhindert Race Condition bei gleichzeitigem Login/Passwortänderung
+    _lock: threading.RLock = threading.RLock()
 
     @classmethod
     def login(cls, user: AppUser) -> None:
-        cls._current_user = user
+        with cls._lock:
+            cls._current_user = user
         logger.info(f"Benutzer eingeloggt: {user.username}")
 
     @classmethod
     def logout(cls) -> None:
-        if cls._current_user:
-            logger.info(f"Benutzer ausgeloggt: {cls._current_user.username}")
-        cls._current_user = None
+        with cls._lock:
+            if cls._current_user:
+                logger.info(f"Benutzer ausgeloggt: {cls._current_user.username}")
+            cls._current_user = None
 
     @classmethod
     def current(cls) -> Optional[AppUser]:
-        return cls._current_user
+        with cls._lock:
+            return cls._current_user
 
     @classmethod
     def is_logged_in(cls) -> bool:
-        return cls._current_user is not None
+        with cls._lock:
+            return cls._current_user is not None
 
     @classmethod
     def is_admin(cls) -> bool:
-        return cls._current_user is not None and cls._current_user.is_admin
+        with cls._lock:
+            return cls._current_user is not None and cls._current_user.is_admin
+
+    @classmethod
+    def update_enc_key(cls, user_id: str, enc_key: bytes) -> None:
+        """Atomares Update des enc_key im Session-Objekt nach Passwortänderung."""
+        with cls._lock:
+            if cls._current_user and cls._current_user.id == user_id:
+                cls._current_user._enc_key = enc_key
 
 
 # ------------------------------------------------------------------
@@ -132,20 +194,56 @@ class AuthManager:
     def authenticate(username: str, password: str) -> Optional[AppUser]:
         """
         Login: Prüft Passwort und lädt den Encryption Key in den RAM.
-        Returns None wenn Login fehlschlägt.
+        Returns None bei falschem Passwort/unbekanntem User.
+        Raises LoginLockedError wenn der Account gesperrt ist.
         """
+        key = username.strip().lower()
+        now = time.monotonic()
+
+        # CWE-307: Aktive Sperre prüfen → sofort mit verbleibender Zeit melden
+        with _LOGIN_LOCK:
+            attempt = _login_attempts.get(key, {"count": 0, "locked_until": 0.0})
+            if attempt["locked_until"] > now:
+                remaining = int(attempt["locked_until"] - now) + 1
+                logger.warning(
+                    f"Login gesperrt für '{username}': noch {remaining}s "
+                    f"(nach {attempt['count']} Fehlversuchen)"
+                )
+                raise LoginLockedError(remaining, attempt["count"])
+
         with get_connection() as conn:
             row = conn.execute(
                 "SELECT * FROM users WHERE username = ? COLLATE NOCASE",
                 (username.strip(),)
             ).fetchone()
 
+        def _record_failure():
+            """Zählt Fehlversuch; wirft LoginLockedError wenn Tier-Grenze getroffen."""
+            with _LOGIN_LOCK:
+                a = _login_attempts.get(key, {"count": 0, "locked_until": 0.0})
+                a["count"] += 1
+                lockout = _lockout_for_count(a["count"])
+                if lockout > 0:
+                    a["locked_until"] = time.monotonic() + lockout
+                    logger.warning(
+                        f"Login für '{username}' gesperrt für {lockout}s "
+                        f"(Versuch #{a['count']})"
+                    )
+                _login_attempts[key] = a
+                return lockout
+
         if not row:
+            lockout = _record_failure()
             logger.warning(f"Login fehlgeschlagen: Benutzer '{username}' nicht gefunden.")
+            if lockout:
+                raise LoginLockedError(lockout, _login_attempts[key]["count"])
             return None
 
         if not verify_password(password, row["pw_hash"], row["pw_salt"]):
+            lockout = _record_failure()
             logger.warning(f"Login fehlgeschlagen: Falsches Passwort für '{username}'.")
+            if lockout:
+                raise LoginLockedError(lockout, _login_attempts[key]["count"])
             return None
 
         kdf = row["enc_key_kdf"] if "enc_key_kdf" in row.keys() else "pbkdf2"
@@ -178,12 +276,17 @@ class AuthManager:
             except Exception as e:
                 logger.warning(f"KDF-Migration fehlgeschlagen (nicht kritisch): {e}")
 
-        # Migration: Plaintext CLI-Keys → Encrypted
+        # Migration: Plaintext CLI-Keys → Encrypted + Metadaten-Verschlüsselung
         try:
             conn_mgr = UserConnectionManager(user)
             conn_mgr.migrate_cli_keys()
+            conn_mgr.migrate_metadata_encryption()
         except Exception as e:
-            logger.warning(f"CLI-Key Migration fehlgeschlagen (nicht kritisch): {e}")
+            logger.warning(f"Migrations fehlgeschlagen (nicht kritisch): {e}")
+
+        # Erfolgreichen Login → Fehlversuchs-Zähler zurücksetzen (CWE-307)
+        with _LOGIN_LOCK:
+            _login_attempts.pop(key, None)
 
         return user
 
@@ -216,9 +319,8 @@ class AuthManager:
                 (new_hash, new_salt, new_enc_key_enc, new_enc_key_iv, user_id)
             )
 
-        # Session-Key aktualisieren
-        if Session.current() and Session.current().id == user_id:
-            Session.current()._enc_key = enc_key
+        # CWE-362: Atomares Update über Session.update_enc_key (thread-safe)
+        Session.update_enc_key(user_id, enc_key)
 
         logger.info(f"Passwort geändert für user_id={user_id}")
         return True
@@ -302,6 +404,48 @@ class UserConnectionManager:
     def __init__(self, user: AppUser):
         self._user = user
 
+    def migrate_metadata_encryption(self) -> None:
+        """
+        CWE-312: Verschlüsselt host, ssh_user, name, remote_path beim ersten Login nach Update.
+        Idempotent — überspringt Zeilen, bei denen host_iv bereits gesetzt ist.
+        """
+        try:
+            with get_connection() as conn:
+                rows = conn.execute(
+                    """SELECT id, host, ssh_user, name, remote_path FROM connections
+                       WHERE user_id = ?
+                       AND (host_iv IS NULL OR host_iv = '')""",
+                    (self._user.id,)
+                ).fetchall()
+
+            if not rows:
+                return
+
+            for row in rows:
+                host_enc, host_iv = self._encrypt_pw(row["host"])
+                user_enc, user_iv = self._encrypt_pw(row["ssh_user"])
+                name_enc, name_iv = self._encrypt_pw(row["name"])
+                path_enc, path_iv = self._encrypt_pw(row["remote_path"] or "/")
+                with get_connection() as db:
+                    db.execute(
+                        """UPDATE connections SET
+                           host='', host_enc=?, host_iv=?,
+                           ssh_user='', ssh_user_enc=?, ssh_user_iv=?,
+                           name='', name_enc=?, name_iv=?,
+                           remote_path='', remote_path_enc=?, remote_path_iv=?
+                           WHERE id=? AND user_id=?""",
+                        (host_enc, host_iv, user_enc, user_iv,
+                         name_enc, name_iv, path_enc, path_iv,
+                         row["id"], self._user.id)
+                    )
+
+            logger.info(
+                f"Metadaten-Verschlüsselung abgeschlossen für '{self._user.username}': "
+                f"{len(rows)} Verbindung(en) verschlüsselt."
+            )
+        except Exception as e:
+            logger.error(f"Metadaten-Verschlüsselung fehlgeschlagen: {e}")
+
     def migrate_cli_keys(self) -> None:
         """
         Migration: Verschlüsselt alle plaintext CLI-Keys beim ersten Login nach dem Update.
@@ -351,9 +495,25 @@ class UserConnectionManager:
             logger.error(f"SSH-Passwort konnte nicht entschlüsselt werden: {e}")
             return ""
 
+    def _dec_meta(self, row, enc_col: str, iv_col: str, plain_col: str) -> str:
+        """Liest verschlüsselte Metadaten-Spalte; fällt auf Klartext zurück (pre-migration)."""
+        try:
+            iv = row[iv_col]
+            if iv:
+                return self._decrypt_pw(row[enc_col], iv)
+        except (KeyError, IndexError):
+            pass
+        return row[plain_col] or ""
+
     def _row_to_conn(self, row) -> Connection:
         pw = self._decrypt_pw(row["pw_enc"] or "", row["pw_iv"] or "")
-        # Decrypt CLI-Access-Key if encrypted, treat as missing if plaintext
+
+        # CWE-312: Bevorzuge verschlüsselte Metadaten-Spalten (post-migration)
+        name = self._dec_meta(row, "name_enc", "name_iv", "name")
+        host = self._dec_meta(row, "host_enc", "host_iv", "host")
+        ssh_user = self._dec_meta(row, "ssh_user_enc", "ssh_user_iv", "ssh_user")
+        remote_path = self._dec_meta(row, "remote_path_enc", "remote_path_iv", "remote_path")
+
         cli_key = ""
         try:
             cli_key_iv = row["cli_access_key_iv"]
@@ -362,16 +522,15 @@ class UserConnectionManager:
                     cli_key = decrypt(row["cli_access_key"], cli_key_iv, self._user.enc_key)
                 except Exception as e:
                     logger.error(f"CLI-Key entschlüsselung fehlgeschlagen: {e}")
-                    cli_key = ""
         except (KeyError, IndexError):
-            # Column doesn't exist in old database schema
             pass
-        conn = Connection(
+
+        return Connection(
             id=row["id"],
-            name=row["name"],
-            host=row["host"],
-            user=row["ssh_user"],
-            remote_path=row["remote_path"],
+            name=name,
+            host=host,
+            user=ssh_user,
+            remote_path=remote_path,
             port=row["port"],
             auth_method=row["auth_method"],
             password=pw,
@@ -381,7 +540,6 @@ class UserConnectionManager:
             cli_access_enabled=bool(row["cli_access_enabled"]),
             cli_access_key=cli_key,
         )
-        return conn
 
     def get_all(self) -> List[Connection]:
         with get_connection() as conn:
@@ -415,12 +573,13 @@ class UserConnectionManager:
         if not c.id:
             c.id = str(uuid.uuid4())
         pw_enc, pw_iv = self._encrypt_pw(c.password)
-        # SECURITY FIX: Encrypt CLI-Access-Key
-        # Store NULL for empty CLI keys to avoid UNIQUE constraint conflicts
-        if c.cli_access_key:
-            cli_key_enc, cli_key_iv = self._encrypt_pw(c.cli_access_key)
-        else:
-            cli_key_enc, cli_key_iv = None, None
+        cli_key_enc, cli_key_iv = (self._encrypt_pw(c.cli_access_key)
+                                   if c.cli_access_key else (None, None))
+        # CWE-312: Metadaten verschlüsseln; Klartext-Spalten bleiben leer
+        name_enc, name_iv = self._encrypt_pw(c.name)
+        host_enc, host_iv = self._encrypt_pw(c.host)
+        user_enc, user_iv = self._encrypt_pw(c.user)
+        path_enc, path_iv = self._encrypt_pw(c.remote_path or "/")
         with get_connection() as conn:
             max_order = conn.execute(
                 "SELECT COALESCE(MAX(sort_order), 0) FROM connections WHERE user_id = ?",
@@ -431,35 +590,43 @@ class UserConnectionManager:
                 """INSERT INTO connections
                    (id, user_id, name, host, ssh_user, remote_path, port,
                     auth_method, pw_enc, pw_iv, key_path, putty_key_path, drive_letter,
-                    sort_order, cli_access_enabled, cli_access_key, cli_access_key_iv)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    sort_order, cli_access_enabled, cli_access_key, cli_access_key_iv,
+                    name_enc, name_iv, host_enc, host_iv,
+                    ssh_user_enc, ssh_user_iv, remote_path_enc, remote_path_iv)
+                   VALUES (?, ?, '', '', '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    c.id, self._user.id, c.name, c.host, c.user,
-                    c.remote_path, c.port, c.auth_method,
+                    c.id, self._user.id, c.port, c.auth_method,
                     pw_enc, pw_iv, c.key_path, c.putty_key_path, c.drive_letter,
                     c.sort_order, int(c.cli_access_enabled), cli_key_enc, cli_key_iv,
+                    name_enc, name_iv, host_enc, host_iv,
+                    user_enc, user_iv, path_enc, path_iv,
                 )
             )
         return c
 
     def update(self, c: Connection) -> bool:
         pw_enc, pw_iv = self._encrypt_pw(c.password)
-        # SECURITY FIX: Encrypt CLI-Access-Key
-        # Store NULL for empty CLI keys to avoid UNIQUE constraint conflicts
-        if c.cli_access_key:
-            cli_key_enc, cli_key_iv = self._encrypt_pw(c.cli_access_key)
-        else:
-            cli_key_enc, cli_key_iv = None, None
+        cli_key_enc, cli_key_iv = (self._encrypt_pw(c.cli_access_key)
+                                   if c.cli_access_key else (None, None))
+        # CWE-312: Metadaten verschlüsseln; Klartext-Spalten leeren
+        name_enc, name_iv = self._encrypt_pw(c.name)
+        host_enc, host_iv = self._encrypt_pw(c.host)
+        user_enc, user_iv = self._encrypt_pw(c.user)
+        path_enc, path_iv = self._encrypt_pw(c.remote_path or "/")
         with get_connection() as conn:
             result = conn.execute(
                 """UPDATE connections SET
-                   name=?, host=?, ssh_user=?, remote_path=?, port=?,
+                   name='', host='', ssh_user='', remote_path='', port=?,
                    auth_method=?, pw_enc=?, pw_iv=?, key_path=?, putty_key_path=?, drive_letter=?,
-                   cli_access_enabled=?, cli_access_key=?, cli_access_key_iv=?
+                   cli_access_enabled=?, cli_access_key=?, cli_access_key_iv=?,
+                   name_enc=?, name_iv=?, host_enc=?, host_iv=?,
+                   ssh_user_enc=?, ssh_user_iv=?, remote_path_enc=?, remote_path_iv=?
                    WHERE id=? AND user_id=?""",
-                (c.name, c.host, c.user, c.remote_path, c.port,
-                 c.auth_method, pw_enc, pw_iv, c.key_path, c.putty_key_path, c.drive_letter,
+                (c.port, c.auth_method, pw_enc, pw_iv,
+                 c.key_path, c.putty_key_path, c.drive_letter,
                  int(c.cli_access_enabled), cli_key_enc, cli_key_iv,
+                 name_enc, name_iv, host_enc, host_iv,
+                 user_enc, user_iv, path_enc, path_iv,
                  c.id, self._user.id)
             )
         return result.rowcount > 0
@@ -496,6 +663,9 @@ class UserConnectionManager:
             auto_reconnect_mounts=bool(row["auto_reconnect"]) if "auto_reconnect" in row.keys() else True,
             language=(row["language"] if "language" in row.keys() and row["language"] else "en"),
             theme=(row["theme"] if "theme" in row.keys() and row["theme"] else "dark"),
+            security_level=row["security_level"] if "security_level" in row.keys() else 0,
+            allow_passwordless_key_auth=bool(row["allow_passwordless_key_auth"]) if "allow_passwordless_key_auth" in row.keys() else False,
+            allow_insecure_password_auth=bool(row["allow_insecure_password_auth"]) if "allow_insecure_password_auth" in row.keys() else False,
         )
 
     def save_settings(self, s: AppSettings) -> None:
@@ -504,8 +674,10 @@ class UserConnectionManager:
                 """INSERT INTO app_settings
                    (user_id, start_with_windows, minimize_to_tray,
                     check_interval_seconds, debug_mode, require_admin,
-                    use_putty, putty_path, auto_login, auto_reconnect, language, theme, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+                    use_putty, putty_path, auto_login, auto_reconnect, language, theme,
+                    security_level, allow_passwordless_key_auth, allow_insecure_password_auth,
+                    updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
                    ON CONFLICT(user_id) DO UPDATE SET
                      start_with_windows=excluded.start_with_windows,
                      minimize_to_tray=excluded.minimize_to_tray,
@@ -518,12 +690,17 @@ class UserConnectionManager:
                      auto_reconnect=excluded.auto_reconnect,
                      language=excluded.language,
                      theme=excluded.theme,
+                     security_level=excluded.security_level,
+                     allow_passwordless_key_auth=excluded.allow_passwordless_key_auth,
+                     allow_insecure_password_auth=excluded.allow_insecure_password_auth,
                      updated_at=excluded.updated_at""",
                 (self._user.id,
                  int(s.start_with_windows), int(s.minimize_to_tray),
                  s.check_interval_seconds, int(s.debug_mode),
                  int(s.require_admin), int(s.use_putty), s.putty_path,
-                 int(s.auto_login), int(s.auto_reconnect_mounts), s.language, s.theme)
+                 int(s.auto_login), int(s.auto_reconnect_mounts), s.language, s.theme,
+                 int(s.security_level),
+                 int(s.allow_passwordless_key_auth), int(s.allow_insecure_password_auth))
             )
 
     # ------------------------------------------------------------------
