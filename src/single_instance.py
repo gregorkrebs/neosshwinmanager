@@ -18,7 +18,7 @@ import sys
 APP_WINDOW_TITLE = "NEO SSH-Win Manager"
 
 # Unique mutex name – use your app name + a GUID to avoid collisions
-MUTEX_NAME = "SSHFSWinManager_SingleInstance_Mutex_v1.3.1_{A3F2B1C4-9E7D-4A8F-B3C2-1D5E6F7A8B9C}"
+MUTEX_NAME = "SSHFSWinManager_SingleInstance_Mutex_v1.3.2_{A3F2B1C4-9E7D-4A8F-B3C2-1D5E6F7A8B9C}"
 
 
 def _find_and_focus_existing_window() -> bool:

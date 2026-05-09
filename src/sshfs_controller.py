@@ -99,36 +99,31 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
     """
     Findet die PID des sshfs.exe-Prozesses der diesen Laufwerksbuchstaben mounted.
     Sucht in der CommandLine nach dem Buchstaben (z.B. 'F:').
-    Nutzt WMI via PowerShell – zuverlässig ohne externe Abhängigkeiten.
+    Nutzt psutil für blitzschnelle Suche ohne PowerShell-Overhead.
     """
+    import psutil
+    
     # SECURITY FIX: Validate drive letter to prevent command injection
     letter = drive_letter.rstrip("\\").rstrip(":").upper()
     if not letter or len(letter) != 1 or not letter.isalpha():
         return None
     letter = letter[0]  # Ensure single character
     
+    target_arg = f"{letter}:"
+    
     try:
-        # SECURITY FIX: Use escaped argument to prevent command injection
-        result = subprocess.run(
-            [
-                "powershell", "-NoProfile", "-NonInteractive", "-Command",
-                "$proc = Get-CimInstance Win32_Process -Filter \"Name='sshfs.exe'\" | "
-                "Where-Object { $_.CommandLine -match (' ' + $args[0] + ':') } | "
-                "Select-Object -ExpandProperty ProcessId; $proc",
-                letter
-            ],
-            capture_output=True, text=True, timeout=8,
-            creationflags=0x08000000,
-        )
-        pid_str = result.stdout.strip()
-        if pid_str.isdigit():
-            return int(pid_str)
-        # Mehrere PIDs
-        for line in pid_str.splitlines():
-            if line.strip().isdigit():
-                return int(line.strip())
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                name = proc.info.get('name', '')
+                if name and name.lower() == 'sshfs.exe':
+                    cmdline = proc.info.get('cmdline', [])
+                    if cmdline and any(target_arg in arg for arg in cmdline):
+                        return proc.info['pid']
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
     except Exception:
         pass
+        
     return None
 
 
@@ -219,6 +214,21 @@ class SSHFSController:
 
         if conn.auth_method == "key" and conn.key_path:
             key_path = conn.key_path.replace("\\", "/")
+            # Validate key file exists and is readable
+            if not os.path.exists(key_path):
+                return MountResult(False, f"SSH-Key nicht gefunden: {key_path}")
+            
+            # OpenSSH keys are valid input for current SSHFS-Win/OpenSSH builds.
+            # Keep a lightweight readability check only, but do not block by header type.
+            try:
+                with open(key_path, 'r', encoding='utf-8') as f:
+                    first_line = f.readline().strip()
+                    if first_line.startswith("-----BEGIN OPENSSH PRIVATE KEY-----"):
+                        logger.info(f"Using OpenSSH private key format: {key_path}")
+            except Exception as e:
+                logger.error(f"Error reading key file: {e}")
+                return MountResult(False, f"Fehler beim Lesen des SSH-Keys: {e}")
+            
             cmd.append(f"-oIdentityFile={key_path}")
             cmd.append("-oBatchMode=yes")
             cmd.append("-oPreferredAuthentications=publickey")
@@ -521,22 +531,6 @@ class SSHFSController:
             if verify(1.0):
                 cleanup()
                 return MountResult(True, f"Laufwerk {letter_up} getrennt (launchctl).")
-
-            # Schritt 3: Alle sshfs.exe Prozesse als letzter Ausweg
-            # (nur wenn Schritt 1+2 nicht funktionierten)
-            log("Beende alle sshfs-Prozesse als Fallback...")
-            try:
-                subprocess.run(
-                    ["taskkill", "/F", "/IM", "sshfs.exe", "/T"],
-                    capture_output=True, timeout=5,
-                    creationflags=0x08000000,
-                )
-            except Exception:
-                pass
-
-            if verify(1.5):
-                cleanup()
-                return MountResult(True, f"Laufwerk {letter_up} getrennt (alle sshfs beendet).")
 
         # ── Strategie B: net use Mount ───────────────────────────────────
         else:
