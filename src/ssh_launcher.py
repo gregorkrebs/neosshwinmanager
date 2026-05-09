@@ -15,6 +15,7 @@ import subprocess
 import shutil
 from src.config import Connection, AppSettings
 from src.app_logger import logger
+from src.i18n import tr
 from src.utils.secure_memory import SecureBytes
 from src.sshfs_controller import _is_safe_label
 
@@ -24,17 +25,23 @@ def launch_ssh_terminal(conn: Connection, settings: AppSettings) -> tuple[bool, 
     Start an SSH terminal for the given connection.
     Returns (success, error_message).
     """
+    # Audit Log für Sicherheits-Tracking
+    logger.info(f"Auth-Versuch: SSH-Terminal für {conn.name} (Methode: {conn.auth_method})")
+    
+    if conn.auth_method == "key" and not conn.key_path:
+        return False, "Fehler: Passwortloser Login erfordert einen gültigen SSH-Key-Pfad."
+
     if getattr(settings, 'use_putty', False) and getattr(settings, 'putty_path', ''):
-        return _launch_putty(conn, settings.putty_path)
+        return _launch_putty(conn, settings.putty_path, settings)
     else:
-        return _launch_native_ssh(conn)
+        return _launch_native_ssh(conn, settings)
 
 
 # ------------------------------------------------------------------
 # Native ssh.exe (default)
 # ------------------------------------------------------------------
 
-def _launch_native_ssh(conn: Connection) -> tuple[bool, str]:
+def _launch_native_ssh(conn: Connection, settings: AppSettings | None = None) -> tuple[bool, str]:
     """
     Open cmd.exe with ssh.
 
@@ -60,7 +67,7 @@ def _launch_native_ssh(conn: Connection) -> tuple[bool, str]:
     
     ssh_cmd_list = [
         ssh_exe,
-        "-o", "StrictHostKeyChecking=ask",
+        "-o", "StrictHostKeyChecking=yes", # Erhöhte Sicherheit: Nur bekannte Hosts
         "-o", f"UserKnownHostsFile={known_hosts_path}",
         "-p", str(conn.port),
     ]
@@ -74,12 +81,23 @@ def _launch_native_ssh(conn: Connection) -> tuple[bool, str]:
     ssh_cmd_list.append(f"{conn.user}@{conn.host}")
 
     env = os.environ.copy()
+    sec_level = getattr(settings, 'security_level', 0) if settings else 0
 
-    # Passwort-Auth: Kein automatisches Eintippen beim nativen SSH-Client.
-    # SSH öffnet eine interaktive CMD-Session — der User gibt das Passwort
-    # bei Bedarf manuell ein (oder SSH_ASKPASS wird vom Betriebssystem gerufen).
-    # SSH_PASSWORD env var wurde entfernt: sie war für andere Prozesse im gleichen
-    # User-Kontext sichtbar und wurde von Windows ssh.exe ohnehin nicht konsumiert.
+    if (sec_level >= 2 and conn.auth_method == "password" and conn.password):
+        # Security level 2: pass password via SSH_ASKPASS mechanism.
+        # The password is visible to this process but not on the command line.
+        import sys
+        import os.path as _osp
+        if getattr(sys, "frozen", False):
+            askpass_cmd = f'"{sys.executable}" --pass-helper'
+        else:
+            _main_py = _osp.abspath(_osp.join(_osp.dirname(__file__), "..", "main.py"))
+            askpass_cmd = f'"{sys.executable}" "{_main_py}" --pass-helper'
+        env["SSH_ASKPASS_PASS"] = conn.password
+        env["SSH_ASKPASS"] = askpass_cmd
+        env["SSH_ASKPASS_REQUIRE"] = "force"
+        env["DISPLAY"] = "dummy:0"
+        logger.warning("Passwort-Login via SSH_ASKPASS (Sicherheitsstufe 2) – Passwort im Prozesskontext.")
 
     logger.debug(f"Native SSH cmd: {ssh_cmd_list}")
     try:
@@ -341,7 +359,7 @@ def _find_native_ssh() -> str | None:
 # PuTTY
 # ------------------------------------------------------------------
 
-def _launch_putty(conn: Connection, putty_path: str) -> tuple[bool, str]:
+def _launch_putty(conn: Connection, putty_path: str, settings: AppSettings | None = None) -> tuple[bool, str]:
     """
     Open PuTTY directly with appropriate flags.
     
@@ -362,20 +380,19 @@ def _launch_putty(conn: Connection, putty_path: str) -> tuple[bool, str]:
 
     cmd = [putty_path, "-ssh", "-P", str(conn.port)]
 
-    if conn.auth_method == "password" and conn.password:
-        # SECURITY WARNING: -pw flag is insecure as password may be visible in process list
-        logger.warning(
-            "PuTTY password auth: Password may be visible in process list. "
-            "Consider using SSH key authentication instead."
-        )
-        # SECURITY FIX: Allow passwords with special characters, but reject shell metacharacters
-        # that could escape the -pw argument
-        dangerous = set(';"\'`$()&|<>')
-        if any(c in dangerous for c in conn.password):
-            return False, "Password contains unsupported characters for PuTTY"
+    sec_level = getattr(settings, 'security_level', 0) if settings else 0
+
+    if conn.auth_method == "password":
+        if sec_level < 2:
+            return False, tr("ssh.putty.pw_disabled")
+        if not conn.password:
+            return False, tr("ssh.putty.pw_missing")
+        # Passwort via -pw Flag. Sichtbar in der Prozessliste für den aktuellen Windows-Benutzer.
+        logger.warning(f"PuTTY Passwort-Login (Sicherheitsstufe 2) für {conn.name} – Passwort in Prozessliste.")
         cmd += ["-pw", conn.password]
 
     elif conn.auth_method == "key" and (conn.putty_key_path or conn.key_path):
+        dangerous = set(';"\'`$()&|<>')
         # Use putty_key_path if available, otherwise fall back to key_path
         key_path = conn.putty_key_path or conn.key_path
         if not _is_safe_file_path(key_path):

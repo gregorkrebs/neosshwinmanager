@@ -637,7 +637,7 @@ class SystemInfoPanel(QFrame):
             self._info_thread.stop()
             self._info_thread.wait()
 
-        self._info_thread = SSHSystemInfoThread(self._conn)
+        self._info_thread = SSHSystemInfoThread(self._conn, settings=self._settings)
         self._info_thread.info_ready.connect(self._on_info_ready)
         self._info_thread.error.connect(self._on_error)
         self._info_thread.start()
