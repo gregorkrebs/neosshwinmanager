@@ -53,7 +53,7 @@
       "title.docs.projectStructure": "Projektstruktur — Entwickler — NEO SSH-Win Manager",
       "title.docs.api": "API-Referenz — Entwickler — NEO SSH-Win Manager",
       "meta.index.description":
-        "Kostenloser Windows-Desktop-Client für SSHFS. Remote-Ordner als Laufwerk einbinden, mehrere Benutzer, passwortloses SSH ohne SSH-Key, eingebautes Terminal.",
+        "Kostenloser Windows-Desktop-Client für SSHFS. Remote-Ordner als Laufwerk einbinden, mehrere Benutzer, verschlüsselte Zugangsdaten, PuTTY- und OpenSSH-Unterstützung, eingebautes Terminal.",
       "meta.app.description":
         "Interaktive Browser-Simulation der Windows-App. Klickbare Buttons, originale Statusmeldungen und komplette Frontend-Logik ohne echte SSH- oder Mount-Aktionen.",
 
@@ -87,13 +87,16 @@
 
       // ─── docs: authentication ─────────────────────────────────
       "auth.title": "Authentifizierung",
-      "auth.lead": "Drei Methoden — Passwort, privater Schlüssel oder „jedes Mal fragen“. Hier siehst du, wie sie funktionieren und wo die Zugangsdaten liegen.",
+      "auth.lead": "Drei Methoden — Passwort, privater Schlüssel oder „jedes Mal fragen”. Hier siehst du, wie sie funktionieren und wo die Zugangsdaten liegen.",
       "auth.h.password": "Passwort speichern",
-      "auth.password.body": "Du gibst das SSH-Passwort einmal ein — danach läuft alles automatisch. Beim Mounten und im Terminal wird das Passwort im Hintergrund eingegeben. Kein SSH-Key nötig.",
+      "auth.password.body": "Du gibst das SSH-Passwort einmal ein. Es wird beim Mounten von Laufwerken automatisch verwendet. Im SSH-Terminal funktioniert automatische Passworteingabe <strong>nur mit PuTTY</strong> (Einstellungen → „PuTTY verwenden”). Beim nativen OpenSSH-Client musst du das Passwort aus Sicherheitsgründen manuell eintippen.",
       "auth.password.storage": "Das Passwort wird lokal in der SQLite-Datenbank gespeichert — pro App-Benutzer mit AES-256-GCM verschlüsselt und erst nach dem App-Login entschlüsselt.",
       "auth.h.key": "SSH-Key",
-      "auth.key.body": "Gib den Pfad zu deinem privaten SSH-Key an (z. B. <code>C:\\Users\\du\\.ssh\\id_ed25519</code>). Der Key wird beim Verbinden automatisch verwendet. SSH-Zertifikate werden ebenfalls unterstützt.",
+      "auth.key.body": "Gib den Pfad zu deinem privaten OpenSSH-Key an (z. B. <code>C:\\Users\\du\\.ssh\\id_ed25519</code>). Der Key wird beim Mounten und beim nativen SSH-Terminal automatisch verwendet. SSH-Zertifikate werden ebenfalls unterstützt.",
       "auth.key.note": "Der Key sollte keine Passphrase haben, damit der Mount automatisch im Hintergrund funktioniert.",
+      "auth.h.ppk": "PuTTY-Key (.ppk)",
+      "auth.ppk.body": "PuTTY erwartet Schlüssel im eigenen PPK-Format. Hinterlege den Pfad zur <code>.ppk</code>-Datei im Verbindungs-Editor unter <em>„PuTTY-Key-Pfad”</em>. OpenSSH-Keys (<code>id_ed25519</code>, <code>id_rsa</code>) werden dagegen im Feld <em>„SSH-Key-Pfad”</em> eingetragen und ausschließlich für den nativen SSH-Client und SSHFS-Win verwendet. Konvertierung zwischen beiden Formaten ist mit <strong>PuTTYgen</strong> möglich.",
+      "auth.ppk.note": "Wenn ein PPK-Pfad hinterlegt ist, nutzt PuTTY diesen — andernfalls fällt es auf den OpenSSH-Key-Pfad zurück (mit Warnung, falls die Datei keine .ppk ist).",
       "auth.h.ask": "Jedes Mal fragen",
       "auth.ask.body": "Es wird kein Passwort gespeichert — bei jedem Verbindungsaufbau erscheint ein Eingabedialog. Sinnvoll für:",
       "auth.ask.li1": "Server, auf denen keine Zugangsdaten gespeichert werden sollen.",
@@ -151,13 +154,13 @@
       "feat.mount.body":
         "Remote-Pfade als Windows-Laufwerksbuchstaben einbinden — über SSHFS-Win und WinFsp.",
 
-      "feat.passwordless.title": "Passwortlos — ohne SSH-Key",
+      "feat.passwordless.title": "Passwortlos mounten — ohne SSH-Key",
       "feat.passwordless.body":
-        "Einmal Passwort hinterlegen, danach automatisch einloggen — beim Mounten und im Terminal. Kein SSH-Key nötig, kein Passwort-Tippen.",
+        "Einmal Passwort hinterlegen — danach wird es beim Mounten automatisch verwendet. Kein SSH-Key nötig. Für automatisches Passwort-Login im Terminal: PuTTY in den Einstellungen aktivieren.",
 
       "feat.terminal.title": "Eingebautes SSH-Terminal",
       "feat.terminal.body":
-        "Direkt aus der App heraus mit jedem Server verbinden. Passwort wird automatisch eingegeben.",
+        "Direkt aus der App heraus mit jedem Server verbinden. Mit PuTTY wird das Passwort automatisch eingegeben; beim nativen SSH-Client erfolgt die Eingabe manuell im Terminal.",
 
       "feat.sysinfo.title": "Live-Systemstatus",
       "feat.sysinfo.body":
@@ -295,7 +298,8 @@
       "conn.f.letter": "Windows-Laufwerksbuchstabe (z. B. Z:).",
       "conn.f.auth": "<code>password</code>, <code>key</code> oder <code>ask</code>.",
       "conn.f.password": "Wird lokal verschlüsselt in der SQLite-Datenbank gespeichert.",
-      "conn.f.keypath": "Pfad zum SSH-Key (nur bei Methode „key”).",
+      "conn.f.keypath": "Pfad zum OpenSSH-Key (nur bei Methode „key”). Wird für Mounts (sshfs.exe) und den nativen SSH-Client verwendet.",
+      "conn.f.puttykeypath": "Pfad zum PuTTY-Key im <code>.ppk</code>-Format. Wird ausschließlich für PuTTY-Terminal-Sessions verwendet. Konvertierung mit PuTTYgen.",
       "conn.f.cli": "Erlaubt Zugriff aus dem CLI-Companion.",
       "conn.h.mount": "Laufwerk einhängen",
       "conn.mount.body": "Den Toggle rechts in der Verbindungskarte klicken. Bei Erfolg wird der Toggle grün und das Laufwerk erscheint im Explorer.",
@@ -380,10 +384,10 @@
       "cfg.s.debug.e": "Aktiviert ausführliches Logging und ein Live-Log-Fenster.",
       "cfg.s.putty": "PuTTY verwenden",
       "cfg.s.putty.d": "aus",
-      "cfg.s.putty.e": "PuTTY statt OpenSSH für SSH-Sessions verwenden.",
+      "cfg.s.putty.e": "PuTTY statt OpenSSH für SSH-Terminal-Sessions verwenden. <strong>Nur PuTTY</strong> unterstützt automatische Passworteingabe im Terminal und PPK-Schlüssel. Aus Sicherheitsgründen ist automatischer Passwort-Login im nativen SSH-Client deaktiviert.",
       "cfg.s.puttypath": "PuTTY-Pfad",
       "cfg.s.puttypath.d": "Standard-Pfad",
-      "cfg.s.puttypath.e": "Pfad zur PuTTY-Installation.",
+      "cfg.s.puttypath.e": "Pfad zur putty.exe-Installation.",
       "cfg.h.theme": "Design wechseln",
       "cfg.theme.body": "Im Einstellungs-Dialog → <em>Erscheinungsbild</em> → <em>Hell</em> oder <em>Dunkel</em>. Pro Benutzer gespeichert, wirkt sofort.",
       "cfg.h.lang": "Sprache wechseln",
@@ -538,8 +542,8 @@
       "fp.startup.body": "Die App merkt sich aktive Laufwerke und hängt sie nach dem Neustart automatisch wieder ein.",
       "fp.s2.eyebrow": "Anmeldung & Sicherheit",
       "fp.s2.title": "Sicher und bequem.",
-      "fp.pw.title": "Passwortlos — ohne SSH-Key",
-      "fp.pw.body": "Passwort einmal eingeben — danach läuft alles automatisch. Beim Mounten und im Terminal wird das Passwort im Hintergrund eingegeben. Kein SSH-Key nötig.",
+      "fp.pw.title": "Passwortlos mounten — ohne SSH-Key",
+      "fp.pw.body": "Passwort einmal eingeben — es wird automatisch beim Mounten von Laufwerken verwendet. Kein SSH-Key nötig. Im SSH-Terminal funktioniert automatische Passworteingabe nur mit PuTTY.",
       "fp.key.title": "SSH-Key & Zertifikat",
       "fp.key.body": "Standard-SSH-Keys und -Zertifikate werden unterstützt und automatisch beim Verbinden verwendet.",
       "fp.ask.title": "Jedes Mal fragen",
@@ -553,7 +557,7 @@
       "fp.s3.eyebrow": "Bedienung & Design",
       "fp.s3.title": "Einfach zu bedienen. Angenehm anzusehen.",
       "fp.terminal.title": "Eingebautes Terminal",
-      "fp.terminal.body": "Mit einem Klick eine SSH-Session öffnen — OpenSSH oder PuTTY, Passwort wird automatisch eingegeben.",
+      "fp.terminal.body": "Mit einem Klick eine SSH-Session öffnen — OpenSSH oder PuTTY. Mit PuTTY wird das Passwort automatisch eingegeben; beim nativen SSH-Client manuell eintippen.",
       "fp.sysinfo.title": "Live-Systemstatus",
       "fp.sysinfo.body": "CPU, RAM, Disk, Uptime und Load direkt in der Verbindungskarte — ohne extra Tools.",
       "fp.tray.title": "System-Tray",
@@ -640,7 +644,7 @@
       "title.docs.projectStructure": "Project structure — Developers — NEO SSH-Win Manager",
       "title.docs.api": "API reference — Developers — NEO SSH-Win Manager",
       "meta.index.description":
-        "Free Windows desktop client for SSHFS. Mount remote folders as drives, manage multiple users, use passwordless SSH without an SSH key, and open the built-in terminal.",
+        "Free Windows desktop client for SSHFS. Mount remote folders as drives, manage multiple users, encrypted credentials, PuTTY and OpenSSH support, and a built-in terminal.",
       "meta.app.description":
         "Interactive browser simulation of the Windows app. Clickable buttons, original status messages and frontend-only logic without any real SSH or mount actions.",
 
@@ -713,13 +717,13 @@
       "feat.mount.body":
         "Mount remote folders as Windows drive letters — visible in Explorer like any other drive.",
 
-      "feat.passwordless.title": "Passwordless — no SSH key required",
+      "feat.passwordless.title": "Passwordless mounts — no SSH key required",
       "feat.passwordless.body":
-        "Save your password once, then connect automatically — when mounting and in the terminal. No SSH key, no typing.",
+        "Save your password once — it is used automatically when mounting drives. No SSH key needed. For automatic password login in the terminal, enable PuTTY in Settings.",
 
       "feat.terminal.title": "Built-in SSH terminal",
       "feat.terminal.body":
-        "Connect to any server directly from the app. Password is entered automatically.",
+        "Connect to any server directly from the app. With PuTTY, the password is entered automatically. With the native SSH client, type the password manually in the terminal.",
 
       "feat.sysinfo.title": "Live system info",
       "feat.sysinfo.body":
@@ -857,7 +861,8 @@
       "conn.f.letter": "Windows drive letter (e.g. Z:).",
       "conn.f.auth": "<code>password</code>, <code>key</code>, or <code>ask</code>.",
       "conn.f.password": "Stored locally in the encrypted SQLite database.",
-      "conn.f.keypath": "Path to your SSH key file (only for the “key” method).",
+      "conn.f.keypath": "Path to your OpenSSH key file (only for the “key” method). Used for mounts (sshfs.exe) and the native SSH client.",
+      "conn.f.puttykeypath": "Path to your PuTTY key in <code>.ppk</code> format. Used exclusively for PuTTY terminal sessions. Convert with PuTTYgen.",
       "conn.f.cli": "Allows access from the CLI companion.",
       "conn.h.mount": "Mounting a drive",
       "conn.mount.body": "Click the toggle on the right side of the connection card. When successful, the toggle turns green and the drive appears in Explorer.",
@@ -872,11 +877,14 @@
       "auth.title": "Authentication",
       "auth.lead": "Three SSH sign-in methods — password, private key, or ask each time. This section shows how they work and where credentials are stored.",
       "auth.h.password": "Save password",
-      "auth.password.body": "Enter your SSH password once — after that, everything is automatic. When mounting and in the terminal, the password is entered in the background. No SSH key required.",
+      "auth.password.body": "Enter your SSH password once. It is used automatically when mounting drives. In the SSH terminal, automatic password entry is <strong>only supported with PuTTY</strong> (Settings → \"Use PuTTY\"). With the native OpenSSH client you must type the password manually — this is a deliberate security restriction.",
       "auth.password.storage": "The password is stored locally in the SQLite database — encrypted per app user with AES-256-GCM and decrypted only after app sign-in.",
       "auth.h.key": "SSH key",
-      "auth.key.body": "Provide the path to your private SSH key (e.g. <code>C:\\Users\\you\\.ssh\\id_ed25519</code>). The key is used automatically when connecting. SSH certificates are also supported.",
+      "auth.key.body": "Provide the path to your private OpenSSH key (e.g. <code>C:\\Users\\you\\.ssh\\id_ed25519</code>). The key is used automatically when mounting drives and when using the native SSH terminal. SSH certificates are also supported.",
       "auth.key.note": "The key should not have a passphrase so that mounts can run automatically in the background.",
+      "auth.h.ppk": "PuTTY key (.ppk)",
+      "auth.ppk.body": "PuTTY expects keys in its own PPK format. Enter the path to your <code>.ppk</code> file in the connection editor under <em>\"PuTTY key path\"</em>. OpenSSH keys (<code>id_ed25519</code>, <code>id_rsa</code>) go in the <em>\"SSH key path\"</em> field and are only used for the native SSH client and SSHFS-Win. You can convert between formats using <strong>PuTTYgen</strong>.",
+      "auth.ppk.note": "If a PPK path is set, PuTTY uses it. Otherwise it falls back to the OpenSSH key path — with a log warning if the file does not end in .ppk.",
       "auth.h.ask": "Ask each time",
       "auth.ask.body": "No password is stored — a prompt appears every time you connect. Useful for:",
       "auth.ask.li1": "Servers where you don't want credentials stored locally.",
@@ -950,10 +958,10 @@
       "cfg.s.debug.e": "Enables detailed logging and a live log window.",
       "cfg.s.putty": "Use PuTTY",
       "cfg.s.putty.d": "off",
-      "cfg.s.putty.e": "Use PuTTY instead of OpenSSH for SSH sessions.",
+      "cfg.s.putty.e": "Use PuTTY instead of OpenSSH for SSH terminal sessions. <strong>Only PuTTY</strong> supports automatic password entry in the terminal and PPK keys. For security reasons, automatic password login is disabled in the native SSH client.",
       "cfg.s.puttypath": "PuTTY path",
       "cfg.s.puttypath.d": "Default path",
-      "cfg.s.puttypath.e": "Path to your PuTTY installation.",
+      "cfg.s.puttypath.e": "Path to your putty.exe installation.",
       "cfg.h.theme": "Change appearance",
       "cfg.theme.body": "Settings → <em>Appearance</em> → <em>Light</em> or <em>Dark</em>. Saved per user, takes effect immediately.",
       "cfg.h.lang": "Change language",
@@ -962,28 +970,35 @@
       "cfg.debug.body": "Enables detailed logging to <code>%APPDATA%\\SSHWinManager\\app.log</code> and a live log window. Helpful when troubleshooting connection issues.",
 
       // ─── docs: troubleshooting ────────────────────────────────
+      "ts.eyebrow": "Docs",
       "ts.title": "Troubleshooting",
       "ts.lead": "The most common issues with their cause and fix.",
-      "ts.h.nosshfs": "“sshfs.exe not found”",
+      "ts.h.nosshfs": "\"sshfs.exe not found\"",
       "ts.nosshfs.body": "SSHFS-Win is not installed or not in the expected location. Fix: download and run the installer from",
       "ts.nosshfs.body2": ".",
-      "ts.h.mountpoint": "“mount point in use”",
+      "ts.nosshfs.note": "PATH is also searched.",
+      "ts.h.mountpoint": "\"mount point in use\"",
       "ts.mountpoint.body": "The selected drive letter is still occupied by an old mount.",
       "ts.mountpoint.li1": "Choose a different drive letter, or",
       "ts.mountpoint.li2": "Settings → <em>Clean up stale mounts</em>, or",
       "ts.mountpoint.li3": "Disconnect the old drive in Explorer, or",
       "ts.mountpoint.li4": "Restart Windows.",
-      "ts.h.authfail": "“Authentication failed”",
+      "ts.h.authfail": "\"Authentication failed\"",
       "ts.authfail.li1": "Check your password — edit the connection and re-enter it.",
       "ts.authfail.li2": "For SSH key: is the path correct? Does the key have a passphrase?",
       "ts.authfail.li3": "On the server: is your public key in <code>~/.ssh/authorized_keys</code>?",
-      "ts.h.connrefused": "“Connection refused”",
+      "ts.authfail.li4": "Server config: is PasswordAuthentication / PubkeyAuthentication enabled in sshd_config?",
+      "ts.h.connrefused": "\"Connection refused\"",
       "ts.connrefused.body": "The SSH service is not running or a firewall is blocking the connection. Test:",
       "ts.connrefused.body2": "If this also fails, it is not an app issue.",
-      "ts.h.accessdenied": "Drive appears but “Access denied”",
+      "ts.connrefused.note": "From PowerShell. If this also fails, it is not an app issue.",
+      "ts.h.accessdenied": "Drive appears but \"Access denied\"",
       "ts.accessdenied.body": "Reinstall SSHFS-Win and verify that the WinFsp service is running (Services → WinFsp).",
-      "ts.h.nostart": "App doesn't start or doesn't come to the foreground",
+      "ts.accessdenied.note": "If the issue persists: reinstall SSHFS-Win and verify that the WinFsp service is running (services.msc).",
+      "ts.h.nostart": "App doesn’t start or doesn’t come to the foreground",
       "ts.nostart.body": "Another instance is already running. Check the system tray — the app may be minimised. If not, end it in Task Manager and restart.",
+      "ts.nostart.li1": "Check the tray — the app may be minimised.",
+      "ts.nostart.li2": "Find NeoSSHWinManager.exe in Task Manager and end it.",
       "ts.h.logs": "View logs",
       "ts.logs.body": "Enable Debug mode in Settings. Logs are saved to <code>%APPDATA%\\SSHWinManager\\app.log</code>.",
 
@@ -1104,8 +1119,8 @@
       "fp.startup.body": "The app remembers active drives and mounts them again automatically after a restart.",
       "fp.s2.eyebrow": "Authentication & security",
       "fp.s2.title": "Secure and effortless.",
-      "fp.pw.title": "Passwordless — no SSH key needed",
-      "fp.pw.body": "Enter your password once — after that, everything is automatic. No SSH key needed, no typing.",
+      "fp.pw.title": "Passwordless mounts — no SSH key needed",
+      "fp.pw.body": "Enter your password once — it is used automatically when mounting drives. No SSH key needed. For automatic password login in the terminal, enable PuTTY in Settings.",
       "fp.key.title": "SSH key & certificate",
       "fp.key.body": "Standard SSH keys and certificates are supported and used automatically when connecting.",
       "fp.ask.title": "Ask each time",
@@ -1119,7 +1134,7 @@
       "fp.s3.eyebrow": "Interface & design",
       "fp.s3.title": "Easy to use. Enjoyable to look at.",
       "fp.terminal.title": "Built-in terminal",
-      "fp.terminal.body": "Open an SSH session with one click — OpenSSH or PuTTY, password entered automatically.",
+      "fp.terminal.body": "Open an SSH session with one click — OpenSSH or PuTTY. With PuTTY the password is entered automatically; with the native SSH client, type it manually in the terminal.",
       "fp.sysinfo.title": "Live system info",
       "fp.sysinfo.body": "CPU, RAM, disk, uptime and load right in the connection card — no extra tools.",
       "fp.tray.title": "System tray",
@@ -1185,17 +1200,20 @@
   /** @type {Set<(lang: string) => void>} */
   const listeners = new Set();
 
+  // In-memory cache so language changes survive localStorage being blocked
+  // (e.g. file:// protocol). Initialised once from storage on first load.
+  let _lang = (() => {
+    try {
+      const s = localStorage.getItem(STORAGE_KEY);
+      return s && SUPPORTED.includes(s) ? s : DEFAULT;
+    } catch {
+      return DEFAULT;
+    }
+  })();
+
   /** @returns {string} */
   function getLang() {
-    const stored = (() => {
-      try {
-        return localStorage.getItem(STORAGE_KEY);
-      } catch {
-        return null;
-      }
-    })();
-    if (stored && SUPPORTED.includes(stored)) return stored;
-    return DEFAULT;
+    return _lang;
   }
 
   /**
@@ -1241,6 +1259,7 @@
    */
   function setLang(code) {
     if (!SUPPORTED.includes(code)) return;
+    _lang = code;
     try {
       localStorage.setItem(STORAGE_KEY, code);
     } catch {}

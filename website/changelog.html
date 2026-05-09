@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de" data-theme="dark">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,25 +11,45 @@
   <script src="assets/js/site.js" defer></script>
   <script src="assets/js/layout.js" defer></script>
   <style>
-    .release { padding: 32px 0; border-bottom: 1px solid var(--border); }
-    .release:last-child { border-bottom: none; }
+    .release {
+      padding: 32px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .release:last-child {
+      border-bottom: none;
+    }
+
     .release-head {
-      display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      flex-wrap: wrap;
       margin-bottom: 14px;
     }
+
     .release-tag {
       font-family: var(--mono);
       font-size: 22px;
       font-weight: 700;
       color: var(--text);
     }
+
     .release-date {
       font-family: var(--mono);
       font-size: 12px;
       color: var(--text-4);
     }
-    .release-list { padding-left: 18px; margin: 8px 0 0; }
-    .release-list li { margin: 6px 0; color: var(--text-2); }
+
+    .release-list {
+      padding-left: 18px;
+      margin: 8px 0 0;
+    }
+
+    .release-list li {
+      margin: 6px 0;
+      color: var(--text-2);
+    }
 
     .assets-table {
       margin-top: 18px;
@@ -36,11 +57,14 @@
       border-collapse: collapse;
       font-size: 13px;
     }
-    .assets-table th, .assets-table td {
+
+    .assets-table th,
+    .assets-table td {
       text-align: left;
       padding: 10px 12px;
       border-bottom: 1px solid var(--border);
     }
+
     .assets-table th {
       font-weight: 600;
       color: var(--text-3);
@@ -48,11 +72,13 @@
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
+
     .assets-table td a {
       font-family: var(--mono);
       font-size: 13px;
       color: var(--text);
     }
+
     .assets-table .sha {
       font-family: var(--mono);
       font-size: 11px;
@@ -61,12 +87,14 @@
       display: block;
       margin-top: 2px;
     }
+
     .assets-table .size {
       font-family: var(--mono);
       font-size: 12px;
       color: var(--text-3);
       white-space: nowrap;
     }
+
     .source-fetched {
       margin-top: 28px;
       padding: 14px 16px;
@@ -78,6 +106,7 @@
     }
   </style>
 </head>
+
 <body>
   <div data-layout="topbar" data-pathprefix=""></div>
 
@@ -86,8 +115,10 @@
       <span class="eyebrow" data-i18n="changelog.eyebrow">Changelog</span>
       <h1 style="margin-top:18px" data-i18n="changelog.title">Was sich geändert hat.</h1>
       <p class="lead">
-        <span data-i18n="changelog.lead">Alle veröffentlichten Versionen — direkt aus den GitHub-Releases. Vollständige Commit-Historie im</span>
-        <a href="https://github.com/gregorkrebs/neosshwinmanager/commits/main" target="_blank" rel="noopener" data-i18n="changelog.history">GitHub-Verlauf</a>.
+        <span data-i18n="changelog.lead">Alle veröffentlichten Versionen — direkt aus den GitHub-Releases. Vollständige
+          Commit-Historie im</span>
+        <a href="https://github.com/gregorkrebs/neosshwinmanager/commits/main" target="_blank" rel="noopener"
+          data-i18n="changelog.history">GitHub-Verlauf</a>.
       </p>
     </div>
   </section>
@@ -103,30 +134,86 @@
 
         <article class="release">
           <div class="release-head">
-            <span class="release-tag">v1.3.1</span>
+            <span class="release-tag">v1.3.2</span>
             <span class="badge accent" data-i18n="changelog.latest">Aktuell</span>
-            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.3.1" target="_blank" rel="noopener">github.com/releases/v1.3.1</a>
+            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.3.2"
+              target="_blank" rel="noopener">github.com/releases/v1.3.2</a>
+          </div>
+          <ul class="release-list">
+            <li><strong>Security Overhaul:</strong> Umstellung auf Argon2 zur Schlüsselableitung und Nutzung des Windows
+              Credential Managers (Keyring) für den Master-Key.</li>
+            <li><strong>Security Overhaul:</strong> Sicheres Überschreiben sensibler Passwörter im Arbeitsspeicher
+              (Secure Memory Clearing) und strikte Eingabevalidierung zur Abwehr von Command-Injections.</li>
+            <li><strong>Authentifizierung:</strong> Separates Feld für PuTTY-Keys (.ppk) hinzugefügt. OpenSSH-Keys
+              dienen nun rein für SSHFS/Nativ-SSH, während PPK-Keys exklusiv für PuTTY-Terminals genutzt werden.</li>
+            <li><strong>Terminal:</strong> Native interaktive SSH-Sessions öffnen sich nun zuverlässig und sicher
+              isoliert in einem neuen Befehlsfenster (CMD).</li>
+            <li><strong>Stabilität:</strong> Massen-Disconnect-Bug durch umfassende Stabilisierung des
+              SSHFS-Mount-Prozesses und bessere Laufwerksüberprüfung behoben.</li>
+            <li><strong>UI/UX:</strong> Mausrad-Scroll-Verhalten gefixt. Dropdowns und Spinboxen in Formularen reagieren
+              nicht mehr ungewollt auf Scroll-Events, was versehentliche Änderungen verhindert.</li>
+            <li><strong>UI/UX:</strong> Formulare bieten nun eine strikte Live-Validierung. Leere Pflichtfelder erhalten
+              einen dicken türkisen Rahmen und der "Speichern"-Button bleibt sichtlich inaktiviert (inkl. Hover-Sperre),
+              bis alle Daten vorhanden sind.</li>
+            <li><strong>Docs:</strong> Fehlerhafte Status-Übersetzung behoben und die Online-Dokumentation
+              (Troubleshooting & Connections) umfangreich an die neuen Security- und Key-Features angepasst.</li>
+          </ul>
+          <tr>
+            <th data-i18n="changelog.col.asset">Datei</th>
+            <th data-i18n="changelog.col.size">Größe</th>
+          </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <a
+                  href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.2/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
+              </td>
+              <td class="size">42.9 MB</td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.2/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
+              </td>
+              <td class="size">27.8 MB</td>
+            </tr>
+          </tbody>
+          </table>
+        </article>
+
+        <article class="release">
+          <div class="release-head">
+            <span class="release-tag">v1.3.1</span>
+            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.3.1"
+              target="_blank" rel="noopener">github.com/releases/v1.3.1</a>
           </div>
           <ul class="release-list">
             <li data-i18n="changelog.v131.li1">Agent-CLI-Key im Verbindungseditor direkt sichtbar statt maskiert.</li>
-            <li data-i18n="changelog.v131.li2">Zwei sichtbare SVG-Aktionen für CLI-Key eingeführt: kopieren und neu generieren.</li>
+            <li data-i18n="changelog.v131.li2">Zwei sichtbare SVG-Aktionen für CLI-Key eingeführt: kopieren und neu
+              generieren.</li>
             <li data-i18n="changelog.v131.li3">Copy-Feedback im Editor per Check-Icon ergänzt.</li>
             <li data-i18n="changelog.v131.li4">Versions- und Website-Metadaten auf 1.3.1 angehoben.</li>
           </ul>
           <table class="assets-table">
             <thead>
-              <tr><th data-i18n="changelog.col.asset">Datei</th><th data-i18n="changelog.col.size">Größe</th></tr>
+              <tr>
+                <th data-i18n="changelog.col.asset">Datei</th>
+                <th data-i18n="changelog.col.size">Größe</th>
+              </tr>
             </thead>
             <tbody>
               <tr>
                 <td>
-                  <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.1/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
+                  <a
+                    href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.1/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
                 </td>
                 <td class="size">42.9 MB</td>
               </tr>
               <tr>
                 <td>
-                  <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.1/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
+                  <a
+                    href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.1/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
                 </td>
                 <td class="size">27.8 MB</td>
               </tr>
@@ -137,20 +224,27 @@
         <article class="release">
           <div class="release-head">
             <span class="release-tag">v1.3.0</span>
-            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.3.0" target="_blank" rel="noopener">github.com/releases/v1.3.0</a>
+            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.3.0"
+              target="_blank" rel="noopener">github.com/releases/v1.3.0</a>
           </div>
           <ul class="release-list">
-            <li data-i18n="changelog.v130.li1">Einstellungen und Benutzerverwaltung als Vollbild-Panel via QStackedWidget</li>
+            <li data-i18n="changelog.v130.li1">Einstellungen und Benutzerverwaltung als Vollbild-Panel via
+              QStackedWidget</li>
             <li data-i18n="changelog.v130.li2">Sidebar-Navigation mit Hervorhebung des aktiven Eintrags</li>
             <li data-i18n="changelog.v130.li3">[i]-Schaltfläche öffnet ausschließlich das SSH-Live-Systeminfo-Panel</li>
-            <li data-i18n="changelog.v130.li4">Bearbeiten-Schaltfläche immer sichtbar, deaktiviert wenn Verbindung eingehängt</li>
+            <li data-i18n="changelog.v130.li4">Bearbeiten-Schaltfläche immer sichtbar, deaktiviert wenn Verbindung
+              eingehängt</li>
             <li data-i18n="changelog.v130.li5">Primäre Schaltflächen: Verlauf #00b4d8 → #0077b6, schwarzer Text</li>
-            <li data-i18n="changelog.v130.li6">Titelleistenfarbe passt sich dem aktiven Design via DwmSetWindowAttribute (Windows 11+) an</li>
+            <li data-i18n="changelog.v130.li6">Titelleistenfarbe passt sich dem aktiven Design via DwmSetWindowAttribute
+              (Windows 11+) an</li>
             <li data-i18n="changelog.v130.li7">Checkbox-Indikator: 14×14 px, weißer Haken auf rotem Hintergrund</li>
-            <li data-i18n="changelog.v130.li8">Panel-Header: 52 px Höhe, Kicker-Labels entfernt, Titel vertikal zentriert</li>
+            <li data-i18n="changelog.v130.li8">Panel-Header: 52 px Höhe, Kicker-Labels entfernt, Titel vertikal
+              zentriert</li>
             <li data-i18n="changelog.v130.li9">Listenansicht mit 4-px-Farbbalken für CPU/RAM/Festplatte</li>
-            <li data-i18n="changelog.v130.li10">Vollständige statische Website in website/ (Landing, Features, Docs, Changelog, Download)</li>
-            <li data-i18n="changelog.v130.li11">Interaktive Browser-Simulation (website/app.html) in reinem HTML/CSS/JS</li>
+            <li data-i18n="changelog.v130.li10">Vollständige statische Website in website/ (Landing, Features, Docs,
+              Changelog, Download)</li>
+            <li data-i18n="changelog.v130.li11">Interaktive Browser-Simulation (website/app.html) in reinem HTML/CSS/JS
+            </li>
             <li data-i18n="changelog.v130.li12">Keine Installation nötig, direkt über GitHub Pages bereitstellbar</li>
             <li data-i18n="changelog.v130.li13">Veraltetes credential_store.py entfernt</li>
             <li data-i18n="changelog.v130.li14">AppUserModelID-Präfix von dennis. auf neo. geändert</li>
@@ -158,18 +252,23 @@
           </ul>
           <table class="assets-table">
             <thead>
-              <tr><th data-i18n="changelog.col.asset">Datei</th><th data-i18n="changelog.col.size">Größe</th></tr>
+              <tr>
+                <th data-i18n="changelog.col.asset">Datei</th>
+                <th data-i18n="changelog.col.size">Größe</th>
+              </tr>
             </thead>
             <tbody>
               <tr>
                 <td>
-                  <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.0/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
+                  <a
+                    href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.0/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
                 </td>
                 <td class="size">42.9 MB</td>
               </tr>
               <tr>
                 <td>
-                  <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.0/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
+                  <a
+                    href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.3.0/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
                 </td>
                 <td class="size">27.8 MB</td>
               </tr>
@@ -180,7 +279,8 @@
         <article class="release">
           <div class="release-head">
             <span class="release-tag">v1.2.0</span>
-            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.2.0" target="_blank" rel="noopener">github.com/releases/v1.2.0</a>
+            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.2.0"
+              target="_blank" rel="noopener">github.com/releases/v1.2.0</a>
           </div>
           <ul class="release-list">
             <li data-i18n="changelog.v120.theme">Hinzugefügt: persistente Light-/Dark-Theme-Unterstützung.</li>
@@ -191,19 +291,24 @@
           </ul>
           <table class="assets-table">
             <thead>
-              <tr><th data-i18n="changelog.col.asset">Datei</th><th data-i18n="changelog.col.size">Größe</th></tr>
+              <tr>
+                <th data-i18n="changelog.col.asset">Datei</th>
+                <th data-i18n="changelog.col.size">Größe</th>
+              </tr>
             </thead>
             <tbody>
               <tr>
                 <td>
-                  <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.2.0/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
+                  <a
+                    href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.2.0/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
                   <span class="sha">sha256: 87e2c7e6b59cd733cb1be39650833cf401d94b817ea47c9da5407eb060903054</span>
                 </td>
                 <td class="size">42.7 MB</td>
               </tr>
               <tr>
                 <td>
-                  <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.2.0/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
+                  <a
+                    href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.2.0/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
                   <span class="sha">sha256: 341c34ccea6aab924c74ec36d3d21d49c61dfd8e98c246ec3953b8250dd952df</span>
                 </td>
                 <td class="size">27.7 MB</td>
@@ -215,27 +320,34 @@
         <article class="release">
           <div class="release-head">
             <span class="release-tag">v1.1.0</span>
-            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.1.0" target="_blank" rel="noopener">github.com/releases/v1.1.0</a>
+            <a class="release-date" href="https://github.com/gregorkrebs/neosshwinmanager/releases/tag/v1.1.0"
+              target="_blank" rel="noopener">github.com/releases/v1.1.0</a>
           </div>
           <ul class="release-list">
             <li data-i18n="changelog.v110.first">
-              Erste Veröffentlichung des NEO SSH-Win Manager — moderner Windows-Desktop-Client zum Einbinden von SSH-Ordnern als Laufwerksbuchstaben.
+              Erste Veröffentlichung des NEO SSH-Win Manager — moderner Windows-Desktop-Client zum Einbinden von
+              SSH-Ordnern als Laufwerksbuchstaben.
             </li>
           </ul>
           <table class="assets-table">
             <thead>
-              <tr><th data-i18n="changelog.col.asset">Datei</th><th data-i18n="changelog.col.notes">Hinweis</th></tr>
+              <tr>
+                <th data-i18n="changelog.col.asset">Datei</th>
+                <th data-i18n="changelog.col.notes">Hinweis</th>
+              </tr>
             </thead>
             <tbody>
               <tr>
                 <td>
-                  <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.1.0/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
+                  <a
+                    href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.1.0/NeoSSHWinManager.exe">NeoSSHWinManager.exe</a>
                 </td>
                 <td data-i18n="changelog.v110.gui">GUI-Anwendung</td>
               </tr>
               <tr>
                 <td>
-                  <a href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.1.0/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
+                  <a
+                    href="https://github.com/gregorkrebs/neosshwinmanager/releases/download/v1.1.0/NeoSSHWinManager-cli.exe">NeoSSHWinManager-cli.exe</a>
                 </td>
                 <td data-i18n="changelog.v110.cli">CLI-Companion</td>
               </tr>
@@ -256,4 +368,5 @@
 
   <div data-layout="footer" data-pathprefix=""></div>
 </body>
+
 </html>

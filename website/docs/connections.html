@@ -37,7 +37,8 @@
             <tr><td><code>drive_letter</code></td><td data-i18n="conn.f.letter">Windows-Laufwerksbuchstabe (z. B. Z:).</td><td><code>Z:</code></td></tr>
             <tr><td><code>auth_method</code></td><td data-i18n="conn.f.auth"><code>password</code>, <code>key</code> oder <code>ask</code>.</td><td><code>password</code></td></tr>
             <tr><td><code>password</code></td><td data-i18n="conn.f.password">Wird lokal verschlüsselt in der SQLite-Datenbank gespeichert.</td><td>—</td></tr>
-            <tr><td><code>key_path</code></td><td data-i18n="conn.f.keypath">Pfad zum SSH-Key (nur bei Methode „key").</td><td>—</td></tr>
+            <tr><td><code>key_path</code></td><td data-i18n="conn.f.keypath">Pfad zum OpenSSH-Key (nur bei Methode „key"). Wird für Mounts (sshfs.exe) und den nativen SSH-Client verwendet.</td><td>—</td></tr>
+            <tr><td><code>putty_key_path</code></td><td data-i18n="conn.f.puttykeypath">Pfad zum PuTTY-Key im .ppk-Format. Wird ausschließlich für PuTTY-Terminal-Sessions verwendet.</td><td>—</td></tr>
             <tr><td><code>cli_access_enabled</code></td><td data-i18n="conn.f.cli">Erlaubt Zugriff aus dem CLI-Companion.</td><td><code>false</code></td></tr>
           </tbody>
         </table>
