@@ -18,6 +18,13 @@ from src.config import Connection
 from src.app_logger import logger
 from src.i18n import tr
 
+class AuthLevelError(Exception):
+    """Raised when the connection's auth method is not permitted at the current security level."""
+    def __init__(self, level: str):
+        super().__init__(level)
+        self.level = level  # "0", "1", or "2"
+
+
 def _is_safe_file_path(path: str) -> bool:
     """
     Validate file path to prevent path traversal and command injection.
@@ -59,6 +66,9 @@ class SSHSystemInfoThread(QThread):
             info = self._gather_info()
             if not self._stopped:
                 self.info_ready.emit(info)
+        except AuthLevelError as e:
+            if not self._stopped:
+                self.error.emit(e.level, "auth_denied")
         except ValueError as e:
             # ValueError from _build_ssh_command when key is missing
             if not self._stopped:
@@ -70,7 +80,24 @@ class SSHSystemInfoThread(QThread):
     def stop(self):
         self._stopped = True
 
+    def _validate_auth(self) -> None:
+        """Raise AuthLevelError if the connection's auth method is blocked by the current security level."""
+        sec_level = getattr(self._settings, 'security_level', 0) if self._settings else 0
+        has_key = bool(self._conn.key_path or self._conn.putty_key_path)
+        has_password = self._conn.auth_method == "password" and bool(self._conn.password)
+
+        if sec_level <= 1:
+            # Levels 0 and 1: key auth only, password not permitted
+            if not has_key:
+                raise AuthLevelError(str(sec_level))
+        else:
+            # Level 2: key or password accepted
+            if not has_key and not has_password:
+                raise AuthLevelError("2")
+
     def _gather_info(self) -> dict:
+        self._validate_auth()
+
         info = {
             "hostname": self._conn.host,
             "user": self._conn.user,
@@ -210,27 +237,31 @@ class SSHSystemInfoThread(QThread):
         return None
 
     def _build_ssh_command(self, ssh_exe: str) -> tuple[list, str]:
-        """Build SSH command for native ssh.exe with key or password auth."""
-        # Require either key or password
-        has_key = self._conn.key_path
-        has_password = self._conn.auth_method == "password" and self._conn.password
-
-        if not has_key and not has_password:
-            raise ValueError(tr("sysinfo.key_required"))
+        """Build SSH command for native ssh.exe respecting the current security level."""
+        sec_level = getattr(self._settings, 'security_level', 0) if self._settings else 0
+        has_key = bool(self._conn.key_path)
+        has_password = self._conn.auth_method == "password" and bool(self._conn.password)
 
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
 
-        # BatchMode=yes only for key auth; password auth needs ASKPASS interaction
-        if has_key:
+        if sec_level <= 1:
+            # Key-only auth; password not permitted regardless of configuration
             auth_options = [
                 "-o", "BatchMode=yes",
                 "-o", "PreferredAuthentications=publickey",
             ]
         else:
-            auth_options = [
-                "-o", "BatchMode=no",
-                "-o", "PreferredAuthentications=password,keyboard-interactive",
-            ]
+            # Level 2: prefer key, fall back to password
+            if has_key:
+                auth_options = [
+                    "-o", "BatchMode=yes",
+                    "-o", "PreferredAuthentications=publickey",
+                ]
+            else:
+                auth_options = [
+                    "-o", "BatchMode=no",
+                    "-o", "PreferredAuthentications=password,keyboard-interactive",
+                ]
 
         cmd_base = [
             ssh_exe,
@@ -260,9 +291,10 @@ class SSHSystemInfoThread(QThread):
             "-P", str(self._conn.port),
         ]
 
-        # Add key authentication if key is configured
-        # Use putty_key_path if available, otherwise fall back to key_path
+        sec_level = getattr(self._settings, 'security_level', 0) if self._settings else 0
         key_to_use = self._conn.putty_key_path or self._conn.key_path
+        has_password = self._conn.auth_method == "password" and bool(self._conn.password)
+
         if key_to_use:
             # SECURITY: Validate key path
             if not _is_safe_file_path(key_to_use):
@@ -275,9 +307,7 @@ class SSHSystemInfoThread(QThread):
                     "Bitte konvertieren Sie den Key mit PuTTYgen oder verwenden Sie nativen SSH."
                 )
             cmd_base.extend(["-i", key_to_use])
-        elif self._conn.auth_method == "password" and self._conn.password:
-            # SECURITY WARNING: Password in command line is visible in process list
-            # This is a security risk but user has enabled plink for this purpose
+        elif has_password and sec_level >= 2:
             logger.warning("Using password authentication with plink - password visible in process list")
             cmd_base.extend(["-pw", self._conn.password])
         else:
@@ -288,7 +318,8 @@ class SSHSystemInfoThread(QThread):
 
     def _get_ssh_env(self) -> dict:
         env = os.environ.copy()
-        if self._conn.auth_method == "password" and self._conn.password:
+        sec_level = getattr(self._settings, 'security_level', 0) if self._settings else 0
+        if sec_level >= 2 and self._conn.auth_method == "password" and self._conn.password:
             is_frozen = getattr(sys, "frozen", False)
             if is_frozen:
                 askpass_cmd = f'"{sys.executable}" --pass-helper'
@@ -699,6 +730,17 @@ class SystemInfoPanel(QFrame):
 
     def _on_error(self, msg: str, error_type: str = "generic"):
         self._set_loading_overlay_visible(False)
+        if error_type == "auth_denied":
+            level = msg  # "0", "1", or "2"
+            self._loading_lbl.hide()
+            self._state_card.hide()
+            self._show_overlay_error(
+                "🤷",
+                tr(f"sysinfo.auth.level{level}.title"),
+                tr(f"sysinfo.auth.level{level}.desc"),
+            )
+            self._refresh_btn.setEnabled(True)
+            return
         if error_type == "key_missing":
             self._loading_lbl.hide()
             self._state_card.hide()
