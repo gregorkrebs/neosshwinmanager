@@ -28,11 +28,11 @@ def _open(url: str):
     QDesktopServices.openUrl(QUrl(url))
 
 
-def _link_btn(label: str, url: str, icon_char: str = "") -> QPushButton:
+def _link_btn(label: str, url: str, icon_char: str = "", obj_name: str = "") -> QPushButton:
     """Gleichgestalteter Link-Button für alle Sektionen."""
     text = f"{icon_char}  {label}" if icon_char else label
     btn = QPushButton(text)
-    btn.setObjectName("aboutLinkBtn")
+    btn.setObjectName(obj_name or "aboutLinkBtn")
     btn.setCursor(Qt.CursorShape.PointingHandCursor)
     btn.setFixedHeight(34)
     btn.clicked.connect(lambda: _open(url))
@@ -147,6 +147,20 @@ class AboutDialog(QDialog):
 
         layout.addWidget(hero)
 
+        # ── What It Does ──────────────────────────────────────────────────
+        what_card, what_l = _card()
+
+        what_title = _section_label(tr("about.what_it_does.title").upper())
+        what_l.addWidget(what_title)
+        what_l.addWidget(_divider())
+
+        what_desc = QLabel(tr("about.what_it_does.body"))
+        what_desc.setObjectName("dialogBody")
+        what_desc.setWordWrap(True)
+        what_l.addWidget(what_desc)
+
+        layout.addWidget(what_card)
+
         # ── Project links ────────────────────────────────────────────────
         proj_card, proj_l = _card()
 
@@ -157,12 +171,12 @@ class AboutDialog(QDialog):
         proj_btns = QHBoxLayout()
         proj_btns.setSpacing(8)
 
-        wb = _link_btn(tr("about.website.btn"), _URL_PROJECT_WEBSITE, "🌐")
-        db = _link_btn(tr("about.docs.btn"),    _URL_PROJECT_DOCS,    "📄")
-        gb = _link_btn(tr("about.github.btn"),  _URL_PROJECT_GITHUB,  "⌨")
+        wb = _link_btn(tr("about.website.btn"), _URL_PROJECT_WEBSITE, "🌐", "aboutWebBtn")
+        db = _link_btn(tr("about.docs.btn"),    _URL_PROJECT_DOCS,    "📄", "aboutDocsBtn")
+        gb = _link_btn(tr("about.github.btn"),  _URL_PROJECT_GITHUB,  "⌨", "aboutGithubBtn")
 
         for btn in (wb, db, gb):
-            proj_btns.addWidget(btn)
+            proj_btns.addWidget(btn, stretch=1)
 
         proj_l.addLayout(proj_btns)
         layout.addWidget(proj_card)
@@ -183,11 +197,11 @@ class AboutDialog(QDialog):
 
         auth_btns = QHBoxLayout()
         auth_btns.setSpacing(8)
-        awb = _link_btn(tr("about.author.website.btn"), _URL_AUTHOR_WEBSITE, "🌐")
-        agb = _link_btn(tr("about.author.github.btn"),  _URL_AUTHOR_GITHUB,  "⌨")
-        auth_btns.addWidget(awb)
-        auth_btns.addWidget(agb)
-        auth_btns.addStretch()
+        awb = _link_btn(tr("about.author.website.btn"), _URL_AUTHOR_WEBSITE, "🌐", "aboutWebBtn")
+        agb = _link_btn(tr("about.author.github.btn"),  _URL_AUTHOR_GITHUB,  "⌨", "aboutGithubBtn")
+        adb = _link_btn(tr("about.author.neossh.btn"),  _URL_AUTHOR_WEBSITE, "📄", "aboutDocsBtn")
+        for btn in (awb, agb, adb):
+            auth_btns.addWidget(btn, stretch=1)
         auth_l.addLayout(auth_btns)
 
         auth_l.addWidget(_divider())
@@ -195,7 +209,7 @@ class AboutDialog(QDialog):
         contrib_lbl = _section_label(tr("about.other.devs").upper())
         auth_l.addWidget(contrib_lbl)
 
-        contrib_btn = _link_btn("Den4ik53", _URL_CONTRIB_GITHUB, "⌨")
+        contrib_btn = _link_btn("Den4ik53", _URL_CONTRIB_GITHUB, "⌨", "aboutGithubBtn")
         contrib_btn.setFixedWidth(160)
         auth_l.addWidget(contrib_btn)
 

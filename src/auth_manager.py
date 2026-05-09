@@ -158,6 +158,13 @@ class AuthManager:
             logger.error(f"Encryption Key konnte nicht entschlüsselt werden: {e}")
             return None
 
+        user = AppUser(
+            id=row["id"],
+            username=row["username"],
+            is_admin=bool(row["is_admin"]),
+            _enc_key=enc_key,
+        )
+
         # Transparente Migration: PBKDF2 → Argon2 beim ersten Login nach Update
         if kdf == "pbkdf2":
             try:
@@ -171,12 +178,14 @@ class AuthManager:
             except Exception as e:
                 logger.warning(f"KDF-Migration fehlgeschlagen (nicht kritisch): {e}")
 
-        return AppUser(
-            id=row["id"],
-            username=row["username"],
-            is_admin=bool(row["is_admin"]),
-            _enc_key=enc_key,
-        )
+        # Migration: Plaintext CLI-Keys → Encrypted
+        try:
+            conn_mgr = UserConnectionManager(user)
+            conn_mgr.migrate_cli_keys()
+        except Exception as e:
+            logger.warning(f"CLI-Key Migration fehlgeschlagen (nicht kritisch): {e}")
+
+        return user
 
     @staticmethod
     def change_password(user_id: str, old_pw: str, new_pw: str) -> bool:
@@ -293,6 +302,40 @@ class UserConnectionManager:
     def __init__(self, user: AppUser):
         self._user = user
 
+    def migrate_cli_keys(self) -> None:
+        """
+        Migration: Verschlüsselt alle plaintext CLI-Keys beim ersten Login nach dem Update.
+        Idempotent — kann beliebig oft aufgerufen werden.
+        """
+        try:
+            with get_connection() as conn:
+                rows = conn.execute(
+                    """SELECT id, cli_access_key FROM connections
+                       WHERE user_id = ?
+                       AND cli_access_key IS NOT NULL
+                       AND cli_access_key != ''
+                       AND (cli_access_key_iv IS NULL OR cli_access_key_iv = '')""",
+                    (self._user.id,)
+                ).fetchall()
+
+            if not rows:
+                return
+
+            for row in rows:
+                plaintext_key = row["cli_access_key"]
+                if plaintext_key:
+                    cli_key_enc, cli_key_iv = self._encrypt_pw(plaintext_key)
+                    with get_connection() as db:
+                        db.execute(
+                            """UPDATE connections SET cli_access_key = ?, cli_access_key_iv = ?
+                               WHERE id = ? AND user_id = ?""",
+                            (cli_key_enc, cli_key_iv, row["id"], self._user.id)
+                        )
+
+            logger.info(f"CLI-Key Migration abgeschlossen für Benutzer {self._user.username}: {len(rows)} Keys verschlüsselt.")
+        except Exception as e:
+            logger.error(f"CLI-Key Migration fehlgeschlagen: {e}")
+
     def _encrypt_pw(self, password: str) -> tuple[str, str]:
         if not password:
             return "", ""
@@ -310,21 +353,19 @@ class UserConnectionManager:
 
     def _row_to_conn(self, row) -> Connection:
         pw = self._decrypt_pw(row["pw_enc"] or "", row["pw_iv"] or "")
-        # SECURITY FIX: Decrypt CLI-Access-Key if encrypted
-        cli_key = row["cli_access_key"] or ""
-        # SECURITY FIX: Handle sqlite3.Row which doesn't have .get() method
+        # Decrypt CLI-Access-Key if encrypted, treat as missing if plaintext
+        cli_key = ""
         try:
             cli_key_iv = row["cli_access_key_iv"]
             if cli_key_iv:
                 try:
                     cli_key = decrypt(row["cli_access_key"], cli_key_iv, self._user.enc_key)
-                except Exception:
-                    # If decryption fails, use as-is (might be old plaintext format)
-                    cli_key = row["cli_access_key"] or ""
+                except Exception as e:
+                    logger.error(f"CLI-Key entschlüsselung fehlgeschlagen: {e}")
+                    cli_key = ""
         except (KeyError, IndexError):
             # Column doesn't exist in old database schema
             pass
-        # SECURITY FIX: Password is stored in Connection object, should be wiped after use
         conn = Connection(
             id=row["id"],
             name=row["name"],
@@ -340,7 +381,6 @@ class UserConnectionManager:
             cli_access_enabled=bool(row["cli_access_enabled"]),
             cli_access_key=cli_key,
         )
-        # Note: Caller should wipe conn.password after use
         return conn
 
     def get_all(self) -> List[Connection]:
@@ -362,14 +402,12 @@ class UserConnectionManager:
         return self._row_to_conn(row) if row else None
 
     def get_by_cli_key(self, cli_key: str) -> Optional[Connection]:
-        """Sucht eine Verbindung anhand des CLI-Keys (global)."""
+        """Sucht eine Verbindung anhand des CLI-Keys (global, nur verschlüsselte Keys nach Migration)."""
         with get_connection() as conn:
-            # SECURITY FIX: Check encrypted CLI keys
-            # For backward compatibility, also check plaintext format
             cli_key_enc, _ = self._encrypt_pw(cli_key)
             row = conn.execute(
-                "SELECT * FROM connections WHERE (cli_access_key = ? OR cli_access_key = ?) AND cli_access_enabled = 1",
-                (cli_key, cli_key_enc)
+                "SELECT * FROM connections WHERE cli_access_key = ? AND cli_access_key_iv IS NOT NULL AND cli_access_enabled = 1",
+                (cli_key_enc,)
             ).fetchone()
         return self._row_to_conn(row) if row else None
 

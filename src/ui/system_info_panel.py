@@ -46,7 +46,7 @@ class SSHSystemInfoThread(QThread):
     """Fetches system info via SSH in background."""
 
     info_ready = pyqtSignal(dict)
-    error = pyqtSignal(str)
+    error = pyqtSignal(str, str)  # (error_msg, error_type) where error_type can be "key_missing" or "generic"
 
     def __init__(self, conn: Connection, settings=None):
         super().__init__()
@@ -59,9 +59,13 @@ class SSHSystemInfoThread(QThread):
             info = self._gather_info()
             if not self._stopped:
                 self.info_ready.emit(info)
+        except ValueError as e:
+            # ValueError from _build_ssh_command when key is missing
+            if not self._stopped:
+                self.error.emit(str(e), "key_missing")
         except Exception as e:
             if not self._stopped:
-                self.error.emit(str(e))
+                self.error.emit(str(e), "generic")
 
     def stop(self):
         self._stopped = True
@@ -489,6 +493,7 @@ class SystemInfoPanel(QFrame):
             self._loading_icon.setText("⏳")
             self._loading_title.setText(tr("sysinfo.loading"))
             self._loading_dots.setText("…")
+            self._loading_dots.show()
         self._loading_overlay.setVisible(visible)
         if self._loading_anim_timer:
             if visible and not self._loading_anim_timer.isActive():
@@ -506,6 +511,7 @@ class SystemInfoPanel(QFrame):
         self._loading_dots.setText(body)
         self._loading_overlay.show()
         self._content.hide()
+        self._loading_dots.show()
 
     def _make_section_card(self, title: str):
         frame = QFrame()
@@ -669,13 +675,13 @@ class SystemInfoPanel(QFrame):
         ip = info.get("ip", "—")
         self._ip_row._value_lbl.setText(ip)
 
-    def _on_error(self, msg: str):
+    def _on_error(self, msg: str, error_type: str = "generic"):
         self._set_loading_overlay_visible(False)
-        if tr("sysinfo.key_required") in msg:
+        if error_type == "key_missing":
             self._loading_lbl.hide()
             self._state_card.hide()
             self._show_overlay_error(
-                "🙈",
+                "🤷",
                 tr("sysinfo.key_missing.title"),
                 tr("sysinfo.key_missing.desc"),
             )

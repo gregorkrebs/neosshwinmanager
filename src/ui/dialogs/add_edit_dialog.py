@@ -155,6 +155,11 @@ class AddEditDialog(QDialog):
         self._name_edit.setPlaceholderText(tr("addedit.placeholder.name"))
         form.addWidget(self._name_edit)
 
+        name_hint = QLabel(tr("addedit.name.hint"))
+        name_hint.setObjectName("hintLabel")
+        name_hint.setWordWrap(True)
+        form.addWidget(name_hint)
+
         form.addWidget(self._field_label(tr("addedit.label.host")))
         self._host_edit = QLineEdit()
         self._host_edit.setPlaceholderText("192.168.1.1 or server.example.com")

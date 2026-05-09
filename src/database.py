@@ -89,11 +89,13 @@ def get_db_path() -> Path:
     db_dir = Path(appdata) / "SSHWinManager"
     db_dir.mkdir(parents=True, exist_ok=True)
     db_path = db_dir / "data.db"
-    
+
     # SECURITY FIX: Set secure permissions on database file
     if db_path.exists():
         _set_secure_permissions(db_path)
-    
+    else:
+        _db_logger.info(f"Neue Datenbankdatei erstellt: {db_path}")
+
     return db_path
 
 

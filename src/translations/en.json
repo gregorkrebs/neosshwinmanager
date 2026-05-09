@@ -128,6 +128,8 @@
 
   "about.title": "About NEO SSH-Win Manager",
   "about.desc": "A modern GUI frontend for sshfs-win.\nMount remote SSH filesystems as Windows drive letters.",
+  "about.what_it_does.title": "Features",
+  "about.what_it_does.body": "Mount remote SSH filesystems as Windows drive letters with one click. Multi-user support with encrypted credential storage. Built-in SSH terminal, system info panel, live tray toggles, and optional CLI companion for automation. Built on WinFsp + SSHFS-Win.",
   "about.requires": "Requires: WinFsp + SSHFS-Win",
   "about.developers": "Developers",
   "about.version": "Version {version}",
@@ -138,6 +140,7 @@
   "about.author.section": "Author",
   "about.author.website.btn": "Website",
   "about.author.github.btn": "GitHub",
+  "about.author.neossh.btn": "NEO SSH",
   "about.other.devs": "Additional Contributors",
   "about.open_source": "Open Source · MIT License",
 
@@ -236,6 +239,7 @@
   "addedit.required.host": "Host must not be empty.",
   "addedit.required.user": "User must not be empty.",
   "addedit.name.invalid": "Connection name contains invalid characters (allowed: letters, digits, spaces, - _ .)",
+  "addedit.name.hint": "Allowed characters: letters, numbers, spaces, hyphens, underscores, and dots.",
 
   "sysinfo.title": "System Info – {name}",
   "sysinfo.loading": "Loading system information…",

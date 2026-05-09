@@ -128,6 +128,8 @@
 
   "about.title": "Über NEO SSH-Win Manager",
   "about.desc": "Eine moderne Oberfläche für sshfs-win.\nRemote-SSH-Dateisysteme als Windows-Laufwerke einbinden.",
+  "about.what_it_does.title": "Funktionen",
+  "about.what_it_does.body": "Remote-SSH-Dateisysteme mit einem Klick als Windows-Laufwerke einbinden. Multi-User-Unterstützung mit verschlüsselbarem Credential-Storage. SSH-Terminal, Systeminfo-Panel, Live-Tray-Schalter und optionaler CLI-Begleiter für Automatisierung. Basiert auf WinFsp + SSHFS-Win.",
   "about.requires": "Benötigt: WinFsp + SSHFS-Win",
   "about.developers": "Entwickler",
   "about.version": "Version {version}",
@@ -138,6 +140,7 @@
   "about.author.section": "Autor",
   "about.author.website.btn": "Website",
   "about.author.github.btn": "GitHub",
+  "about.author.neossh.btn": "NEO SSH",
   "about.other.devs": "Weitere Mitwirkende",
   "about.open_source": "Open Source · MIT-Lizenz",
 
@@ -236,6 +239,7 @@
   "addedit.required.host": "Host darf nicht leer sein.",
   "addedit.required.user": "Benutzer darf nicht leer sein.",
   "addedit.name.invalid": "Verbindungsname enthält ungültige Zeichen (erlaubt: Buchstaben, Ziffern, Leerzeichen, - _ .)",
+  "addedit.name.hint": "Erlaubte Zeichen: Buchstaben, Ziffern, Leerzeichen, Bindestriche, Unterstriche und Punkte.",
 
   "sysinfo.title": "Systeminfo – {name}",
   "sysinfo.loading": "Lade Systeminformationen…",
