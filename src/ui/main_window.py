@@ -2848,53 +2848,111 @@ class MainWindow(QMainWindow):
         """Debug the widget currently under the mouse cursor (triggered by F2)."""
         from PyQt6.QtWidgets import QApplication
         from PyQt6.QtGui import QCursor
-        
-        # Get widget under mouse cursor using global cursor position
-        cursor_pos = QCursor.pos()
-        widget = QApplication.widgetAt(cursor_pos)
-        
-        if widget:
-            self._log_widget_debug_info(widget)
-        else:
-            msg = "DEBUG: No widget under mouse cursor"
-            print(msg)
-            logger.debug(msg)
-            if hasattr(self, '_debug_window') and self._debug_window:
-                self._debug_window.append_log(msg + "\n")
+
+        try:
+            # Get widget under mouse cursor using global cursor position
+            cursor_pos = QCursor.pos()
+            widget = QApplication.widgetAt(cursor_pos)
+
+            if widget:
+                self._log_widget_debug_info(widget)
+            else:
+                msg = "DEBUG: No widget under mouse cursor"
+                print(msg)
+                logger.debug(msg)
+                try:
+                    if hasattr(self, '_debug_window') and self._debug_window:
+                        self._debug_window.append_log(msg + "\n")
+                except RuntimeError:
+                    pass  # _debug_window C++ object deleted
+        except Exception as e:
+            logger.exception(f"F2 debug: Error getting widget under mouse: {e}")
 
     def _log_widget_debug_info(self, widget):
         """Log detailed widget information to debug console, logger, and statusbar."""
-        # Collect widget information
-        widget_info = {
-            'widget_type': type(widget).__name__,
-            'object_name': widget.objectName(),
-            'text': getattr(widget, 'text', lambda: 'N/A')(),
-            'tooltip': getattr(widget, 'toolTip', lambda: 'N/A')(),
-            'accessible_name': getattr(widget, 'accessibleName', lambda: 'N/A')(),
-            'parent': type(widget.parent()).__name__ if widget.parent() else None,
-            'visible': widget.isVisible(),
-            'enabled': widget.isEnabled(),
-            'geometry': f"{widget.geometry().width()}x{widget.geometry().height()} at ({widget.geometry().x()}, {widget.geometry().y()})",
-            'style_sheet': widget.styleSheet()[:100] + '...' if len(widget.styleSheet()) > 100 else widget.styleSheet()
-        }
-        
-        # Format debug message
-        debug_msg = "=== DEBUG: Widget Under Mouse ===\n"
-        for key, value in widget_info.items():
-            debug_msg += f"{key.upper()}: {value}\n"
-        debug_msg += "================================\n"
-        
-        # Log to debug console
-        print(debug_msg)
-        
-        # Log to file logger
-        logger.debug(debug_msg)
-        
-        # Log to debug window if exists
-        if hasattr(self, '_debug_window') and self._debug_window:
-            self._debug_window.append_log(debug_msg)
-        
-        # Log to statusbar
-        status_msg = f"DEBUG: {widget_info['widget_type']} | {widget_info['object_name'] or 'No Name'} | {widget_info['text'][:30] if widget_info['text'] != 'N/A' else 'N/A'}"
-        if hasattr(self, 'statusBar') and self.statusBar():
-            self.statusBar().showMessage(status_msg, 5000)
+        try:
+            # Safe text extraction — handle non-callable attributes
+            text_attr = getattr(widget, 'text', None)
+            if callable(text_attr):
+                try:
+                    widget_text = text_attr()
+                except Exception:
+                    widget_text = 'N/A'
+            else:
+                widget_text = str(text_attr) if text_attr is not None else 'N/A'
+
+            # Safe tooltip extraction
+            tooltip_attr = getattr(widget, 'toolTip', None)
+            if callable(tooltip_attr):
+                try:
+                    widget_tooltip = tooltip_attr()
+                except Exception:
+                    widget_tooltip = 'N/A'
+            else:
+                widget_tooltip = str(tooltip_attr) if tooltip_attr is not None else 'N/A'
+
+            # Safe accessible name extraction
+            acc_name_attr = getattr(widget, 'accessibleName', None)
+            if callable(acc_name_attr):
+                try:
+                    widget_acc_name = acc_name_attr()
+                except Exception:
+                    widget_acc_name = 'N/A'
+            else:
+                widget_acc_name = str(acc_name_attr) if acc_name_attr is not None else 'N/A'
+
+            # Safe stylesheet extraction — read once to avoid deleted C++ object errors
+            try:
+                stylesheet = widget.styleSheet()
+            except RuntimeError:
+                stylesheet = ''
+            style_sheet = stylesheet[:100] + '...' if len(stylesheet) > 100 else stylesheet
+
+            # Safe parent class name
+            try:
+                parent = type(widget.parent()).__name__ if widget.parent() else None
+            except RuntimeError:
+                parent = 'N/A'
+
+            # Collect widget information
+            widget_info = {
+                'widget_type': type(widget).__name__,
+                'object_name': widget.objectName(),
+                'text': widget_text,
+                'tooltip': widget_tooltip,
+                'accessible_name': widget_acc_name,
+                'parent': parent,
+                'visible': widget.isVisible(),
+                'enabled': widget.isEnabled(),
+                'geometry': f"{widget.geometry().width()}x{widget.geometry().height()} at ({widget.geometry().x()}, {widget.geometry().y()})",
+                'style_sheet': style_sheet,
+            }
+
+            # Format debug message
+            debug_msg = "=== DEBUG: Widget Under Mouse ===\n"
+            for key, value in widget_info.items():
+                debug_msg += f"{key.upper()}: {value}\n"
+            debug_msg += "================================\n"
+
+            # Log to debug console
+            print(debug_msg)
+
+            # Log to file logger
+            logger.debug(debug_msg)
+
+            # Log to debug window if exists — with RuntimeError protection
+            try:
+                if hasattr(self, '_debug_window') and self._debug_window:
+                    self._debug_window.append_log(debug_msg)
+            except RuntimeError:
+                pass  # _debug_window C++ object deleted
+
+            # Log to statusbar
+            status_msg = f"DEBUG: {widget_info['widget_type']} | {widget_info['object_name'] or 'No Name'} | {widget_info['text'][:30] if widget_info['text'] != 'N/A' else 'N/A'}"
+            if hasattr(self, 'statusBar') and self.statusBar():
+                self.statusBar().showMessage(status_msg, 5000)
+
+        except RuntimeError as e:
+            logger.debug(f"F2 debug: Widget already deleted: {e}")
+        except Exception as e:
+            logger.exception(f"F2 debug: Unexpected error while logging widget info: {e}")
