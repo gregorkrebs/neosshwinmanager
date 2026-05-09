@@ -11,11 +11,11 @@ from PyQt6.QtWidgets import (
     QPushButton, QFrame, QCheckBox, QMessageBox, QTabWidget, QWidget,
     QScrollArea, QApplication
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer
 from PyQt6.QtGui import QFont, QIcon
 import os
 
-from src.auth_manager import AuthManager, Session
+from src.auth_manager import AuthManager, Session, LoginLockedError
 from src.crypto import is_available
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.ui.icons import icon as svg_icon
@@ -147,15 +147,25 @@ class LoginDialog(QDialog):
         self._login_error = QLabel("")
         self._login_error.setObjectName("errorLabel")
         self._login_error.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._login_error.setWordWrap(True)
         self._login_error.setVisible(False)
         layout.addWidget(self._login_error)
 
-        btn = QPushButton(tr("login.sign_in"))
-        btn.setObjectName("primaryBtn")
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setMinimumHeight(34)
-        btn.clicked.connect(self._do_login)
-        layout.addWidget(btn)
+        self._login_btn = QPushButton(tr("login.sign_in"))
+        self._login_btn.setObjectName("primaryBtn")
+        self._login_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._login_btn.setMinimumHeight(34)
+        self._login_btn.setEnabled(False)
+        self._login_btn.clicked.connect(self._do_login)
+        layout.addWidget(self._login_btn)
+
+        self._login_user.textChanged.connect(self._update_login_btn_state)
+        self._login_pw.textChanged.connect(self._update_login_btn_state)
+
+        self._lockout_timer = QTimer(self)
+        self._lockout_timer.setInterval(1000)
+        self._lockout_timer.timeout.connect(self._tick_lockout)
+        self._lockout_remaining = 0
 
         self._login_user.setFocus()
 
@@ -191,15 +201,21 @@ class LoginDialog(QDialog):
     # Actions
     # ------------------------------------------------------------------
 
+    def _update_login_btn_state(self):
+        enabled = bool(self._login_user.text().strip()) and bool(self._login_pw.text())
+        self._login_btn.setEnabled(enabled)
+
     def _do_login(self):
         username = self._login_user.text().strip()
         password = self._login_pw.text()
 
-        if not username or not password:
-            self._show_login_error(tr("login.fill_all"))
+        try:
+            user = AuthManager.authenticate(username, password)
+        except LoginLockedError as e:
+            self._start_lockout_countdown(e.seconds_remaining, e.total_failures)
+            self._login_pw.clear()
             return
 
-        user = AuthManager.authenticate(username, password)
         if user is None:
             self._show_login_error(tr("login.invalid"))
             self._login_pw.clear()
@@ -208,6 +224,40 @@ class LoginDialog(QDialog):
 
         Session.login(user)
         self.accept()
+
+    def _start_lockout_countdown(self, seconds: int, total_failures: int):
+        self._lockout_remaining = seconds
+        self._login_btn.setEnabled(False)
+        self._login_user.setEnabled(False)
+        self._login_pw.setEnabled(False)
+        self._update_lockout_label()
+        self._lockout_timer.start()
+
+    def _tick_lockout(self):
+        self._lockout_remaining -= 1
+        if self._lockout_remaining <= 0:
+            self._lockout_timer.stop()
+            self._login_user.setEnabled(True)
+            self._login_pw.setEnabled(True)
+            self._login_error.setVisible(False)
+            self._update_login_btn_state()
+            self._login_pw.setFocus()
+        else:
+            self._update_lockout_label()
+
+    def _update_lockout_label(self):
+        s = self._lockout_remaining
+        if s >= 86400:
+            human = f"{s // 86400}T {(s % 86400) // 3600}h"
+        elif s >= 3600:
+            h = s // 3600
+            m = (s % 3600) // 60
+            human = f"{h}h {m:02d}m" if m else f"{h}h"
+        elif s >= 60:
+            human = f"{s // 60}m {s % 60:02d}s"
+        else:
+            human = f"{s}s"
+        self._show_login_error(tr("login.locked", time=human))
 
     def _do_register(self):
         username = self._reg_user.text().strip()
