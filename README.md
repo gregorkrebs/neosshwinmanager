@@ -80,6 +80,16 @@ Manage multiple SSH connections, mount them with one click, switch languages per
       <sub><b>Per-user login</b></sub>
     </td>
   </tr>
+  <tr>
+    <td align="center">
+      <img src="assets/screenshots/user_management.png" alt="User management" width="380"/><br/>
+      <sub><b>User management</b></sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/settings.png" alt="Settings dialog" width="380"/><br/>
+      <sub><b>Settings dialog</b></sub>
+    </td>
+  </tr>
 </table>
 
 ## Browser Demo
