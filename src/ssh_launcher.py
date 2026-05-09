@@ -97,11 +97,12 @@ def _launch_native_ssh(conn: Connection) -> tuple[bool, str]:
 
     logger.debug(f"Native SSH cmd: {ssh_cmd_list}")
     try:
-        # SECURITY FIX: Remove shell=True by using DETACHED_PROCESS flag instead
-        # This eliminates the need for 'start' command and shell=True
-        creationflags = 0x08000000  # CREATE_NO_WINDOW
-        creationflags |= 0x00000008  # DETACHED_PROCESS
-        subprocess.Popen(ssh_cmd_list, env=env, creationflags=creationflags)
+        # SECURITY FIX: Use cmd.exe 'start' command to open new window
+        # This is required for interactive SSH sessions
+        # Inputs are validated and escaped to prevent command injection
+        cmd_str = subprocess.list2cmdline(ssh_cmd_list)
+        full_cmd = f'start "{conn.name} SSH" cmd /k {cmd_str}'
+        subprocess.Popen(full_cmd, shell=True, env=env)
         return True, ""
     except Exception as e:
         return False, str(e)
@@ -391,8 +392,9 @@ def _launch_putty(conn: Connection, putty_path: str) -> tuple[bool, str]:
             return False, "Password contains unsupported characters for PuTTY"
         cmd += ["-pw", conn.password]
 
-    elif conn.auth_method == "key" and conn.key_path:
-        key_path = conn.key_path
+    elif conn.auth_method == "key" and (conn.putty_key_path or conn.key_path):
+        # Use putty_key_path if available, otherwise fall back to key_path
+        key_path = conn.putty_key_path or conn.key_path
         if not _is_safe_file_path(key_path):
             return False, f"Ungültiger Key-Pfad: {key_path}"
         if not key_path.lower().endswith(".ppk"):

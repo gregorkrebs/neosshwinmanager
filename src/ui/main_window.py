@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QRadioButton, QDialogButtonBox,
     QInputDialog, QSplitter, QSplitterHandle, QSizePolicy, QStackedWidget
 )
-from PyQt6.QtGui import QFont, QIcon, QPainter, QColor, QPen, QBrush
+from PyQt6.QtGui import QFont, QIcon, QPainter, QColor, QPen, QBrush, QShortcut, QKeySequence
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot, QSize
 import os
 import ctypes
@@ -26,6 +26,7 @@ from src.ui.debug_window import DebugWindow
 from src.app_logger import logger
 from src.ui.worker import MountWorker, UnmountWorker
 from src.ui.icons import icon as svg_icon
+from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelSpinBox
 from src.i18n import tr, current_language, available_languages
 from PyQt6.QtCore import QThread
 
@@ -75,12 +76,15 @@ class MainWindow(QMainWindow):
         self._workers: dict[str, QThread] = {}
         self._panel_mode: str = _PANEL_NONE
         self._panel_conn_id: str | None = None   # which connection the panel belongs to
+        self._ef_initial_snapshot: dict | None = None
+        self._saving_in_progress = False
+        self._shortcuts: list[QShortcut] = []
         
         # Debug mode settings
         self._debug_mode = False  # Can be toggled via F2
 
         self.setObjectName("MainWindow")
-        self.setWindowTitle("NEO SSH-Win Manager v1.3.1")
+        self.setWindowTitle("NEO SSH-Win Manager v1.3.2")
         self.setMinimumSize(820, 520)
         self.resize(1100, 640)
 
@@ -106,9 +110,10 @@ class MainWindow(QMainWindow):
         self._setup_ipc()
 
         # Setup keyboard shortcut for debug mode toggle (F2)
-        from PyQt6.QtGui import QShortcut, QKeySequence
         debug_shortcut = QShortcut(QKeySequence("F2"), self)
         debug_shortcut.activated.connect(self._debug_widget_under_mouse)
+        self._shortcuts.append(debug_shortcut)
+        self._install_shortcuts()
 
         self._poll_timer = QTimer(self)
         self._poll_timer.timeout.connect(self._poll_mount_states)
@@ -400,6 +405,7 @@ class MainWindow(QMainWindow):
         self._rp_info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._rp_info_btn.clicked.connect(self._on_rp_info_clicked)
         self._rp_info_btn.setVisible(False)
+        self._rp_info_btn.setAccessibleName(tr("card.tooltip.info"))
         hh.addWidget(self._rp_info_btn)
 
         # Edit button (shown in info mode)
@@ -412,19 +418,70 @@ class MainWindow(QMainWindow):
         self._rp_edit_btn.setToolTip(tr("card.tooltip.edit"))
         self._rp_edit_btn.clicked.connect(self._on_rp_edit_clicked)
         self._rp_edit_btn.setVisible(False)
+        self._rp_edit_btn.setAccessibleName(tr("card.tooltip.edit"))
         hh.addWidget(self._rp_edit_btn)
+
+        # Terminal button (shown in info/sysinfo mode)
+        self._rp_terminal_btn = QPushButton()
+        self._rp_terminal_btn.setObjectName("rpHeaderBtn")
+        self._rp_terminal_btn.setFixedSize(QSize(32, 32))
+        self._rp_terminal_btn.setIcon(svg_icon("terminal", "#aab4c4", 15))
+        self._rp_terminal_btn.setIconSize(QSize(15, 15))
+        self._rp_terminal_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rp_terminal_btn.setToolTip(tr("card.tooltip.ssh"))
+        self._rp_terminal_btn.clicked.connect(self._on_rp_terminal_clicked)
+        self._rp_terminal_btn.setVisible(False)
+        self._rp_terminal_btn.setAccessibleName(tr("card.tooltip.ssh"))
+        hh.addWidget(self._rp_terminal_btn)
+
+        # Mount/Unmount button (shown in info/sysinfo mode)
+        self._rp_mount_btn = QPushButton()
+        self._rp_mount_btn.setObjectName("rpHeaderBtn")
+        self._rp_mount_btn.setFixedSize(QSize(32, 32))
+        self._rp_mount_btn.setIconSize(QSize(15, 15))
+        self._rp_mount_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rp_mount_btn.clicked.connect(self._on_rp_mount_clicked)
+        self._rp_mount_btn.setVisible(False)
+        hh.addWidget(self._rp_mount_btn)
 
         # Delete button (shown in info/edit mode)
         self._rp_del_btn = QPushButton()
         self._rp_del_btn.setObjectName("rpHeaderBtn")
+        self._rp_del_btn.setProperty("btn_type", "danger")
         self._rp_del_btn.setFixedSize(QSize(32, 32))
-        self._rp_del_btn.setIcon(svg_icon("trash", "#ef4444", 15))
+        # Icon is white on danger background
+        self._rp_del_btn.setIcon(svg_icon("trash", "#ffffff", 15))
         self._rp_del_btn.setIconSize(QSize(15, 15))
         self._rp_del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._rp_del_btn.setToolTip(tr("main.delete"))
         self._rp_del_btn.clicked.connect(self._on_delete)
         self._rp_del_btn.setVisible(False)
+        self._rp_del_btn.setAccessibleName(tr("main.delete"))
         hh.addWidget(self._rp_del_btn)
+
+        self._rp_save_top_btn = QPushButton()
+        self._rp_save_top_btn.setObjectName("rpHeaderSaveBtn")
+        self._rp_save_top_btn.setFixedSize(QSize(32, 32))
+        self._rp_save_top_btn.setIcon(svg_icon("check", "#deebf7", 15))
+        self._rp_save_top_btn.setIconSize(QSize(15, 15))
+        self._rp_save_top_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rp_save_top_btn.setToolTip(tr("card.tooltip.save_top"))
+        self._rp_save_top_btn.clicked.connect(self._on_rp_save)
+        self._rp_save_top_btn.setVisible(False)
+        self._rp_save_top_btn.setAccessibleName(tr("card.tooltip.save_top"))
+        hh.addWidget(self._rp_save_top_btn)
+
+        self._rp_cancel_top_btn = QPushButton()
+        self._rp_cancel_top_btn.setObjectName("rpHeaderBtn")
+        self._rp_cancel_top_btn.setFixedSize(QSize(32, 32))
+        self._rp_cancel_top_btn.setIcon(svg_icon("x", "#aab4c4", 15))
+        self._rp_cancel_top_btn.setIconSize(QSize(15, 15))
+        self._rp_cancel_top_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rp_cancel_top_btn.setToolTip(tr("card.tooltip.cancel_top"))
+        self._rp_cancel_top_btn.clicked.connect(self._on_rp_cancel)
+        self._rp_cancel_top_btn.setVisible(False)
+        self._rp_cancel_top_btn.setAccessibleName(tr("card.tooltip.cancel_top"))
+        hh.addWidget(self._rp_cancel_top_btn)
 
         # Close button
         self._rp_close_btn = QPushButton()
@@ -435,6 +492,7 @@ class MainWindow(QMainWindow):
         self._rp_close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._rp_close_btn.setToolTip(tr("dialog.close"))
         self._rp_close_btn.clicked.connect(self._close_right_panel)
+        self._rp_close_btn.setAccessibleName(tr("dialog.close"))
         hh.addWidget(self._rp_close_btn)
 
         v.addWidget(header)
@@ -464,11 +522,13 @@ class MainWindow(QMainWindow):
         self._rp_cancel_btn = QPushButton(tr("dialog.cancel"))
         self._rp_cancel_btn.setObjectName("secondaryBtn")
         self._rp_cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rp_cancel_btn.setToolTip(tr("card.tooltip.cancel_top"))
         self._rp_cancel_btn.clicked.connect(self._on_rp_cancel)
         bb.addWidget(self._rp_cancel_btn)
         self._rp_save_btn = QPushButton(tr("dialog.save"))
         self._rp_save_btn.setObjectName("primaryBtn")
         self._rp_save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rp_save_btn.setToolTip(tr("card.tooltip.save_top"))
         self._rp_save_btn.clicked.connect(self._on_rp_save)
         bb.addWidget(self._rp_save_btn)
         self._rp_btn_bar.setVisible(False)
@@ -497,7 +557,7 @@ class MainWindow(QMainWindow):
         self._mount_count_lbl.setObjectName("versionLabel")
         h.addWidget(self._mount_count_lbl)
 
-        ver_lbl = QLabel("  v1.3.1")
+        ver_lbl = QLabel("  v1.3.2")
         ver_lbl.setObjectName("versionLabel")
         h.addWidget(ver_lbl)
 
@@ -593,13 +653,15 @@ class MainWindow(QMainWindow):
 
     def _nav_home(self):
         """Return to connections view and reset sidebar to home."""
+        if not self._guard_leave_form():
+            return
         self._clear_fs_content()
         self._set_fullscreen_header("", "", False)
         self._main_stack.setCurrentIndex(0)
         self._panel_mode = _PANEL_NONE
         self._panel_conn_id = None
         self._set_sidebar_active("home")
-        self._close_right_panel()
+        self._close_right_panel_force()
 
     def _on_fs_save(self):
         if self._panel_mode == _PANEL_SETTINGS:
@@ -673,6 +735,19 @@ class MainWindow(QMainWindow):
             w = item.widget()
             if w:
                 w.deleteLater()
+        # Prevent stale references to deleted Qt widgets from later save/click handlers.
+        self._reset_edit_form_refs()
+
+    def _reset_edit_form_refs(self):
+        """Clear edit/add form widget references after panel content gets rebuilt."""
+        for attr in (
+            "_ef_conn", "_ef_name", "_ef_host", "_ef_user", "_ef_path", "_ef_port",
+            "_ef_drive", "_ef_auth", "_ef_pw", "_ef_key", "_ef_cli_cb",
+            "_ef_cli_widget", "_ef_cli_key", "_ef_cli_copy_btn", "_ef_cli_gen_btn",
+            "_ef_putty_key"
+        ):
+            setattr(self, attr, None)
+        self._ef_initial_snapshot = None
 
     def _ensure_panel_sized(self):
         """Give the right panel a visible size the first time it opens."""
@@ -709,7 +784,11 @@ class MainWindow(QMainWindow):
         self._set_right_panel_header()
         self._rp_info_btn.setVisible(False)
         self._rp_edit_btn.setVisible(False)
+        self._rp_terminal_btn.setVisible(False)
+        self._rp_mount_btn.setVisible(False)
         self._rp_del_btn.setVisible(False)
+        self._rp_save_top_btn.setVisible(False)
+        self._rp_cancel_top_btn.setVisible(False)
         self._rp_close_btn.setVisible(False)
         self._rp_btn_bar.setVisible(False)
 
@@ -751,6 +830,12 @@ class MainWindow(QMainWindow):
 
     def _close_right_panel(self):
         """Reset the right panel to its placeholder state and deselect."""
+        if not self._guard_leave_form():
+            return
+        self._close_right_panel_force()
+
+    def _close_right_panel_force(self):
+        """Close right panel without dirty-check prompt."""
         # Deactivate info btn on previously active card
         if self._panel_conn_id and self._panel_conn_id in self._cards:
             self._cards[self._panel_conn_id].set_info_active(False)
@@ -767,6 +852,9 @@ class MainWindow(QMainWindow):
 
     def _open_info_panel(self, conn_id: str):
         """Show connection details (host data / credentials) for the given connection."""
+        if (self._panel_mode in (_PANEL_EDIT, _PANEL_ADD)) and (conn_id != self._panel_conn_id):
+            if not self._guard_leave_form():
+                return
         conn = self._mgr.get_by_id(conn_id)
         if not conn:
             return
@@ -795,7 +883,14 @@ class MainWindow(QMainWindow):
         self._rp_edit_btn.setToolTip(
             tr("card.tooltip.edit_locked") if is_mounted else tr("card.tooltip.edit")
         )
+        # Header actions (overview): Sysinfo → Edit → Terminal → Mount → Close
+        self._rp_terminal_btn.setVisible(True)
+        self._rp_mount_btn.setVisible(True)
+        self._sync_rp_mount_button(conn_id)
+
         self._rp_del_btn.setVisible(False)
+        self._rp_save_top_btn.setVisible(False)
+        self._rp_cancel_top_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
         self._rp_btn_bar.setVisible(False)
 
@@ -806,6 +901,9 @@ class MainWindow(QMainWindow):
 
     def _open_sysinfo_panel(self, conn_id: str):
         """Show system info (SSH stats) for the given connection — always, regardless of mount."""
+        if self._panel_mode in (_PANEL_EDIT, _PANEL_ADD):
+            if not self._guard_leave_form():
+                return
         conn = self._mgr.get_by_id(conn_id)
         if not conn:
             return
@@ -823,7 +921,12 @@ class MainWindow(QMainWindow):
         self._set_right_panel_header(tr("panel.header.sysinfo"), conn.name.upper())
         self._rp_info_btn.setVisible(False)
         self._rp_edit_btn.setVisible(False)
+        self._rp_terminal_btn.setVisible(True)
+        self._rp_mount_btn.setVisible(True)
+        self._sync_rp_mount_button(conn_id)
         self._rp_del_btn.setVisible(False)
+        self._rp_save_top_btn.setVisible(False)
+        self._rp_cancel_top_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
         self._rp_btn_bar.setVisible(False)
 
@@ -835,6 +938,9 @@ class MainWindow(QMainWindow):
     def _build_info_content(self, conn: Connection):
         """Build the read-only info view for the right panel."""
         is_mounted = (conn.id in self._cards and self._cards[conn.id].is_mounted)
+
+        _theme = (self._mgr.get_settings().theme or "dark")
+        _val_color = "#ffffff" if _theme == "dark" else "#1a2332"
 
         body = QWidget()
         body.setObjectName("rpInfoBody")
@@ -852,13 +958,7 @@ class MainWindow(QMainWindow):
             container = QFrame()
             container.setObjectName("rpInfoField")
             container.setFixedHeight(54)  # Match height of input fields in edit mode
-            container.setStyleSheet("""
-                QFrame#rpInfoField {
-                    background-color: #14141F;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 12px;
-                }
-            """)
+
             
             vl = QVBoxLayout(container)
             vl.setContentsMargins(16, 8, 16, 8)
@@ -871,8 +971,8 @@ class MainWindow(QMainWindow):
             
             val = QLabel(str(value) if value else "—")
             val.setObjectName(value_obj_name)
-            val.setStyleSheet("color: #ffffff; font-size: 14px; font-weight: 400;")
-            
+            val.setStyleSheet(f"color: {_val_color}; font-size: 14px; font-weight: 400; padding: 0; background: transparent; border: none;")
+    
             vl.addWidget(lbl)
             vl.addWidget(val)
             
@@ -915,7 +1015,7 @@ class MainWindow(QMainWindow):
         status_layout.addWidget(dot_container)
         
         # Status text
-        status_text = QLabel("Verbunden" if is_mounted else "Getrennt")
+        status_text = QLabel(tr("panel.status.connected") if is_mounted else tr("panel.status.disconnected"))
         status_text.setStyleSheet(f"color: {'#00d464' if is_mounted else '#8a9aa8'}; font-weight: 600; font-size: 13px;")
         status_layout.addWidget(status_text)
         status_row.addWidget(status_container)
@@ -961,39 +1061,23 @@ class MainWindow(QMainWindow):
 
         v.addStretch()
 
-        action_row = QHBoxLayout()
-        action_row.setSpacing(10)
-        edit_btn = QPushButton(tr("addedit.edit_title"))
-        edit_btn.setObjectName("rpActionBtn")
-        edit_btn.setProperty("btn_type", "primary")
-        edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        edit_btn.setEnabled(not is_mounted)
-        edit_btn.setToolTip(
-            tr("card.tooltip.edit_locked") if is_mounted else tr("card.tooltip.edit")
-        )
-        edit_btn.clicked.connect(lambda: self._open_edit_panel(conn.id))
-        action_row.addWidget(edit_btn)
-
-        delete_btn = QPushButton(tr("main.delete"))
-        delete_btn.setObjectName("rpActionBtn")
-        delete_btn.setProperty("btn_type", "danger")
-        delete_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        delete_btn.clicked.connect(self._on_delete)
-        action_row.addWidget(delete_btn)
-        v.addLayout(action_row)
-
         self._rp_layout.addWidget(body)
 
     def _build_sysinfo_fullpanel(self, conn: Connection):
         """Fill the right panel content area with SystemInfoPanel (mounted state)."""
         from src.ui.system_info_panel import SystemInfoPanel
-        sip = SystemInfoPanel(conn, parent=self._rp_content)
+        try:
+            sip = SystemInfoPanel(conn, parent=self._rp_content, settings=self._mgr.get_settings())
+        except AttributeError:
+            sip = SystemInfoPanel(conn, parent=self._rp_content)
         sip.setObjectName("sysinfoFullPanel")
         self._rp_layout.addWidget(sip)
         self._current_info_panel = sip
 
     def _open_edit_panel(self, conn_id: str):
         """Show the inline edit form for the given connection."""
+        if not self._guard_leave_form():
+            return
         conn = self._mgr.get_by_id(conn_id)
         if not conn:
             return
@@ -1017,11 +1101,18 @@ class MainWindow(QMainWindow):
             card.set_info_active(True)
 
         self._set_right_panel_header(tr("addedit.edit_title"), tr("addedit.edit_title").upper())
+        # Edit-Mode: only destructive/save/discard actions in header
         self._rp_info_btn.setVisible(False)
         self._rp_edit_btn.setVisible(False)
-        self._rp_del_btn.setVisible(False)
-        self._rp_close_btn.setVisible(True)
-        self._rp_btn_bar.setVisible(True)
+        self._rp_terminal_btn.setVisible(False)
+        self._rp_mount_btn.setVisible(False)
+        self._rp_del_btn.setVisible(True)
+        self._rp_del_btn.setEnabled(True)
+        self._rp_save_top_btn.setVisible(True)
+        self._rp_cancel_top_btn.setVisible(True)
+        # Avoid duplicate close/discard UX (and double dirty-prompts)
+        self._rp_close_btn.setVisible(False)
+        self._rp_btn_bar.setVisible(False)
 
         self._clear_right_panel_content()
         self._build_edit_form(conn)
@@ -1030,14 +1121,27 @@ class MainWindow(QMainWindow):
 
     def _open_add_panel(self):
         """Show the inline add-connection form."""
-        self._close_right_panel()
+        if not self._guard_leave_form():
+            return
+        if self._panel_conn_id and self._panel_conn_id in self._cards:
+            self._cards[self._panel_conn_id].set_info_active(False)
+        if self._selected_id and self._selected_id in self._cards:
+            card = self._cards[self._selected_id]
+            card.setProperty("selected", False)
+            card.style().unpolish(card)
+            card.style().polish(card)
+        self._selected_id = None
         self._panel_mode = _PANEL_ADD
         self._panel_conn_id = None
 
         self._set_right_panel_header(tr("addedit.add_title"), tr("addedit.add_title").upper())
         self._rp_info_btn.setVisible(False)
         self._rp_edit_btn.setVisible(False)
+        self._rp_terminal_btn.setVisible(False)
+        self._rp_mount_btn.setVisible(False)
         self._rp_del_btn.setVisible(False)
+        self._rp_save_top_btn.setVisible(False)
+        self._rp_cancel_top_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
         self._rp_btn_bar.setVisible(True)
 
@@ -1048,6 +1152,8 @@ class MainWindow(QMainWindow):
 
     def _open_settings_panel(self):
         """Show the settings form full-screen. Toggle off if already open."""
+        if not self._guard_leave_form():
+            return
         if self._panel_mode == _PANEL_SETTINGS:
             self._nav_home()
             return
@@ -1065,6 +1171,8 @@ class MainWindow(QMainWindow):
 
     def _open_users_panel(self):
         """Show user management full-screen. Toggle off if already open."""
+        if not self._guard_leave_form():
+            return
         if self._panel_mode == _PANEL_USERS:
             self._nav_home()
             return
@@ -1451,7 +1559,7 @@ class MainWindow(QMainWindow):
         pc = QVBoxLayout()
         pc.setSpacing(4)
         pc.addWidget(self._field_label(tr("addedit.label.port")))
-        self._ef_port = QSpinBox()
+        self._ef_port = NoWheelSpinBox()
         self._ef_port.setRange(1, 65535)
         self._ef_port.setValue(conn.port if is_edit else 22)
         pc.addWidget(self._ef_port)
@@ -1466,7 +1574,7 @@ class MainWindow(QMainWindow):
         v.addWidget(self._ef_path)
 
         v.addWidget(self._field_label(tr("addedit.label.drive")))
-        self._ef_drive = QComboBox()
+        self._ef_drive = NoWheelComboBox()
         used = [c.drive_letter for c in self._mgr.get_all() if (not is_edit or c.id != conn.id)]
         available = get_available_drives(exclude=used)
         if is_edit:
@@ -1484,7 +1592,7 @@ class MainWindow(QMainWindow):
         v.addWidget(self._divider())
         v.addWidget(self._section_label(tr("addedit.section.auth")))
         v.addWidget(self._field_label(tr("addedit.label.method")))
-        self._ef_auth = QComboBox()
+        self._ef_auth = NoWheelComboBox()
         self._ef_auth.addItem(tr("addedit.auth.password"), "password")
         self._ef_auth.addItem(tr("addedit.auth.key"), "key")
         self._ef_auth.addItem(tr("addedit.auth.ask"), "ask")
@@ -1559,39 +1667,153 @@ class MainWindow(QMainWindow):
         if is_edit and conn.cli_access_enabled and not conn.cli_access_key:
             self._ef_generate_new_cli_key()
 
+        # ── PUTTY KEY ───────────────────────────────────────────────
+        # Only visible when PuTTY is enabled globally
+        s = self._mgr.get_settings()
+        if s.use_putty:
+            v.addWidget(self._divider())
+            v.addWidget(self._section_label("PuTTY"))
+            v.addWidget(self._field_label(tr("addedit.putty_key.label")))
+            putty_row = QHBoxLayout()
+            putty_row.setSpacing(6)
+            self._ef_putty_key = QLineEdit(conn.putty_key_path if is_edit else "")
+            self._ef_putty_key.setPlaceholderText("C:/Users/user/.ssh/id_rsa.ppk")
+            putty_row.addWidget(self._ef_putty_key, stretch=1)
+            putty_browse_btn = QPushButton("…")
+            putty_browse_btn.setFixedWidth(32)
+            putty_browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            putty_browse_btn.clicked.connect(self._ef_browse_putty_key)
+            putty_row.addWidget(putty_browse_btn)
+            v.addLayout(putty_row)
+            v.addWidget(self._field_label(tr("addedit.putty_key.hint")))
+
         v.addStretch()
         self._rp_layout.addWidget(body)
         # Store edit connection reference
         self._ef_conn = conn
+        for w in (self._ef_name, self._ef_host, self._ef_user):
+            w.textChanged.connect(self._validate_edit_form)
+        self._ef_initial_snapshot = self._snapshot_form()
+        self._validate_edit_form()
+        self._setup_edit_tab_order()
+        QTimer.singleShot(0, self._ef_name.setFocus)
+
+    def _setup_edit_tab_order(self):
+        chain = [
+            self._ef_name, self._ef_host, self._ef_user, self._ef_port, self._ef_path,
+            self._ef_drive, self._ef_auth, self._ef_pw, self._ef_key,
+            self._ef_cli_cb, self._ef_cli_key
+        ]
+        if getattr(self, "_ef_putty_key", None) is not None:
+            chain.append(self._ef_putty_key)
+        for i in range(len(chain) - 1):
+            self.setTabOrder(chain[i], chain[i + 1])
 
     def _ef_browse_key(self):
         path, _ = QFileDialog.getOpenFileName(
             self, tr("addedit.select_key"), "", "All Files (*)"
         )
-        if path:
-            self._ef_key.setText(path)
+        if path and getattr(self, "_ef_key", None) is not None:
+            try:
+                self._ef_key.setText(path)
+            except RuntimeError:
+                pass
+
+    def _ef_browse_putty_key(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, tr("addedit.putty_key.select"), "", "PuTTY Private Key (*.ppk)"
+        )
+        if path and getattr(self, "_ef_putty_key", None) is not None:
+            try:
+                self._ef_putty_key.setText(path)
+            except RuntimeError:
+                pass
 
     def _ef_cli_toggle(self, checked: bool):
-        self._ef_cli_widget.setVisible(checked)
-        if checked and not self._ef_cli_key.text():
+        if getattr(self, "_ef_cli_widget", None) is None or getattr(self, "_ef_cli_key", None) is None:
+            return
+        try:
+            self._ef_cli_widget.setVisible(checked)
+            is_empty = not self._ef_cli_key.text()
+        except RuntimeError:
+            return
+        if checked and is_empty:
             self._ef_generate_new_cli_key()
 
     def _ef_generate_new_cli_key(self):
         import secrets as _secrets
-
-        self._ef_cli_key.setText(_secrets.token_hex(64))
+        if getattr(self, "_ef_cli_key", None) is None:
+            return
+        try:
+            self._ef_cli_key.setText(_secrets.token_hex(64))
+        except RuntimeError:
+            pass
 
     def _ef_copy_cli_key(self):
-        key = self._ef_cli_key.text()
+        if getattr(self, "_ef_cli_key", None) is None:
+            return
+        try:
+            key = self._ef_cli_key.text()
+        except RuntimeError:
+            return
         if not key:
             return
 
         QApplication.clipboard().setText(key)
-        self._ef_cli_copy_btn.setIcon(svg_icon("check", "#00d464", 15))
+        if getattr(self, "_ef_cli_copy_btn", None) is None:
+            return
+        try:
+            self._ef_cli_copy_btn.setIcon(svg_icon("check", "#00d464", 15))
+        except RuntimeError:
+            return
         QTimer.singleShot(
             1500,
-            lambda: self._ef_cli_copy_btn.setIcon(svg_icon("copy", "#aab4c4", 15))
+            self._ef_restore_copy_icon
         )
+
+    def _ef_restore_copy_icon(self):
+        btn = getattr(self, "_ef_cli_copy_btn", None)
+        if btn is None:
+            return
+        try:
+            btn.setIcon(svg_icon("copy", "#aab4c4", 15))
+        except RuntimeError:
+            pass
+
+    def _install_shortcuts(self):
+        mapping = [
+            ("Ctrl+S", self._shortcut_save),
+            ("Esc", self._shortcut_escape),
+            ("Ctrl+N", self._shortcut_add),
+            ("Ctrl+E", self._shortcut_edit),
+            ("Delete", self._shortcut_delete),
+        ]
+        for key, slot in mapping:
+            sc = QShortcut(QKeySequence(key), self)
+            sc.activated.connect(slot)
+            self._shortcuts.append(sc)
+
+    def _shortcut_save(self):
+        if self._panel_mode in (_PANEL_EDIT, _PANEL_ADD):
+            self._on_rp_save()
+
+    def _shortcut_escape(self):
+        if self._panel_mode in (_PANEL_EDIT, _PANEL_ADD):
+            self._on_rp_cancel()
+        elif self._panel_mode in (_PANEL_INFO, _PANEL_SYSINFO):
+            self._close_right_panel()
+
+    def _shortcut_add(self):
+        self._open_add_panel()
+
+    def _shortcut_edit(self):
+        target_id = self._panel_conn_id or self._selected_id
+        if target_id:
+            self._open_edit_panel(target_id)
+
+    def _shortcut_delete(self):
+        if self._panel_mode == _PANEL_EDIT and self._panel_conn_id:
+            self._on_delete()
 
     # ------------------------------------------------------------------
     # Settings form
@@ -1617,7 +1839,7 @@ class MainWindow(QMainWindow):
         lang_col.setContentsMargins(0, 0, 0, 0)
         lang_col.setSpacing(6)
         lang_col.addWidget(self._field_label(tr("settings.language.label")))
-        self._sf_lang = QComboBox()
+        self._sf_lang = NoWheelComboBox()
         for code in available_languages():
             self._sf_lang.addItem(_LANG_LABELS.get(code, code), code)
         idx = self._sf_lang.findData(getattr(s, 'language', 'en') or 'en')
@@ -1632,7 +1854,7 @@ class MainWindow(QMainWindow):
         theme_col.setContentsMargins(0, 0, 0, 0)
         theme_col.setSpacing(6)
         theme_col.addWidget(self._field_label(tr("settings.theme.label")))
-        self._sf_theme = QComboBox()
+        self._sf_theme = NoWheelComboBox()
         self._sf_theme.addItem(tr("settings.theme.dark"), "dark")
         self._sf_theme.addItem(tr("settings.theme.light"), "light")
         idx = self._sf_theme.findData(getattr(s, 'theme', 'dark') or 'dark')
@@ -1665,7 +1887,7 @@ class MainWindow(QMainWindow):
         interval_row = QHBoxLayout()
         interval_row.addWidget(self._field_label(tr("settings.check_interval")))
         interval_row.addStretch()
-        self._sf_interval = QSpinBox()
+        self._sf_interval = NoWheelSpinBox()
         self._sf_interval.setRange(5, 300)
         self._sf_interval.setValue(s.check_interval_seconds)
         self._sf_interval.setFixedWidth(80)
@@ -1770,22 +1992,201 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_rp_save(self):
-        if self._panel_mode == _PANEL_EDIT:
-            self._save_edit_form()
-        elif self._panel_mode == _PANEL_ADD:
-            self._save_add_form()
+        if self._saving_in_progress:
+            return
+        self._set_saving_state(True)
+        try:
+            if self._panel_mode == _PANEL_EDIT:
+                self._save_edit_form()
+            elif self._panel_mode == _PANEL_ADD:
+                self._save_add_form()
+        except RuntimeError:
+            QMessageBox.warning(
+                self,
+                tr("dialog.error"),
+                tr("sysinfo.error") + " Formular wurde neu geladen. Bitte Eingaben prüfen und erneut speichern."
+            )
+            if self._panel_conn_id:
+                self._open_edit_panel(self._panel_conn_id)
+            else:
+                self._open_add_panel()
+        except Exception as e:
+            QMessageBox.warning(self, tr("dialog.error"), str(e))
+        finally:
+            self._set_saving_state(False)
+            if self._panel_mode in (_PANEL_EDIT, _PANEL_ADD):
+                self._validate_edit_form()
 
     def _on_rp_cancel(self):
         if self._panel_mode in (_PANEL_EDIT, _PANEL_ADD):
+            if not self._guard_leave_form():
+                return
             if self._panel_conn_id:
                 self._open_info_panel(self._panel_conn_id)
             else:
-                self._close_right_panel()
+                self._close_right_panel_force()
+
+    def _on_rp_terminal_clicked(self):
+        """Header terminal button for the currently open connection panel."""
+        conn_id = self._panel_conn_id
+        if not conn_id:
+            return
+        self._on_ssh_terminal(conn_id)
+
+    def _sync_rp_mount_button(self, conn_id: str):
+        """Update mount/unmount header button state based on card mount state."""
+        btn = getattr(self, "_rp_mount_btn", None)
+        if btn is None:
+            return
+        card = self._cards.get(conn_id)
+        is_mounted = bool(card and card.is_mounted)
+        if is_mounted:
+            # Match ConnectionCard.update_mount_state()
+            btn.setIcon(svg_icon("minus", "#00d464", 16))
+            btn.setToolTip(tr("card.tooltip.mount_on"))
+            btn.setEnabled(True)
+        else:
+            # Match ConnectionCard.update_mount_state()
+            btn.setIcon(svg_icon("arrow-right", "#aab4c4", 16))
+            btn.setToolTip(tr("card.tooltip.mount_off"))
+            btn.setEnabled(True)
+        btn.setAccessibleName(btn.toolTip())
+
+    def _on_rp_mount_clicked(self):
+        """Header mount/unmount button for the currently open connection panel."""
+        conn_id = self._panel_conn_id
+        if not conn_id:
+            return
+        card = self._cards.get(conn_id)
+        if not card:
+            return
+        if card.is_mounted:
+            self._on_unmount(conn_id)
+        else:
+            self._on_mount(conn_id)
+
+    def _safe_lineedit_text(self, attr_name: str) -> str:
+        """
+        Return text from a potentially stale QLineEdit attribute.
+        If the wrapped Qt object was already deleted, return empty string.
+        """
+        widget = getattr(self, attr_name, None)
+        if widget is None:
+            return ""
+        try:
+            return widget.text().strip()
+        except RuntimeError:
+            return ""
+
+    def _safe_current_data(self, attr_name: str, default=None):
+        widget = getattr(self, attr_name, None)
+        if widget is None:
+            return default
+        try:
+            value = widget.currentData()
+            return default if value is None else value
+        except RuntimeError:
+            return default
+
+    def _safe_bool_checked(self, attr_name: str, default: bool = False) -> bool:
+        widget = getattr(self, attr_name, None)
+        if widget is None:
+            return default
+        try:
+            return bool(widget.isChecked())
+        except RuntimeError:
+            return default
+
+    def _safe_spin_value(self, attr_name: str, default: int = 22) -> int:
+        widget = getattr(self, attr_name, None)
+        if widget is None:
+            return default
+        try:
+            return int(widget.value())
+        except RuntimeError:
+            return default
+
+    def _set_saving_state(self, saving: bool):
+        self._saving_in_progress = saving
+        for btn_name in ("_rp_save_top_btn", "_rp_save_btn", "_rp_cancel_top_btn", "_rp_cancel_btn"):
+            btn = getattr(self, btn_name, None)
+            if btn is None:
+                continue
+            try:
+                btn.setEnabled(not saving)
+            except RuntimeError:
+                pass
+        if saving:
+            self._set_status(tr("card.loading.saving"))
+
+    def _snapshot_form(self) -> dict:
+        return {
+            "name": self._safe_lineedit_text("_ef_name"),
+            "host": self._safe_lineedit_text("_ef_host"),
+            "user": self._safe_lineedit_text("_ef_user"),
+            "path": self._safe_lineedit_text("_ef_path"),
+            "port": self._safe_spin_value("_ef_port", 22),
+            "auth": self._safe_current_data("_ef_auth", "password"),
+            "password": self._safe_lineedit_text("_ef_pw"),
+            "key": self._safe_lineedit_text("_ef_key"),
+            "putty_key": self._safe_lineedit_text("_ef_putty_key"),
+            "drive": self._safe_current_data("_ef_drive", "Z:"),
+            "cli_enabled": self._safe_bool_checked("_ef_cli_cb", False),
+            "cli_key": self._safe_lineedit_text("_ef_cli_key"),
+        }
+
+    def _form_is_dirty(self) -> bool:
+        if self._panel_mode not in (_PANEL_EDIT, _PANEL_ADD):
+            return False
+        if self._ef_initial_snapshot is None:
+            return False
+        return self._snapshot_form() != self._ef_initial_snapshot
+
+    def _guard_leave_form(self) -> bool:
+        if not self._form_is_dirty():
+            return True
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(tr("dirty.title"))
+        box.setText(tr("dirty.body"))
+        discard_btn = box.addButton(tr("dirty.discard"), QMessageBox.ButtonRole.DestructiveRole)
+        keep_btn = box.addButton(tr("dirty.keep"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(keep_btn)
+        box.exec()
+        return box.clickedButton() == discard_btn
+
+    def _validate_edit_form(self):
+        required = ("_ef_name", "_ef_host", "_ef_user")
+        is_valid = True
+        for attr in required:
+            widget = getattr(self, attr, None)
+            if widget is None:
+                continue
+            try:
+                empty = not widget.text().strip()
+                widget.setProperty("invalid", "true" if empty else "false")
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                is_valid = is_valid and (not empty)
+            except RuntimeError:
+                is_valid = False
+
+        for btn_name in ("_rp_save_top_btn", "_rp_save_btn"):
+            btn = getattr(self, btn_name, None)
+            if btn is None:
+                continue
+            try:
+                btn.setEnabled(is_valid and not self._saving_in_progress)
+            except RuntimeError:
+                pass
 
     def _save_edit_form(self):
-        name = self._ef_name.text().strip()
-        host = self._ef_host.text().strip()
-        user = self._ef_user.text().strip()
+        if not getattr(self, "_ef_conn", None):
+            self._show_inline_message(tr("dialog.error"), "Formular ist nicht verfügbar. Bitte erneut öffnen.", is_error=True)
+            return
+        name = self._safe_lineedit_text("_ef_name")
+        host = self._safe_lineedit_text("_ef_host")
+        user = self._safe_lineedit_text("_ef_user")
         errors = []
         if not name: errors.append(tr("addedit.required.name"))
         if not host: errors.append(tr("addedit.required.host"))
@@ -1795,28 +2196,32 @@ class MainWindow(QMainWindow):
             return
 
         conn = self._ef_conn
+        putty_key_path = self._safe_lineedit_text("_ef_putty_key")
+        cli_enabled = self._safe_bool_checked("_ef_cli_cb", False)
+        
         updated = Connection(
             id=conn.id,
             name=name, host=host, user=user,
-            remote_path=self._ef_path.text().strip() or "/",
-            port=self._ef_port.value(),
-            auth_method=self._ef_auth.currentData(),
-            password=self._ef_pw.text(),
-            key_path=self._ef_key.text().strip(),
-            drive_letter=self._ef_drive.currentData() or "Z:",
-            cli_access_enabled=self._ef_cli_cb.isChecked(),
-            cli_access_key=self._ef_cli_key.text() if self._ef_cli_cb.isChecked() else None,
+            remote_path=self._safe_lineedit_text("_ef_path") or "/",
+            port=self._safe_spin_value("_ef_port", 22),
+            auth_method=self._safe_current_data("_ef_auth", "password"),
+            password=self._safe_lineedit_text("_ef_pw"),
+            key_path=self._safe_lineedit_text("_ef_key"),
+            putty_key_path=putty_key_path,
+            drive_letter=self._safe_current_data("_ef_drive", "Z:"),
+            cli_access_enabled=cli_enabled,
+            cli_access_key=self._safe_lineedit_text("_ef_cli_key") if cli_enabled else None,
         )
         self._mgr.update(updated)
         self._refresh_list()
-        self._set_status(tr("status.connection_updated", name=updated.name))
+        self._set_status(tr("status.saved"))
         # Reopen info panel for the updated connection
         self._open_info_panel(conn.id)
 
     def _save_add_form(self):
-        name = self._ef_name.text().strip()
-        host = self._ef_host.text().strip()
-        user = self._ef_user.text().strip()
+        name = self._safe_lineedit_text("_ef_name")
+        host = self._safe_lineedit_text("_ef_host")
+        user = self._safe_lineedit_text("_ef_user")
         errors = []
         if not name: errors.append(tr("addedit.required.name"))
         if not host: errors.append(tr("addedit.required.host"))
@@ -1825,20 +2230,24 @@ class MainWindow(QMainWindow):
             self._show_inline_message(tr("addedit.required.title"), "\n".join(errors), is_error=True)
             return
 
+        putty_key_path = self._safe_lineedit_text("_ef_putty_key")
+        cli_enabled = self._safe_bool_checked("_ef_cli_cb", False)
+        
         new_conn = Connection(
             name=name, host=host, user=user,
-            remote_path=self._ef_path.text().strip() or "/",
-            port=self._ef_port.value(),
-            auth_method=self._ef_auth.currentData(),
-            password=self._ef_pw.text(),
-            key_path=self._ef_key.text().strip(),
-            drive_letter=self._ef_drive.currentData() or "Z:",
-            cli_access_enabled=self._ef_cli_cb.isChecked(),
-            cli_access_key=self._ef_cli_key.text() if self._ef_cli_cb.isChecked() else None,
+            remote_path=self._safe_lineedit_text("_ef_path") or "/",
+            port=self._safe_spin_value("_ef_port", 22),
+            auth_method=self._safe_current_data("_ef_auth", "password"),
+            password=self._safe_lineedit_text("_ef_pw"),
+            key_path=self._safe_lineedit_text("_ef_key"),
+            putty_key_path=putty_key_path,
+            drive_letter=self._safe_current_data("_ef_drive", "Z:"),
+            cli_access_enabled=cli_enabled,
+            cli_access_key=self._safe_lineedit_text("_ef_cli_key") if cli_enabled else None,
         )
         self._mgr.add(new_conn)
         self._refresh_list()
-        self._set_status(tr("status.connection_added", name=new_conn.name))
+        self._set_status(tr("status.saved"))
         self._open_info_panel(new_conn.id)
 
     def _save_settings_form(self):
@@ -1971,6 +2380,8 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _select_card(self, conn_id: str):
+        if conn_id != self._panel_conn_id and not self._guard_leave_form():
+            return
         if self._selected_id and self._selected_id in self._cards:
             prev = self._cards[self._selected_id]
             prev.setProperty("selected", False)
@@ -2147,8 +2558,14 @@ class MainWindow(QMainWindow):
             self._save_active_mount(conn_id, True)
             if conn:
                 self._set_status(tr("status.connected", name=conn.name, drive=conn.drive_letter))
-            if self._panel_conn_id == conn_id and self._panel_mode == _PANEL_INFO:
-                self._open_info_panel(conn_id)
+            if self._panel_conn_id == conn_id:
+                # Keep header mount state and panel content in sync
+                if self._panel_mode == _PANEL_INFO:
+                    self._open_info_panel(conn_id)
+                elif self._panel_mode == _PANEL_SYSINFO:
+                    self._open_sysinfo_panel(conn_id)
+                else:
+                    self._sync_rp_mount_button(conn_id)
         else:
             name = conn.name if conn else "?"
             if self._show_mount_failure_dialog(conn, result.message):
@@ -2186,8 +2603,13 @@ class MainWindow(QMainWindow):
                 card.update_mount_state(False)
             self._save_active_mount(conn_id, False)
             self._set_status(tr("status.disconnected", name=conn.name if conn else "?"))
-            if self._panel_conn_id == conn_id and self._panel_mode == _PANEL_INFO:
-                self._open_info_panel(conn_id)
+            if self._panel_conn_id == conn_id:
+                if self._panel_mode == _PANEL_INFO:
+                    self._open_info_panel(conn_id)
+                elif self._panel_mode == _PANEL_SYSINFO:
+                    self._open_sysinfo_panel(conn_id)
+                else:
+                    self._sync_rp_mount_button(conn_id)
         else:
             QMessageBox.critical(self, tr("unmount.failed.title"), result.message)
             if conn:
@@ -2215,6 +2637,9 @@ class MainWindow(QMainWindow):
         conn = self._mgr.get_by_id(conn_id)
         if not conn:
             return
+        card = self._cards.get(conn_id)
+        if not card or not card.is_mounted:
+            return
         path = conn.drive_letter
         if not path.endswith("\\"):
             path += "\\"
@@ -2225,8 +2650,8 @@ class MainWindow(QMainWindow):
         # SECURITY FIX: Validate path to prevent command injection
         if not path or not isinstance(path, str):
             return
-        # Reject dangerous characters
-        dangerous = set(';|&`$(){}[]<>!\\"\'\n\r\t')
+        # Reject dangerous characters but allow backslash for Windows paths
+        dangerous = set(';|&`$(){}[]<>!"\'\n\r\t')
         if any(c in dangerous for c in path):
             logger.warning(f"Rejected potentially dangerous path: {path}")
             return
