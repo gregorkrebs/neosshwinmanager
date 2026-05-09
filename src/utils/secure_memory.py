@@ -184,54 +184,63 @@ def secure_compare(a: bytes, b: bytes) -> bool:
 def mlock_memory(data: bytearray) -> bool:
     """
     Attempt to lock memory to prevent swapping to disk.
-    
-    Args:
-        data: The bytearray to lock
-        
-    Returns:
-        True if successful, False otherwise
+    Returns True if successful, False otherwise.
     """
     try:
         if sys.platform == 'win32':
-            # Windows: use VirtualLock
             kernel32 = ctypes.windll.kernel32
-            return kernel32.VirtualLock(
+            result = kernel32.VirtualLock(
                 ctypes.c_char.from_buffer(data),
                 ctypes.c_size_t(len(data))
             ) != 0
         else:
-            # Unix-like: use mlock
             libc = ctypes.CDLL('libc.so.6', use_errno=True)
-            return libc.mlock(
+            result = libc.mlock(
                 ctypes.c_char.from_buffer(data),
                 ctypes.c_size_t(len(data))
             ) == 0
-    except Exception:
+        if not result:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Memory-Locking (VirtualLock/mlock) fehlgeschlagen — "
+                "Secrets können auf Disk ausgelagert werden (Swap/Pagefile). "
+                "Stelle sicher, dass der Prozess ausreichende Privilegien hat."
+            )
+        return result
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Memory-Locking nicht verfügbar: {e} — "
+            "Secrets sind nicht vor Swap-Auslagerung geschützt."
+        )
         return False
 
 
 def munlock_memory(data: bytearray) -> bool:
     """
     Unlock previously locked memory.
-    
-    Args:
-        data: The bytearray to unlock
-        
-    Returns:
-        True if successful, False otherwise
+    Returns True if successful, False otherwise.
     """
     try:
         if sys.platform == 'win32':
             kernel32 = ctypes.windll.kernel32
-            return kernel32.VirtualUnlock(
+            result = kernel32.VirtualUnlock(
                 ctypes.c_char.from_buffer(data),
                 ctypes.c_size_t(len(data))
             ) != 0
         else:
             libc = ctypes.CDLL('libc.so.6', use_errno=True)
-            return libc.munlock(
+            result = libc.munlock(
                 ctypes.c_char.from_buffer(data),
                 ctypes.c_size_t(len(data))
             ) == 0
-    except Exception:
+        if not result:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Memory-Unlock (VirtualUnlock/munlock) fehlgeschlagen."
+            )
+        return result
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Memory-Unlock nicht verfügbar: {e}")
         return False

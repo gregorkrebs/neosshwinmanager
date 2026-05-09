@@ -101,9 +101,17 @@ def _launch_native_ssh(conn: Connection, settings: AppSettings | None = None) ->
 
     logger.debug(f"Native SSH cmd: {ssh_cmd_list}")
     try:
+        # CWE-78: cmd.exe
+        # CREATE_NEW_CONSOLE öffnet ein eigenes Fenster; /k hält es nach SSH-Ende offen.
+        # title setzt den Fenstertitel; & ist ein cmd-interner Verketter, kein Shell-Risiko,
+        # da conn.name durch _is_safe_label() bereits von Quotes und Metacharakteren befreit ist.
         cmd_str = subprocess.list2cmdline(ssh_cmd_list)
-        full_cmd = f'start "{conn.name} SSH" cmd /k {cmd_str}'
-        subprocess.Popen(full_cmd, shell=True, env=env)
+        subprocess.Popen(
+            ['cmd.exe', '/k', f'title "{conn.name} SSH" & {cmd_str}'],
+            env=env,
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+            close_fds=True,
+        )
         return True, ""
     except Exception as e:
         return False, str(e)

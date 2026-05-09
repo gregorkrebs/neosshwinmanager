@@ -143,33 +143,39 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
     """
     Findet die PID des sshfs.exe-Prozesses der diesen Laufwerksbuchstaben mounted.
     Sucht in der CommandLine nach dem Buchstaben (z.B. 'F:').
-    Nutzt psutil für blitzschnelle Suche ohne PowerShell-Overhead.
     """
     # SECURITY FIX: Validate drive letter to prevent command injection
     letter = drive_letter.rstrip("\\").rstrip(":").upper()
     if not letter or len(letter) != 1 or not letter.isalpha():
         return None
     letter = letter[0]  # Ensure single character
-
+    
     target_arg = f"{letter}:"
 
     try:
-        import psutil
-        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-            try:
-                name = proc.info.get('name', '')
-                if name and name.lower() == 'sshfs.exe':
-                    cmdline = proc.info.get('cmdline', [])
-                    if cmdline and any(target_arg in arg for arg in cmdline):
-                        return proc.info['pid']
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                pass
-    except ImportError:
-        logger.warning("psutil nicht installiert — kann SSHFS-PID nicht lokalisieren. Unmount via WinFsp fallback.")
-        return None
+        # Fallback: Native Windows Tasklist nutzen, falls psutil nicht verfügbar ist
+        # Wir suchen nach sshfs.exe und filtern manuell
+        output = subprocess.check_output(
+            ['wmic', 'process', 'where', "name='sshfs.exe'", 'get', 'CommandLine,ProcessId', '/format:csv'],
+            creationflags=0x08000000,
+            text=True
+        )
+        for line in output.splitlines():
+            if target_arg in line:
+                # WMIC CSV Format: Node,CommandLine,ProcessId
+                parts = line.strip().split(',')
+                if len(parts) >= 3:
+                    return int(parts[-1])
     except Exception:
-        pass
-
+        # Letzter Versuch über tasklist (weniger Details)
+        try:
+            task_out = subprocess.check_output(['tasklist', '/FI', 'IMAGENAME eq sshfs.exe', '/FO', 'CSV'], 
+                                              creationflags=0x08000000, text=True)
+            # Hier können wir leider nicht die CommandLine prüfen, nur ob er läuft
+            pass 
+        except Exception:
+            pass
+        
     return None
 
 

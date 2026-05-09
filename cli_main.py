@@ -8,6 +8,7 @@ to resolve the access key, then opens the paramiko session in-place.
 
 Usage:
     NeoSSHWinManager-cli.exe --connect-cli <access_key>
+    NeoSSHWinManager-cli.exe --connect-cli -          # liest Key von stdin (empfohlen)
 """
 
 import sys
@@ -90,7 +91,15 @@ def main() -> int:
 
     if not key:
         print("Usage: NeoSSHWinManager-cli.exe --connect-cli <access_key> [--exec \"command\"]")
+        print("       NeoSSHWinManager-cli.exe --connect-cli - [--exec \"command\"]  # Key via stdin")
         return 2
+
+    # CWE-214: Key via stdin lesen wenn "-" übergeben — verhindert Exposition in Prozessliste
+    if key == "-":
+        key = sys.stdin.readline().rstrip("\n\r")
+        if not key:
+            print("Fehler: Kein Key via stdin empfangen.")
+            return 2
 
     try:
         return _handle_cli_connect(key, exec_cmd=exec_cmd)
