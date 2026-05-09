@@ -485,6 +485,10 @@ class SystemInfoPanel(QFrame):
     def _set_loading_overlay_visible(self, visible: bool):
         if not hasattr(self, "_loading_overlay"):
             return
+        if visible:
+            self._loading_icon.setText("⏳")
+            self._loading_title.setText(tr("sysinfo.loading"))
+            self._loading_dots.setText("…")
         self._loading_overlay.setVisible(visible)
         if self._loading_anim_timer:
             if visible and not self._loading_anim_timer.isActive():
@@ -492,6 +496,16 @@ class SystemInfoPanel(QFrame):
                 self._loading_anim_timer.start()
             elif not visible and self._loading_anim_timer.isActive():
                 self._loading_anim_timer.stop()
+
+    def _show_overlay_error(self, icon: str, title: str, body: str):
+        if not hasattr(self, "_loading_overlay"):
+            return
+        self._loading_anim_timer.stop()
+        self._loading_icon.setText(icon)
+        self._loading_title.setText(title)
+        self._loading_dots.setText(body)
+        self._loading_overlay.show()
+        self._content.hide()
 
     def _make_section_card(self, title: str):
         frame = QFrame()
@@ -657,6 +671,16 @@ class SystemInfoPanel(QFrame):
 
     def _on_error(self, msg: str):
         self._set_loading_overlay_visible(False)
+        if tr("sysinfo.key_required") in msg:
+            self._loading_lbl.hide()
+            self._state_card.hide()
+            self._show_overlay_error(
+                "🙈",
+                tr("sysinfo.key_missing.title"),
+                tr("sysinfo.key_missing.desc"),
+            )
+            self._refresh_btn.setEnabled(True)
+            return
         self._loading_lbl.hide()
         self._content.hide()
         self._state_card.show()

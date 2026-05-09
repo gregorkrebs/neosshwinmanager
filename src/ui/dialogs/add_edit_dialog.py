@@ -24,6 +24,7 @@ from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.ui.icons import icon as svg_icon
 from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelScrollArea, NoWheelSpinBox
 from src.i18n import tr
+from src.sshfs_controller import _is_safe_label
 
 
 class AddEditDialog(QDialog):
@@ -369,16 +370,18 @@ class AddEditDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _validate_form(self):
-        fields = [self._name_edit, self._host_edit, self._user_edit]
         all_valid = True
-        for widget in fields:
-            is_empty = not bool(widget.text().strip())
-            widget.setProperty("invalid", "true" if is_empty else "false")
+        for widget in [self._name_edit, self._host_edit, self._user_edit]:
+            text = widget.text().strip()
+            is_invalid = not text
+            if widget is self._name_edit and text and not _is_safe_label(text):
+                is_invalid = True
+            widget.setProperty("invalid", "true" if is_invalid else "false")
             widget.style().unpolish(widget)
             widget.style().polish(widget)
-            if is_empty:
+            if is_invalid:
                 all_valid = False
-        
+
         if hasattr(self, '_save_btn'):
             self._save_btn.setEnabled(all_valid)
 
@@ -527,6 +530,8 @@ class AddEditDialog(QDialog):
         errors = []
         if not name:
             errors.append(tr("addedit.required.name"))
+        elif not _is_safe_label(name):
+            errors.append(tr("addedit.name.invalid"))
         if not host:
             errors.append(tr("addedit.required.host"))
         if not user:

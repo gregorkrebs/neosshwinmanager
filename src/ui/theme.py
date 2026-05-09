@@ -982,6 +982,25 @@ QPushButton#cardInfoBtn[active="true"] {
     border: 1px solid #36506c;
     color: #deebf7;
 }
+QPushButton#aboutLinkBtn {
+    background-color: #141d28;
+    border: 1px solid #243243;
+    border-radius: 8px;
+    color: #00b4d8;
+    font-size: 12px;
+    padding: 0 10px;
+    min-height: 34px;
+    max-height: 34px;
+    text-align: left;
+}
+QPushButton#aboutLinkBtn:hover {
+    background-color: #0d2137;
+    border: 1px solid #00b4d8;
+    color: #38d4f8;
+}
+QPushButton#aboutLinkBtn:pressed {
+    background-color: #0a1929;
+}
 QLineEdit[invalid="true"] {
     border: 2px solid #0077b6;
 }
@@ -2101,6 +2120,25 @@ QPushButton#actionBtn:disabled:hover {
     background-color: #edf5fb;
     border: 1px solid #aec6dd;
     color: #1a2332;
+}
+QPushButton#aboutLinkBtn {
+    background-color: #f0f5fa;
+    border: 1px solid #d5dde7;
+    border-radius: 8px;
+    color: #0077b6;
+    font-size: 12px;
+    padding: 0 10px;
+    min-height: 34px;
+    max-height: 34px;
+    text-align: left;
+}
+QPushButton#aboutLinkBtn:hover {
+    background-color: #e0eef8;
+    border: 1px solid #0077b6;
+    color: #005a8e;
+}
+QPushButton#aboutLinkBtn:pressed {
+    background-color: #d0e6f5;
 }
 QLineEdit[invalid="true"] {
     border: 1px solid #0077b6;

@@ -18,7 +18,7 @@ import ctypes.wintypes
 import json
 
 from src.auth_manager import Session, UserConnectionManager
-from src.sshfs_controller import SSHFSController
+from src.sshfs_controller import SSHFSController, _is_safe_label
 from src.config import Connection, AppSettings
 from src.ui.connection_card import ConnectionCard
 from src.ui.system_tray import SystemTray
@@ -279,6 +279,9 @@ class MainWindow(QMainWindow):
         self._debug_btn = self._sidebar_btn("bug", self._on_debug, btn_type="warning")
         self._debug_btn.setVisible(False)
         v.addWidget(self._debug_btn, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        self._about_btn = self._sidebar_btn("info", self._on_about)
+        v.addWidget(self._about_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
         logout_btn = self._sidebar_btn("logout", self._on_logout, btn_type="danger")
         v.addWidget(logout_btn, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -2163,11 +2166,14 @@ class MainWindow(QMainWindow):
             if widget is None:
                 continue
             try:
-                empty = not widget.text().strip()
-                widget.setProperty("invalid", "true" if empty else "false")
+                text = widget.text().strip()
+                invalid = not text
+                if attr == "_ef_name" and text and not _is_safe_label(text):
+                    invalid = True
+                widget.setProperty("invalid", "true" if invalid else "false")
                 widget.style().unpolish(widget)
                 widget.style().polish(widget)
-                is_valid = is_valid and (not empty)
+                is_valid = is_valid and (not invalid)
             except RuntimeError:
                 is_valid = False
 
@@ -2189,6 +2195,7 @@ class MainWindow(QMainWindow):
         user = self._safe_lineedit_text("_ef_user")
         errors = []
         if not name: errors.append(tr("addedit.required.name"))
+        elif not _is_safe_label(name): errors.append(tr("addedit.name.invalid"))
         if not host: errors.append(tr("addedit.required.host"))
         if not user: errors.append(tr("addedit.required.user"))
         if errors:
@@ -2224,6 +2231,7 @@ class MainWindow(QMainWindow):
         user = self._safe_lineedit_text("_ef_user")
         errors = []
         if not name: errors.append(tr("addedit.required.name"))
+        elif not _is_safe_label(name): errors.append(tr("addedit.name.invalid"))
         if not host: errors.append(tr("addedit.required.host"))
         if not user: errors.append(tr("addedit.required.user"))
         if errors:
