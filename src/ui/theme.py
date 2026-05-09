@@ -9,6 +9,20 @@ _ICON_DIR = Path(__file__).resolve().parents[2] / "assets" / "icons"
 _CHECKMARK_URL = str(_ICON_DIR / "check.svg").replace("\\", "/")
 _CHEVRON_URL = str(_ICON_DIR / "chevron-down.svg").replace("\\", "/")
 
+THEME_COLORS = {
+    "dark": {
+        "background": "#0d0d12",
+        "surface": "#0D1117",
+        "text": "#c8d6e5",
+        "accent": "#00b4d8"
+    },
+    "light": {
+        "background": "#f0f2f5",
+        "surface": "#ffffff",
+        "text": "#1a2332",
+        "accent": "#0077b6"
+    }
+}
 
 def get_stylesheet(theme: str = "dark") -> str:
     """Return the stylesheet for the given theme ('dark' or 'light')."""
@@ -410,7 +424,7 @@ QTextEdit#debugLogView {
 
 #userRoleBadge {
     padding: 3px 8px;
-    border-radius: 999px;
+    border-radius: 8px;
     background: #101925;
     border: 1px solid #243243;
     color: #8fa4b8;
@@ -1277,10 +1291,7 @@ QToolTip {
 }
 
 QMessageBox {
-    background-color: #0d0d12;
-}
-QMessageBox QLabel {
-    background-color: #0d0d12;
+    background-color: __SURFACE__;
     color: #c8d6e5;
 }
 QMessageBox QPushButton {
@@ -1288,6 +1299,11 @@ QMessageBox QPushButton {
 }
 """
 
+# Ergänze get_stylesheet, um den Platzhalter zu füllen
+def get_stylesheet_v2(theme: str = "dark") -> str:
+    colors = THEME_COLORS.get(theme, THEME_COLORS["dark"])
+    sheet = get_stylesheet(theme)
+    return sheet.replace("__SURFACE__", colors["surface"])
 LIGHT_STYLESHEET = """
 /* ============================================================
    NEO SSH-Win Manager – Light Theme
@@ -1653,7 +1669,7 @@ QTextEdit#debugLogView {
 
 #userRoleBadge {
     padding: 3px 8px;
-    border-radius: 999px;
+    border-radius: 8px;
     background: #f3f6fa;
     border: 1px solid #d5dde7;
     color: #617386;
@@ -2417,7 +2433,6 @@ QToolTip {
     padding: 5px 10px;
 }
 
-QMessageBox { background-color: #f0f2f5; }
-QMessageBox QLabel { background-color: #f0f2f5; color: #1a2332; }
+QMessageBox { background-color: #ffffff; }
 QMessageBox QPushButton { min-width: 90px; }
 """

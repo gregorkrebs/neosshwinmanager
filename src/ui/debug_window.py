@@ -144,6 +144,12 @@ class DebugWindow(QDialog):
         sb = self._log_view.verticalScrollBar()
         sb.setValue(sb.maximum())
 
+    def append_log(self, text: str) -> None:
+        """Append text directly to the log view (public API for external callers)."""
+        self._render_line(text)
+        if self._auto_scroll:
+            self._scroll_to_bottom()
+
     # ------------------------------------------------------------------
     # Actions
     # ------------------------------------------------------------------

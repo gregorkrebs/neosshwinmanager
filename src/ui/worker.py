@@ -19,8 +19,11 @@ class MountWorker(QThread):
         self.controller = controller
 
     def run(self):
-        result = self.controller.mount(self.conn)
-        self.finished.emit(self.conn.id, result)
+        try:
+            result = self.controller.mount(self.conn)
+            self.finished.emit(self.conn.id, result)
+        except Exception as e:
+            self.finished.emit(self.conn.id, MountResult(False, f"Thread Error: {str(e)}"))
 
 
 class UnmountWorker(QThread):
@@ -36,5 +39,8 @@ class UnmountWorker(QThread):
         self.controller = controller
 
     def run(self):
-        result = self.controller.unmount(self.drive_letter)
-        self.finished.emit(self.conn_id, result)
+        try:
+            result = self.controller.unmount(self.drive_letter)
+            self.finished.emit(self.conn_id, result)
+        except Exception as e:
+            self.finished.emit(self.conn_id, MountResult(False, f"Thread Error: {str(e)}"))

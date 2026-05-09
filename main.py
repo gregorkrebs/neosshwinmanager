@@ -6,6 +6,7 @@ import sys
 import os
 import threading
 import traceback
+from pathlib import Path
 
 # ── 0. SSH askpass helper (MUST BE FIRST, before anything else) ───────────
 # OpenSSH SSH_ASKPASS helper for non-interactive password input.
@@ -118,7 +119,9 @@ def _install_global_exception_handlers():
 
             # Persist for diagnostics.
             try:
-                with open("crash_report.txt", "a", encoding="utf-8") as f:
+                appdata = os.environ.get("APPDATA", str(Path.home()))
+                report_path = Path(appdata) / "SSHWinManager" / "crash_report.txt"
+                with open(report_path, "a", encoding="utf-8") as f:
                     f.write("\n" + "=" * 80 + "\n")
                     f.write(err_text)
             except Exception:
@@ -133,9 +136,17 @@ def _install_global_exception_handlers():
 
             # User-visible error without aborting process.
             try:
-                from PyQt6.QtWidgets import QMessageBox
-                msg = tr("app.unexpected_error.body")
-                QMessageBox.warning(None, tr("app.unexpected_error.title"), msg)
+                from PyQt6.QtWidgets import QMessageBox, QPushButton
+                from src.ui.icons import icon as svg_icon
+                box = QMessageBox(None)
+                box.setIcon(QMessageBox.Icon.Critical)
+                box.setWindowTitle(tr("app.unexpected_error.title"))
+                box.setText(tr("app.unexpected_error.body"))
+                copy_btn = box.addButton("Details kopieren", QMessageBox.ButtonRole.ActionRole)
+                copy_btn.setIcon(svg_icon("copy", "#ffffff", 14))
+                copy_btn.clicked.connect(lambda: _copy_to_clipboard(err_text))
+                box.addButton(QMessageBox.StandardButton.Ok)
+                box.exec()
             except Exception:
                 # Last-resort stderr output.
                 try:
@@ -205,7 +216,15 @@ def main():
     logger.info("Application started (Standard Mode)")
 
     # Apply global stylesheet
-    app.setStyleSheet(get_stylesheet("dark"))
+    from src.ui.theme import THEME_COLORS
+    app.setStyleSheet(get_stylesheet("dark").replace("__SURFACE__", THEME_COLORS["dark"]["surface"]))
+    
+    # Setze Palette für native Popups
+    from PyQt6.QtGui import QPalette, QColor
+    palette = app.palette()
+    palette.setColor(QPalette.ColorRole.Window, QColor(THEME_COLORS["dark"]["surface"]))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor(THEME_COLORS["dark"]["text"]))
+    app.setPalette(palette)
 
     # Default font
     font = QFont("Segoe UI", 10)
