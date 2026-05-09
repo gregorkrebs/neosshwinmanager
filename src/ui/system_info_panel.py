@@ -210,26 +210,38 @@ class SSHSystemInfoThread(QThread):
         return None
 
     def _build_ssh_command(self, ssh_exe: str) -> tuple[list, str]:
-        """Build SSH command for native ssh.exe."""
-        # SECURITY FIX: System info panel requires an SSH key to be configured
-        # This works regardless of whether password or key auth is set as primary method
-        if not self._conn.key_path:
+        """Build SSH command for native ssh.exe with key or password auth."""
+        # Require either key or password
+        has_key = self._conn.key_path
+        has_password = self._conn.auth_method == "password" and self._conn.password
+
+        if not has_key and not has_password:
             raise ValueError(tr("sysinfo.key_required"))
-        
-        # SECURITY FIX: Use absolute path for known_hosts instead of %USERPROFILE%
+
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
-        
+
+        # BatchMode=yes only for key auth; password auth needs ASKPASS interaction
+        if has_key:
+            auth_options = [
+                "-o", "BatchMode=yes",
+                "-o", "PreferredAuthentications=publickey",
+            ]
+        else:
+            auth_options = [
+                "-o", "BatchMode=no",
+                "-o", "PreferredAuthentications=password,keyboard-interactive",
+            ]
+
         cmd_base = [
             ssh_exe,
             "-o", "StrictHostKeyChecking=accept-new",
             "-o", f"UserKnownHostsFile={known_hosts_path}",
             "-o", "ConnectTimeout=10",
-            "-o", "BatchMode=yes",
-            "-o", "PreferredAuthentications=publickey",
-            "-p", str(self._conn.port),
         ]
+        cmd_base.extend(auth_options)
+        cmd_base.extend(["-p", str(self._conn.port)])
 
-        if self._conn.key_path:
+        if has_key:
             cmd_base.extend(["-i", self._conn.key_path])
 
         target = f"{self._conn.user}@{self._conn.host}"
@@ -276,8 +288,18 @@ class SSHSystemInfoThread(QThread):
 
     def _get_ssh_env(self) -> dict:
         env = os.environ.copy()
-        # SECURITY FIX: Removed SSH_PASSWORD environment variable method
-        # Passwords in environment variables can be extracted from process lists
+        if self._conn.auth_method == "password" and self._conn.password:
+            is_frozen = getattr(sys, "frozen", False)
+            if is_frozen:
+                askpass_cmd = f'"{sys.executable}" --pass-helper'
+            else:
+                import os.path as osp
+                main_py = osp.abspath(osp.join(osp.dirname(__file__), "..", "..", "main.py"))
+                askpass_cmd = f'"{sys.executable}" "{main_py}" --pass-helper'
+            env["SSH_ASKPASS_PASS"] = self._conn.password
+            env["SSH_ASKPASS"] = askpass_cmd
+            env["SSH_ASKPASS_REQUIRE"] = "force"
+            env["DISPLAY"] = "dummy:0"
         return env
 
 

@@ -8,13 +8,12 @@ import threading
 import traceback
 
 # ── 0. SSH askpass helper (MUST BE FIRST, before anything else) ───────────
-# SECURITY FIX: Disabled SSH_PASSWORD environment variable method due to security risk.
-# Passwords in environment variables can be extracted from process lists.
-# Use stdin-based password passing instead via -opassword_stdin.
+# OpenSSH SSH_ASKPASS helper for non-interactive password input.
+# Reads SSH_ASKPASS_PASS env var and prints to stdout.
+# Used by system_info_panel.py for password-based SSH connections.
 if len(sys.argv) > 1 and sys.argv[1] == "--pass-helper":
-    # This method is deprecated and should not be used
-    # Passwords are now passed via stdin to sshfs/ssh processes
-    sys.exit(1)
+    print(os.environ.get("SSH_ASKPASS_PASS", ""), end="")
+    sys.exit(0)
 
 # ── 0.5 CLI-Modus ist nicht Sache der GUI-EXE ───────────────────────────────
 # Eine --windowed EXE hat keine nutzbare stdin/stdout im Parent-Terminal.
