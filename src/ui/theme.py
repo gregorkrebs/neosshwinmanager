@@ -1279,6 +1279,10 @@ QToolTip {
 QMessageBox {
     background-color: #0d0d12;
 }
+QMessageBox QLabel {
+    background-color: #0d0d12;
+    color: #c8d6e5;
+}
 QMessageBox QPushButton {
     min-width: 90px;
 }
@@ -2414,5 +2418,6 @@ QToolTip {
 }
 
 QMessageBox { background-color: #f0f2f5; }
+QMessageBox QLabel { background-color: #f0f2f5; color: #1a2332; }
 QMessageBox QPushButton { min-width: 90px; }
 """
