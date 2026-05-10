@@ -18,6 +18,12 @@ import ctypes
 import ctypes.wintypes
 import json
 
+# SECURITY FIX (FINDING-01): imports for named-pipe DACL and IPC rate limiting
+import win32security
+import win32api
+import win32con
+import ntsecuritycon
+
 from src.auth_manager import Session, UserConnectionManager
 from src.sshfs_controller import SSHFSController, _is_safe_label
 from src.config import Connection, AppSettings
@@ -26,7 +32,7 @@ from src.ui.system_tray import SystemTray
 from src.ui.debug_window import DebugWindow
 from src.app_logger import logger
 from src.ui.worker import MountWorker, UnmountWorker
-from src.ui.icons import icon as svg_icon
+from src.ui.icons import icon as svg_icon, pixmap as svg_pixmap
 from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelSpinBox
 from src.i18n import tr, current_language, available_languages
 from PyQt6.QtCore import QThread
@@ -85,7 +91,7 @@ class MainWindow(QMainWindow):
         self._debug_mode = False  # Can be toggled via F2
 
         self.setObjectName("MainWindow")
-        self.setWindowTitle("NEO SSH-Win Manager v1.4.0")
+        self.setWindowTitle("NEO SSH-Win Manager v1.4.1")
         self.setMinimumSize(820, 520)
         self.resize(1100, 640)
 
@@ -123,6 +129,7 @@ class MainWindow(QMainWindow):
         self._check_prerequisites()
         QTimer.singleShot(2000, self._auto_reconnect_mounts)
         QTimer.singleShot(0, self._apply_titlebar_color)
+        QTimer.singleShot(0, lambda: self._update_header_btn_icons(self._mgr.get_settings().theme or "dark"))
 
         import src.app_logger as _log_mod
         _em = _log_mod.log_emitter
@@ -144,6 +151,79 @@ class MainWindow(QMainWindow):
 
     def _ipc_listener(self):
         import time
+
+        # SECURITY FIX (FINDING-01): Rate limiting state — tracked per connecting PID.
+        # Max 10 failed/invalid requests per PID per 60-second window.
+        _ipc_rate: dict = {}   # pid → {"count": int, "window_start": float}
+        _IPC_MAX_FAILS = 10
+        _IPC_WINDOW_SEC = 60.0
+
+        def _check_rate(pid: int) -> bool:
+            """Return True if this PID is within the allowed request rate."""
+            now = time.monotonic()
+            entry = _ipc_rate.get(pid, {"count": 0, "window_start": now})
+            if now - entry["window_start"] > _IPC_WINDOW_SEC:
+                entry = {"count": 0, "window_start": now}
+            entry["count"] += 1
+            _ipc_rate[pid] = entry
+            return entry["count"] <= _IPC_MAX_FAILS
+
+        # SECURITY FIX (FINDING-01): Build a SECURITY_ATTRIBUTES struct that
+        # restricts pipe access to the current user only (replaces bare None).
+        def _make_pipe_security_attributes():
+            """Return a SECURITY_ATTRIBUTES ctypes struct granting access only to
+            the current user, or None on failure (falls back to default)."""
+            try:
+                # Get current user SID
+                username = win32api.GetUserNameEx(win32con.NameSamCompatible)
+                sid, _, _ = win32security.LookupAccountName(None, username)
+
+                # Build a DACL with a single ACE: GENERIC_READ | GENERIC_WRITE for current user
+                dacl = win32security.ACL()
+                dacl.AddAccessAllowedAce(
+                    win32security.ACL_REVISION,
+                    ntsecuritycon.GENERIC_READ | ntsecuritycon.GENERIC_WRITE,
+                    sid
+                )
+
+                # Attach the DACL to a new Security Descriptor
+                sd = win32security.SECURITY_DESCRIPTOR()
+                sd.SetSecurityDescriptorDacl(True, dacl, False)
+
+                # Convert SD to a self-relative binary blob and store it so it
+                # stays alive for the lifetime of the pipe handle.
+                sd_bytes = sd.GetSecurityDescriptorDacl()   # keep reference
+
+                # Build a SECURITY_ATTRIBUTES struct pointing to the SD
+                class SECURITY_ATTRIBUTES(ctypes.Structure):
+                    _fields_ = [
+                        ("nLength",              ctypes.c_ulong),
+                        ("lpSecurityDescriptor", ctypes.c_void_p),
+                        ("bInheritHandle",       ctypes.c_bool),
+                    ]
+
+                sa = SECURITY_ATTRIBUTES()
+                sa.nLength = ctypes.sizeof(SECURITY_ATTRIBUTES)
+                # Keep the SD object alive inside sa so GC doesn't collect it
+                sa._sd_obj = sd
+                # Obtain a raw pointer to the SD via win32security
+                raw_sd = win32security.ConvertStringSecurityDescriptorToSecurityDescriptor(
+                    sd.GetSecurityDescriptorSddl(win32security.DACL_SECURITY_INFORMATION),
+                    win32security.SDDL_REVISION_1,
+                )
+                sa._sd_raw = raw_sd
+                # Use the PyHANDLE buffer address as lpSecurityDescriptor
+                import ctypes
+                sa.lpSecurityDescriptor = ctypes.cast(
+                    ctypes.c_char_p(bytes(raw_sd)), ctypes.c_void_p
+                )
+                sa.bInheritHandle = False
+                return sa
+            except Exception as e:
+                logger.warning(f"IPC: SECURITY_ATTRIBUTES konnte nicht erstellt werden: {e} — "
+                               "Pipe wird mit Standard-ACL erstellt (FINDING-01 nicht vollständig gemindert).")
+                return None
+
         PIPE_ACCESS_DUPLEX    = 0x00000003
         PIPE_TYPE_MESSAGE     = 0x00000004
         PIPE_READMODE_MESSAGE = 0x00000002
@@ -151,10 +231,13 @@ class MainWindow(QMainWindow):
 
         while self._ipc_running:
             try:
+                sa = _make_pipe_security_attributes()
+                sa_ptr = ctypes.byref(sa) if sa is not None else None
                 pipe = ctypes.windll.kernel32.CreateNamedPipeW(
                     self._ipc_pipe_name, PIPE_ACCESS_DUPLEX,
                     PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-                    5, 65536, 65536, 5000, None
+                    5, 65536, 65536, 5000,
+                    sa_ptr  # SECURITY FIX (FINDING-01): proper DACL instead of None
                 )
                 if pipe == -1:
                     time.sleep(1)
@@ -163,27 +246,58 @@ class MainWindow(QMainWindow):
                 if not self._ipc_running:
                     ctypes.windll.kernel32.CloseHandle(pipe)
                     break
+
+                # Determine connecting PID for rate limiting
+                connecting_pid = 0
+                try:
+                    pid_val = ctypes.wintypes.ULONG()
+                    ctypes.windll.kernel32.GetNamedPipeClientProcessId(
+                        pipe, ctypes.byref(pid_val)
+                    )
+                    connecting_pid = pid_val.value
+                except Exception:
+                    pass
+
                 buf  = ctypes.create_string_buffer(65536)
                 read = ctypes.wintypes.DWORD()
                 if ctypes.windll.kernel32.ReadFile(pipe, buf, 65536, ctypes.byref(read), None):
                     try:
                         request = json.loads(buf.value[:read.value].decode('utf-8'))
                         if request.get("action") == "cli_connect":
-                            conn = self._mgr.get_by_cli_key(request.get("key", ""))
-                            if conn:
-                                response = {"success": True, "connection": {
-                                    "id": conn.id, "name": conn.name,
-                                    "host": conn.host, "user": conn.user,
-                                    "port": conn.port, "remote_path": conn.remote_path,
-                                    "auth_method": conn.auth_method,
-                                    "password": conn.password, "key_path": conn.key_path,
-                                }}
+                            # SECURITY FIX (FINDING-01): Rate limit by PID
+                            if not _check_rate(connecting_pid):
+                                logger.warning(
+                                    f"IPC: Rate-Limit erreicht für PID {connecting_pid} — "
+                                    "Anfrage abgelehnt."
+                                )
+                                response = {
+                                    "success": False,
+                                    "error": "Rate-Limit erreicht. Bitte warten."
+                                }
                             else:
-                                response = {"success": False, "error": "Ungültiger Access Key."}
-                            res = json.dumps(response).encode('utf-8')
-                            written = ctypes.wintypes.DWORD()
-                            ctypes.windll.kernel32.WriteFile(pipe, res, len(res), ctypes.byref(written), None)
-                            ctypes.windll.kernel32.FlushFileBuffers(pipe)
+                                conn = self._mgr.get_by_cli_key(request.get("key", ""))
+                                if conn:
+                                    # SECURITY FIX (FINDING-01): Do NOT include the
+                                    # password in the IPC response. The CLI client
+                                    # must obtain credentials through a secure
+                                    # side-channel (e.g. OS keyring) or prompt the
+                                    # user, not receive them over the pipe.
+                                    response = {"success": True, "connection": {
+                                        "id": conn.id, "name": conn.name,
+                                        "host": conn.host, "user": conn.user,
+                                        "port": conn.port, "remote_path": conn.remote_path,
+                                        "auth_method": conn.auth_method,
+                                        "key_path": conn.key_path,
+                                        # password intentionally omitted (FINDING-01)
+                                    }}
+                                else:
+                                    response = {"success": False, "error": "Ungültiger Access Key."}
+                        else:
+                            response = {"success": False, "error": "Unbekannte Aktion."}
+                        res = json.dumps(response).encode('utf-8')
+                        written = ctypes.wintypes.DWORD()
+                        ctypes.windll.kernel32.WriteFile(pipe, res, len(res), ctypes.byref(written), None)
+                        ctypes.windll.kernel32.FlushFileBuffers(pipe)
                     except Exception as e:
                         logger.error(f"IPC Request Fehler: {e}")
                 ctypes.windll.kernel32.DisconnectNamedPipe(pipe)
@@ -472,7 +586,7 @@ class MainWindow(QMainWindow):
         self._rp_save_top_btn = QPushButton()
         self._rp_save_top_btn.setObjectName("rpHeaderSaveBtn")
         self._rp_save_top_btn.setFixedSize(QSize(32, 32))
-        self._rp_save_top_btn.setIcon(svg_icon("check", "#deebf7", 15))
+        self._rp_save_top_btn.setIcon(svg_icon("floppy", "#ffffff", 15))
         self._rp_save_top_btn.setIconSize(QSize(15, 15))
         self._rp_save_top_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._rp_save_top_btn.setToolTip(tr("card.tooltip.save_top"))
@@ -720,7 +834,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        card = ConnectionCard(conn, mounted=mounted)
+        card = ConnectionCard(conn, mounted=mounted, theme=(self._mgr.get_settings().theme or "dark"))
         card.mount_requested.connect(self._on_mount)
         card.unmount_requested.connect(self._on_unmount)
         card.ssh_requested.connect(self._on_ssh_terminal)
@@ -956,7 +1070,7 @@ class MainWindow(QMainWindow):
         body.setObjectName("rpInfoBody")
         v = QVBoxLayout(body)
         v.setContentsMargins(18, 18, 18, 18)
-        v.setSpacing(14)
+        v.setSpacing(8)
 
         def _section(title):
             lbl = QLabel(title.upper())
@@ -967,32 +1081,32 @@ class MainWindow(QMainWindow):
         def _row(label, value, value_obj_name="rpValue"):
             container = QFrame()
             container.setObjectName("rpInfoField")
-            container.setFixedHeight(54)  # Match height of input fields in edit mode
-
-            
+            container.setFixedHeight(54)
             vl = QVBoxLayout(container)
             vl.setContentsMargins(16, 8, 16, 8)
             vl.setSpacing(4)
-            
-            # Label at top in caps, muted grey
             lbl = QLabel(label.upper())
             lbl.setObjectName("rpFieldLabelCaps")
             lbl.setStyleSheet("color: #6a7685; font-size: 11px; font-weight: 500;")
-            
             val = QLabel(str(value) if value else "—")
             val.setObjectName(value_obj_name)
             val.setStyleSheet(f"color: {_val_color}; font-size: 14px; font-weight: 400; padding: 0; background: transparent; border: none;")
-    
             vl.addWidget(lbl)
             vl.addWidget(val)
-            
             return container
+
+        def _row_pair(label1, value1, label2, value2, stretch1=2, stretch2=1):
+            wrapper = QWidget()
+            hl = QHBoxLayout(wrapper)
+            hl.setContentsMargins(0, 0, 0, 0)
+            hl.setSpacing(8)
+            hl.addWidget(_row(label1, value1), stretch=stretch1)
+            hl.addWidget(_row(label2, value2), stretch=stretch2)
+            return wrapper
 
         # Status badge row
         status_row = QHBoxLayout()
         status_row.setSpacing(12)
-        
-        # Pill-shaped status label (not button) with dot
         status_container = QFrame()
         status_container.setObjectName("rpStatusContainer")
         if is_mounted:
@@ -1014,8 +1128,6 @@ class MainWindow(QMainWindow):
         status_layout = QHBoxLayout(status_container)
         status_layout.setContentsMargins(12, 6, 16, 6)
         status_layout.setSpacing(6)
-        
-        # Small status dot
         dot_container = QWidget()
         dot_container.setFixedSize(6, 6)
         dot_container.setStyleSheet(f"""
@@ -1023,39 +1135,37 @@ class MainWindow(QMainWindow):
             border-radius: 3px;
         """)
         status_layout.addWidget(dot_container)
-        
-        # Status text
         status_text = QLabel(tr("panel.status.connected") if is_mounted else tr("panel.status.disconnected"))
         status_text.setStyleSheet(f"color: {'#00d464' if is_mounted else '#8a9aa8'}; font-weight: 600; font-size: 13px;")
         status_layout.addWidget(status_text)
+        if is_mounted:
+            status_container.setCursor(Qt.CursorShape.PointingHandCursor)
+            status_container.setToolTip(tr("card.tooltip.open_path"))
+            status_container.mousePressEvent = lambda ev, cid=conn.id: self._on_open_mounted_path(cid)
         status_row.addWidget(status_container)
         status_row.addStretch()
-        
-        # Drive badge - same style as connection card
-        drive_badge = QLabel(conn.drive_letter)
-        drive_badge.setObjectName("driveBadge")
-        drive_badge.setProperty("mounted", "true" if is_mounted else "false")
-        drive_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        drive_badge.setFixedSize(QSize(42, 30))
-        status_row.addWidget(drive_badge)
-        
+        if is_mounted:
+            _folder_color = "#00d464" if _theme == "dark" else "#007a3d"
+            folder_lbl = QLabel()
+            folder_lbl.setPixmap(svg_pixmap("folder", _folder_color, 30))
+            folder_lbl.setFixedSize(QSize(42, 30))
+            folder_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            folder_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+            folder_lbl.setToolTip(tr("card.tooltip.open_path"))
+            folder_lbl.mousePressEvent = lambda ev, cid=conn.id: self._on_open_mounted_path(cid)
+            status_row.addWidget(folder_lbl)
         v.addLayout(status_row)
-        
-        # Spacer before section
         v.addSpacing(8)
 
+        # General
         v.addWidget(_section(tr("addedit.section.general")))
         v.addWidget(_row(tr("addedit.label.name"), conn.name))
-        v.addWidget(_row(tr("addedit.label.host"), conn.host))
+        v.addWidget(_row_pair(tr("addedit.label.host"), conn.host,
+                              tr("addedit.label.port"), str(conn.port), 2, 1))
         v.addWidget(_row(tr("addedit.label.user"), conn.user))
-        v.addWidget(_row(tr("addedit.label.port"), str(conn.port)))
 
-        v.addSpacing(8)
-        v.addWidget(_section(tr("addedit.section.path")))
-        v.addWidget(_row(tr("addedit.label.path"), conn.remote_path))
-        v.addWidget(_row(tr("addedit.label.drive"), conn.drive_letter))
-
-        v.addSpacing(8)
+        # Auth
+        v.addSpacing(4)
         v.addWidget(_section(tr("addedit.section.auth")))
         auth_map = {"password": tr("addedit.auth.password"), "key": tr("addedit.auth.key"), "ask": tr("addedit.auth.ask")}
         v.addWidget(_row(tr("addedit.label.method"), auth_map.get(conn.auth_method, conn.auth_method)))
@@ -1064,13 +1174,19 @@ class MainWindow(QMainWindow):
         if conn.key_path:
             v.addWidget(_row(tr("addedit.label.key"), conn.key_path))
 
+        # Path & Drive
+        v.addSpacing(4)
+        v.addWidget(_section(tr("addedit.section.path")))
+        v.addWidget(_row_pair(tr("addedit.label.path"), conn.remote_path,
+                              tr("addedit.label.drive"), conn.drive_letter, 3, 1))
+
+        # CLI
         if conn.cli_access_enabled:
-            v.addSpacing(8)
+            v.addSpacing(4)
             v.addWidget(_section(tr("addedit.section.cli")))
             v.addWidget(_row(tr("addedit.cli.label"), tr("addedit.cli.enable") + " ✓"))
 
         v.addStretch()
-
         self._rp_layout.addWidget(body)
 
     def _build_sysinfo_fullpanel(self, conn: Connection):
@@ -1511,7 +1627,7 @@ class MainWindow(QMainWindow):
 
     def _section_label(self, text: str) -> QLabel:
         lbl = QLabel(text)
-        lbl.setObjectName("sectionLabel")
+        lbl.setObjectName("rpSectionLabel")
         return lbl
 
     def _field_label(self, text: str) -> QLabel:
@@ -1535,9 +1651,30 @@ class MainWindow(QMainWindow):
     def _build_edit_form(self, conn):
         """Build add/edit form inside right panel content area."""
         from src.drive_utils import get_available_drives
-        import secrets as _secrets
 
         is_edit = conn is not None
+
+        def _ef_field(label_text, input_widget):
+            container = QFrame()
+            container.setObjectName("rpInfoField")
+            container.setFixedHeight(54)
+            vl = QVBoxLayout(container)
+            vl.setContentsMargins(16, 8, 16, 8)
+            vl.setSpacing(4)
+            lbl = QLabel(label_text.upper())
+            lbl.setObjectName("rpFieldLabelCaps")
+            vl.addWidget(lbl)
+            vl.addWidget(input_widget)
+            return container
+
+        def _ef_field_pair(label1, widget1, label2, widget2, s1=2, s2=1):
+            wrapper = QWidget()
+            hl = QHBoxLayout(wrapper)
+            hl.setContentsMargins(0, 0, 0, 0)
+            hl.setSpacing(8)
+            hl.addWidget(_ef_field(label1, widget1), stretch=s1)
+            hl.addWidget(_ef_field(label2, widget2), stretch=s2)
+            return wrapper
 
         body = QWidget()
         body.setMinimumWidth(268)
@@ -1545,45 +1682,111 @@ class MainWindow(QMainWindow):
         v.setContentsMargins(16, 16, 16, 16)
         v.setSpacing(8)
 
+        # Status badge — identical to info panel so the transition feels seamless
+        if is_edit:
+            _theme = self._mgr.get_settings().theme or "dark"
+            is_mounted = (conn.id in self._cards and self._cards[conn.id].is_mounted)
+            status_row = QHBoxLayout()
+            status_row.setSpacing(12)
+            status_container = QFrame()
+            status_container.setObjectName("rpStatusContainer")
+            if is_mounted:
+                status_container.setStyleSheet("""
+                    QFrame#rpStatusContainer {
+                        background-color: rgba(0, 212, 100, 0.15);
+                        border: 1px solid rgba(0, 212, 100, 0.3);
+                        border-radius: 16px;
+                    }
+                """)
+            else:
+                status_container.setStyleSheet("""
+                    QFrame#rpStatusContainer {
+                        background-color: rgba(106, 122, 138, 0.15);
+                        border: 1px solid rgba(106, 122, 138, 0.3);
+                        border-radius: 16px;
+                    }
+                """)
+            status_layout = QHBoxLayout(status_container)
+            status_layout.setContentsMargins(12, 6, 16, 6)
+            status_layout.setSpacing(6)
+            dot = QWidget()
+            dot.setFixedSize(6, 6)
+            dot.setStyleSheet(f"background-color: {'#00d464' if is_mounted else '#8a9aa8'}; border-radius: 3px;")
+            status_layout.addWidget(dot)
+            status_text = QLabel(tr("panel.status.connected") if is_mounted else tr("panel.status.disconnected"))
+            status_text.setStyleSheet(f"color: {'#00d464' if is_mounted else '#8a9aa8'}; font-weight: 600; font-size: 13px;")
+            status_layout.addWidget(status_text)
+            status_row.addWidget(status_container)
+            status_row.addStretch()
+            if is_mounted:
+                _folder_color = "#00d464" if _theme == "dark" else "#007a3d"
+                folder_lbl = QLabel()
+                folder_lbl.setPixmap(svg_pixmap("folder", _folder_color, 30))
+                folder_lbl.setFixedSize(QSize(42, 30))
+                folder_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                folder_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+                folder_lbl.setToolTip(tr("card.tooltip.open_path"))
+                folder_lbl.mousePressEvent = lambda ev, cid=conn.id: self._on_open_mounted_path(cid)
+                status_row.addWidget(folder_lbl)
+            v.addLayout(status_row)
+            v.addSpacing(8)
+
         # General
         v.addWidget(self._section_label(tr("addedit.section.general")))
-        v.addWidget(self._field_label(tr("addedit.label.name")))
         self._ef_name = QLineEdit(conn.name if is_edit else "")
         self._ef_name.setPlaceholderText(tr("addedit.placeholder.name"))
-        v.addWidget(self._ef_name)
+        v.addWidget(_ef_field(tr("addedit.label.name"), self._ef_name))
 
-        v.addWidget(self._field_label(tr("addedit.label.host")))
         self._ef_host = QLineEdit(conn.host if is_edit else "")
         self._ef_host.setPlaceholderText("192.168.1.1")
-        v.addWidget(self._ef_host)
-
-        row1 = QHBoxLayout()
-        row1.setSpacing(8)
-        uc = QVBoxLayout()
-        uc.setSpacing(4)
-        uc.addWidget(self._field_label(tr("addedit.label.user")))
-        self._ef_user = QLineEdit(conn.user if is_edit else "")
-        self._ef_user.setPlaceholderText("root")
-        uc.addWidget(self._ef_user)
-        row1.addLayout(uc, stretch=2)
-        pc = QVBoxLayout()
-        pc.setSpacing(4)
-        pc.addWidget(self._field_label(tr("addedit.label.port")))
         self._ef_port = NoWheelSpinBox()
         self._ef_port.setRange(1, 65535)
         self._ef_port.setValue(conn.port if is_edit else 22)
-        pc.addWidget(self._ef_port)
-        row1.addLayout(pc, stretch=1)
-        v.addLayout(row1)
+        v.addWidget(_ef_field_pair(tr("addedit.label.host"), self._ef_host,
+                                   tr("addedit.label.port"), self._ef_port, 2, 1))
 
-        v.addWidget(self._divider())
+        self._ef_user = QLineEdit(conn.user if is_edit else "")
+        self._ef_user.setPlaceholderText("root")
+        v.addWidget(_ef_field(tr("addedit.label.user"), self._ef_user))
+
+        # Auth
+        v.addSpacing(4)
+        v.addWidget(self._section_label(tr("addedit.section.auth")))
+        self._ef_auth = NoWheelComboBox()
+        self._ef_auth.addItem(tr("addedit.auth.password"), "password")
+        self._ef_auth.addItem(tr("addedit.auth.key"), "key")
+        self._ef_auth.addItem(tr("addedit.auth.ask"), "ask")
+        if is_edit:
+            idx = self._ef_auth.findData(conn.auth_method)
+            if idx >= 0:
+                self._ef_auth.setCurrentIndex(idx)
+        v.addWidget(_ef_field(tr("addedit.label.method"), self._ef_auth))
+
+        self._ef_pw = QLineEdit(conn.password if is_edit else "")
+        self._ef_pw.setEchoMode(QLineEdit.EchoMode.Password)
+        self._ef_pw.setPlaceholderText("••••••••")
+        self._ef_pw.setStyleSheet("font-size: 8px; letter-spacing: 2px;")
+        v.addWidget(_ef_field(tr("addedit.label.password"), self._ef_pw))
+
+        key_container = QWidget()
+        key_hl = QHBoxLayout(key_container)
+        key_hl.setContentsMargins(0, 0, 0, 0)
+        key_hl.setSpacing(6)
+        self._ef_key = QLineEdit(conn.key_path if is_edit else "")
+        self._ef_key.setPlaceholderText("C:/Users/user/.ssh/id_rsa")
+        key_hl.addWidget(self._ef_key, stretch=1)
+        browse_btn = QPushButton("…")
+        browse_btn.setFixedWidth(28)
+        browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        browse_btn.clicked.connect(self._ef_browse_key)
+        key_hl.addWidget(browse_btn)
+        v.addWidget(_ef_field(tr("addedit.label.key"), key_container))
+
+        # Path & Drive
+        v.addSpacing(4)
         v.addWidget(self._section_label(tr("addedit.section.path")))
-        v.addWidget(self._field_label(tr("addedit.label.path")))
         self._ef_path = QLineEdit(conn.remote_path if is_edit else "/")
         self._ef_path.setPlaceholderText("/home/user")
-        v.addWidget(self._ef_path)
-
-        v.addWidget(self._field_label(tr("addedit.label.drive")))
         self._ef_drive = NoWheelComboBox()
         used = [c.drive_letter for c in self._mgr.get_all() if (not is_edit or c.id != conn.id)]
         available = get_available_drives(exclude=used)
@@ -1597,41 +1800,11 @@ class MainWindow(QMainWindow):
             idx = self._ef_drive.findData(conn.drive_letter)
             if idx >= 0:
                 self._ef_drive.setCurrentIndex(idx)
-        v.addWidget(self._ef_drive)
+        v.addWidget(_ef_field_pair(tr("addedit.label.path"), self._ef_path,
+                                   tr("addedit.label.drive"), self._ef_drive, 3, 1))
 
-        v.addWidget(self._divider())
-        v.addWidget(self._section_label(tr("addedit.section.auth")))
-        v.addWidget(self._field_label(tr("addedit.label.method")))
-        self._ef_auth = NoWheelComboBox()
-        self._ef_auth.addItem(tr("addedit.auth.password"), "password")
-        self._ef_auth.addItem(tr("addedit.auth.key"), "key")
-        self._ef_auth.addItem(tr("addedit.auth.ask"), "ask")
-        if is_edit:
-            idx = self._ef_auth.findData(conn.auth_method)
-            if idx >= 0:
-                self._ef_auth.setCurrentIndex(idx)
-        v.addWidget(self._ef_auth)
-
-        v.addWidget(self._field_label(tr("addedit.label.password")))
-        self._ef_pw = QLineEdit(conn.password if is_edit else "")
-        self._ef_pw.setEchoMode(QLineEdit.EchoMode.Password)
-        self._ef_pw.setPlaceholderText("••••••••")
-        v.addWidget(self._ef_pw)
-
-        v.addWidget(self._field_label(tr("addedit.label.key")))
-        key_row = QHBoxLayout()
-        key_row.setSpacing(6)
-        self._ef_key = QLineEdit(conn.key_path if is_edit else "")
-        self._ef_key.setPlaceholderText("C:/Users/user/.ssh/id_rsa")
-        key_row.addWidget(self._ef_key, stretch=1)
-        browse_btn = QPushButton("…")
-        browse_btn.setFixedWidth(32)
-        browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        browse_btn.clicked.connect(self._ef_browse_key)
-        key_row.addWidget(browse_btn)
-        v.addLayout(key_row)
-
-        v.addWidget(self._divider())
+        # CLI
+        v.addSpacing(4)
         v.addWidget(self._section_label(tr("addedit.section.cli")))
         self._ef_cli_cb = QCheckBox(tr("addedit.cli.enable"))
         self._ef_cli_cb.setChecked(conn.cli_access_enabled if is_edit else False)
@@ -1642,14 +1815,12 @@ class MainWindow(QMainWindow):
         cli_inner = QVBoxLayout(self._ef_cli_widget)
         cli_inner.setContentsMargins(0, 4, 0, 0)
         cli_inner.setSpacing(4)
-        cli_inner.addWidget(self._field_label(tr("addedit.cli.label")))
         cli_key_row = QHBoxLayout()
         cli_key_row.setSpacing(4)
         self._ef_cli_key = QLineEdit(conn.cli_access_key or "" if is_edit else "")
         self._ef_cli_key.setReadOnly(True)
         self._ef_cli_key.setPlaceholderText(tr("addedit.cli.none"))
         cli_key_row.addWidget(self._ef_cli_key, stretch=1)
-
         self._ef_cli_copy_btn = QPushButton()
         self._ef_cli_copy_btn.setObjectName("rpHeaderBtn")
         self._ef_cli_copy_btn.setFixedSize(32, 32)
@@ -1659,7 +1830,6 @@ class MainWindow(QMainWindow):
         self._ef_cli_copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._ef_cli_copy_btn.clicked.connect(self._ef_copy_cli_key)
         cli_key_row.addWidget(self._ef_cli_copy_btn)
-
         self._ef_cli_gen_btn = QPushButton()
         self._ef_cli_gen_btn.setObjectName("rpHeaderBtn")
         self._ef_cli_gen_btn.setFixedSize(32, 32)
@@ -1669,7 +1839,6 @@ class MainWindow(QMainWindow):
         self._ef_cli_gen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._ef_cli_gen_btn.clicked.connect(self._ef_generate_new_cli_key)
         cli_key_row.addWidget(self._ef_cli_gen_btn)
-
         cli_inner.addLayout(cli_key_row)
         self._ef_cli_widget.setVisible(conn.cli_access_enabled if is_edit else False)
         v.addWidget(self._ef_cli_widget)
@@ -1677,29 +1846,28 @@ class MainWindow(QMainWindow):
         if is_edit and conn.cli_access_enabled and not conn.cli_access_key:
             self._ef_generate_new_cli_key()
 
-        # ── PUTTY KEY ───────────────────────────────────────────────
-        # Only visible when PuTTY is enabled globally
+        # PuTTY (only when enabled globally)
         s = self._mgr.get_settings()
         if s.use_putty:
-            v.addWidget(self._divider())
+            v.addSpacing(4)
             v.addWidget(self._section_label("PuTTY"))
-            v.addWidget(self._field_label(tr("addedit.putty_key.label")))
-            putty_row = QHBoxLayout()
-            putty_row.setSpacing(6)
+            putty_container = QWidget()
+            putty_hl = QHBoxLayout(putty_container)
+            putty_hl.setContentsMargins(0, 0, 0, 0)
+            putty_hl.setSpacing(6)
             self._ef_putty_key = QLineEdit(conn.putty_key_path if is_edit else "")
             self._ef_putty_key.setPlaceholderText("C:/Users/user/.ssh/id_rsa.ppk")
-            putty_row.addWidget(self._ef_putty_key, stretch=1)
+            putty_hl.addWidget(self._ef_putty_key, stretch=1)
             putty_browse_btn = QPushButton("…")
-            putty_browse_btn.setFixedWidth(32)
+            putty_browse_btn.setFixedWidth(28)
             putty_browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             putty_browse_btn.clicked.connect(self._ef_browse_putty_key)
-            putty_row.addWidget(putty_browse_btn)
-            v.addLayout(putty_row)
+            putty_hl.addWidget(putty_browse_btn)
+            v.addWidget(_ef_field(tr("addedit.putty_key.label"), putty_container))
             v.addWidget(self._field_label(tr("addedit.putty_key.hint")))
 
         v.addStretch()
         self._rp_layout.addWidget(body)
-        # Store edit connection reference
         self._ef_conn = conn
         for w in (self._ef_name, self._ef_host, self._ef_user):
             w.textChanged.connect(self._validate_edit_form)
@@ -1710,8 +1878,9 @@ class MainWindow(QMainWindow):
 
     def _setup_edit_tab_order(self):
         chain = [
-            self._ef_name, self._ef_host, self._ef_user, self._ef_port, self._ef_path,
-            self._ef_drive, self._ef_auth, self._ef_pw, self._ef_key,
+            self._ef_name, self._ef_host, self._ef_port, self._ef_user,
+            self._ef_auth, self._ef_pw, self._ef_key,
+            self._ef_path, self._ef_drive,
             self._ef_cli_cb, self._ef_cli_key
         ]
         if getattr(self, "_ef_putty_key", None) is not None:
@@ -2293,6 +2462,7 @@ class MainWindow(QMainWindow):
         self._mgr.add(new_conn)
         self._refresh_list()
         self._set_status(tr("status.saved"))
+        self._ef_initial_snapshot = self._snapshot_form()
         self._open_info_panel(new_conn.id)
 
     def _save_settings_form(self):
@@ -2635,6 +2805,9 @@ class MainWindow(QMainWindow):
             return
         conn = self._prepare_auth(conn)
         if conn is None:
+            card = self._cards.get(conn_id)
+            if card:
+                card.hide_loading()
             return
         self._set_status(tr("status.connecting", name=conn.name, drive=conn.drive_letter))
         card = self._cards.get(conn_id)
@@ -2660,8 +2833,9 @@ class MainWindow(QMainWindow):
             if conn:
                 self._set_status(tr("status.connected", name=conn.name, drive=conn.drive_letter))
             if self._panel_conn_id == conn_id:
-                # Keep header mount state and panel content in sync
-                if self._panel_mode == _PANEL_INFO:
+                # Keep header mount state and panel content in sync.
+                # EDIT mode: close edit panel and show info (can't edit a mounted connection).
+                if self._panel_mode in (_PANEL_INFO, _PANEL_EDIT):
                     self._open_info_panel(conn_id)
                 elif self._panel_mode == _PANEL_SYSINFO:
                     self._open_sysinfo_panel(conn_id)
@@ -2797,6 +2971,17 @@ class MainWindow(QMainWindow):
         theme = s.theme or "dark"
         QApplication.instance().setStyleSheet(get_stylesheet(theme))
         self._apply_titlebar_color(theme)
+        self._update_header_btn_icons(theme)
+
+    def _update_header_btn_icons(self, theme: str):
+        if theme == "light":
+            del_color  = "#b91c1c"
+            save_color = "#16a34a"
+        else:
+            del_color  = "#ffffff"
+            save_color = "#ffffff"
+        self._rp_del_btn.setIcon(svg_icon("trash", del_color, 15))
+        self._rp_save_top_btn.setIcon(svg_icon("floppy", save_color, 15))
 
     def _apply_titlebar_color(self, theme: str = None):
         """Apply Windows title bar color to match the app theme (Windows 11+)."""

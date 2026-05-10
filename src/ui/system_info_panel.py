@@ -31,22 +31,69 @@ def _is_safe_file_path(path: str) -> bool:
     """
     if not path or not isinstance(path, str):
         return False
-    
+
     # Normalize path and check for traversal
     try:
         normalized = os.path.normpath(path)
     except Exception:
         return False
-    
+
     if '..' in normalized or normalized.startswith('/..'):
         return False
-    
+
     # Reject shell metacharacters
     dangerous = set(';|&`$(){}[]<>!\\"\'\n\r\t')
     if any(c in dangerous for c in path):
         return False
-    
+
     return True
+
+
+def _is_host_known(host: str, port: int, known_hosts_path: str) -> bool:
+    """
+    SECURITY FIX (FINDING-02): Check whether a host is already verified in known_hosts
+    before initiating an SSH connection, to prevent MITM attacks.
+
+    Uses ssh-keygen -F for correct handling of hashed known_hosts entries.
+    Falls back to plain text search for unhashed entries.
+    """
+    if not os.path.exists(known_hosts_path):
+        return False
+
+    # Primary: ssh-keygen -F (handles hashed known_hosts correctly)
+    ssh_keygen = shutil.which("ssh-keygen") or r"C:\Windows\System32\OpenSSH\ssh-keygen.exe"
+    if shutil.which("ssh-keygen") or os.path.exists(ssh_keygen):
+        try:
+            target = f"[{host}]:{port}" if port != 22 else host
+            result = subprocess.run(
+                [ssh_keygen, "-F", target, "-f", known_hosts_path],
+                capture_output=True, timeout=5,
+                creationflags=0x08000000,
+            )
+            return result.returncode == 0
+        except Exception:
+            pass
+
+    # Fallback: direct text search (works only for non-hashed entries)
+    try:
+        target_plain = host
+        target_port = f"[{host}]:{port}" if port != 22 else None
+        with open(known_hosts_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                hosts_field = parts[0]
+                for h in hosts_field.split(','):
+                    if h == target_plain or (target_port and h == target_port):
+                        return True
+    except Exception:
+        pass
+
+    return False
 
 
 class SSHSystemInfoThread(QThread):
@@ -100,6 +147,19 @@ class SSHSystemInfoThread(QThread):
         ssh_client, client_type = self._find_ssh_client()
         if not ssh_client:
             info["error"] = "SSH client not found (ssh.exe or plink.exe)"
+            return info
+
+        # SECURITY FIX (FINDING-02): Before initiating any SSH connection, verify
+        # that the target host is already present in known_hosts.  If the host is
+        # not yet known, refuse to connect and emit an error instead, preventing
+        # a potential MITM attack on first connection.
+        known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
+        if not _is_host_known(self._conn.host, self._conn.port, known_hosts_path):
+            info["error"] = (
+                f"Host '{self._conn.host}:{self._conn.port}' ist noch nicht in known_hosts verifiziert.\n"
+                "Bitte zuerst eine SSH-Terminal-Verbindung zu diesem Server aufbauen "
+                "und den Host-Key-Fingerprint dort bestätigen."
+            )
             return info
 
         # Build command based on client type
@@ -235,7 +295,9 @@ class SSHSystemInfoThread(QThread):
         return None
 
     def _build_ssh_command(self, ssh_exe: str) -> tuple[list, str]:
-        """Build SSH command for native ssh.exe. Password auth uses SSH_ASKPASS from _get_ssh_env()."""
+        """Build SSH command for native ssh.exe. Password auth uses SSH_ASKPASS from _get_ssh_env().
+        SECURITY FIX (FINDING-02): Uses StrictHostKeyChecking=yes (not accept-new) because
+        _gather_info() already verified the host is present in known_hosts."""
         has_key = bool(self._conn.key_path)
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
 
@@ -255,7 +317,11 @@ class SSHSystemInfoThread(QThread):
 
         cmd_base = [
             ssh_exe,
-            "-o", "StrictHostKeyChecking=accept-new",
+            # SECURITY FIX (FINDING-02): Changed from accept-new to yes.
+            # The host has already been verified in known_hosts by _gather_info()
+            # before this function is called, so accept-new is no longer needed
+            # and would introduce MITM risk on first connection.
+            "-o", "StrictHostKeyChecking=yes",
             "-o", f"UserKnownHostsFile={known_hosts_path}",
             "-o", "ConnectTimeout=10",
         ]
@@ -273,7 +339,7 @@ class SSHSystemInfoThread(QThread):
         # SECURITY: Validate plink path to prevent command injection
         if not _is_safe_file_path(plink_exe):
             raise ValueError(f"Ungültiger plink.exe Pfad: {plink_exe}")
-        
+
         cmd_base = [
             plink_exe,
             "-batch",  # Non-interactive mode

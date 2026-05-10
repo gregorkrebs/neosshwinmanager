@@ -144,7 +144,7 @@ def _install_global_exception_handlers():
                 box.setText(tr("app.unexpected_error.body"))
                 copy_btn = box.addButton("Details kopieren", QMessageBox.ButtonRole.ActionRole)
                 copy_btn.setIcon(svg_icon("copy", "#ffffff", 14))
-                copy_btn.clicked.connect(lambda: _copy_to_clipboard(err_text))
+                copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(err_text))
                 box.addButton(QMessageBox.StandardButton.Ok)
                 box.exec()
             except Exception:
@@ -185,7 +185,7 @@ def main():
 
     # Windows taskbar icon fix (AppUserModelID)
     try:
-        myappid = 'neo.sshwinmanager.v1.4.0'
+        myappid = 'neo.sshwinmanager.v1.4.1'
         if os.name == 'nt':
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
@@ -194,7 +194,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("NEO SSH-Win Manager")
     app.setApplicationDisplayName("NEO SSH-Win Manager")
-    app.setApplicationVersion("1.4.0")
+    app.setApplicationVersion("1.4.1")
     app.setOrganizationName("NeoSSHWinManager")
 
     _install_global_exception_handlers()

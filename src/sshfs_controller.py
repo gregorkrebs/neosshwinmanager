@@ -63,22 +63,22 @@ def _is_safe_remote_path(path: str) -> bool:
     """
     if not path or not isinstance(path, str):
         return True  # Empty path is OK (defaults to /)
-    
+
     # SECURITY FIX: Normalize path and check for traversal
     try:
         normalized = os.path.normpath(path)
     except Exception:
         return False
-    
+
     # Check for path traversal
     if '..' in normalized or normalized.startswith('/..'):
         return False
-    
+
     # Reject shell metacharacters
     dangerous = set(';|&`$(){}[]<>!\\"\'\n\r\t')
     if any(c in dangerous for c in path):
         return False
-    
+
     return True
 
 
@@ -98,7 +98,8 @@ def _is_host_known(host: str, port: int, known_hosts_path: str) -> bool:
             target = f"[{host}]:{port}" if port != 22 else host
             result = subprocess.run(
                 [ssh_keygen, "-F", target, "-f", known_hosts_path],
-                capture_output=True, timeout=5
+                capture_output=True, timeout=5,
+                creationflags=0x08000000,
             )
             return result.returncode == 0
         except Exception:
@@ -149,7 +150,7 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
     if not letter or len(letter) != 1 or not letter.isalpha():
         return None
     letter = letter[0]  # Ensure single character
-    
+
     target_arg = f"{letter}:"
 
     try:
@@ -169,13 +170,13 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
     except Exception:
         # Letzter Versuch über tasklist (weniger Details)
         try:
-            task_out = subprocess.check_output(['tasklist', '/FI', 'IMAGENAME eq sshfs.exe', '/FO', 'CSV'], 
+            task_out = subprocess.check_output(['tasklist', '/FI', 'IMAGENAME eq sshfs.exe', '/FO', 'CSV'],
                                               creationflags=0x08000000, text=True)
             # Hier können wir leider nicht die CommandLine prüfen, nur ob er läuft
-            pass 
+            pass
         except Exception:
             pass
-        
+
     return None
 
 
@@ -207,13 +208,13 @@ class SSHFSController:
 
     def _mount_direct(self, conn: Connection) -> MountResult:
         from src.app_logger import logger
-        
+
         sshfs_exe = _find_sshfs_exe()
         if not sshfs_exe:
             return MountResult(False, "sshfs.exe nicht gefunden. Bitte SSHFS-Win installieren.")
 
         letter = conn.drive_letter.rstrip("\\").rstrip(":")
-        
+
         logger.info(f"=== SSHFS Mount Debug ===")
         logger.info(f"Connection name: {conn.name}")
         logger.info(f"Host: {conn.host}:{conn.port}")
@@ -222,11 +223,11 @@ class SSHFSController:
         logger.info(f"Remote path: {conn.remote_path or '/'}")
         logger.info(f"Drive letter: {letter}:")
         logger.info(f"SSHFS exe: {sshfs_exe}")
-        
+
         # SECURITY FIX: Validate remote_path to prevent path traversal on server
         if not _is_safe_remote_path(conn.remote_path or '/'):
             return MountResult(False, f"Ungültiger remote_path: {conn.remote_path}")
-        
+
         remote = f"{conn.user}@{conn.host}:{conn.remote_path or '/'}"
         sshfs_bin_dir = os.path.dirname(sshfs_exe)
 
@@ -235,7 +236,7 @@ class SSHFSController:
         if not _is_safe_label(conn.name):
             return MountResult(False, f"Ungültiger Label-Name: {conn.name}")
         safe_name = conn.name[:32].replace("=", "_").replace(",", "_")
-        
+
         # SECURITY FIX: Use absolute path for known_hosts instead of %USERPROFILE%
         # SSHFS cannot expand %USERPROFILE% correctly
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
@@ -279,10 +280,17 @@ class SSHFSController:
 
         if conn.auth_method == "key" and conn.key_path:
             key_path = conn.key_path.replace("\\", "/")
+            # SECURITY FIX (FINDING-07): Validate key_path for path traversal.
+            # Prevents an attacker-controlled key_path value from escaping the
+            # intended directory via ".." sequences.
+            normalized = os.path.normpath(key_path)
+            if '..' in normalized:
+                return MountResult(False, "Ungültiger Key-Pfad: Path-Traversal erkannt")
+
             # Validate key file exists and is readable
             if not os.path.exists(key_path):
                 return MountResult(False, f"SSH-Key nicht gefunden: {key_path}")
-            
+
             # OpenSSH keys are valid input for current SSHFS-Win/OpenSSH builds.
             # Keep a lightweight readability check only, but do not block by header type.
             try:
@@ -293,7 +301,7 @@ class SSHFSController:
             except Exception as e:
                 logger.error(f"Error reading key file: {e}")
                 return MountResult(False, f"Fehler beim Lesen des SSH-Keys: {e}")
-            
+
             cmd.append(f"-oIdentityFile={key_path}")
             cmd.append("-oBatchMode=yes")
             cmd.append("-oPreferredAuthentications=publickey")
@@ -320,7 +328,7 @@ class SSHFSController:
                 env=env,
                 creationflags=0x08000000,
             )
-            
+
             logger.info(f"SSHFS process started with PID: {proc.pid}")
 
             if conn.auth_method in ("password", "ask") and conn.password:
@@ -378,7 +386,7 @@ class SSHFSController:
 
             full = "\n".join(debug_lines)
             full_lower = full.lower()
-            
+
             logger.info(f"SSHFS process poll status: {proc.poll()}")
             logger.info(f"SSHFS stderr output length: {len(full)}")
             logger.info(f"SSHFS stderr output: {full[:500]}")
@@ -412,7 +420,7 @@ class SSHFSController:
                 return MountResult(False,
                     f"Die Verbindung wurde unterbrochen oder zurückgesetzt ({conn.host}:{conn.port}).\n"
                     f"Mögliches Netzwerkproblem oder Firewall-Blockade.")
-            
+
             logger.error(f"SSHFS unknown error. Full output: {full}")
             return MountResult(False, full[-300:] or "Ein unbekannter Fehler in sshfs.exe ist aufgetreten.")
 

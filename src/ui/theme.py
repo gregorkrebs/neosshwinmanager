@@ -787,10 +787,36 @@ QFrame#rpInfoField {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
 }
+QFrame#rpInfoField QLineEdit,
+QFrame#rpInfoField QSpinBox,
+QFrame#rpInfoField QComboBox {
+    padding: 0;
+    min-height: 16px;
+    max-height: 20px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 400;
+    color: #c8d6e5;
+}
+QFrame#rpInfoField QLineEdit:focus,
+QFrame#rpInfoField QSpinBox:focus,
+QFrame#rpInfoField QComboBox:focus {
+    border-bottom: 1px solid #00b4d8;
+    background-color: transparent;
+}
+QFrame#rpInfoField QPushButton {
+    min-height: 16px;
+    max-height: 20px;
+    padding: 0 4px;
+    font-size: 14px;
+}
 #rpSectionLabel {
     color: #00b4d8;
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
     padding-top: 4px;
@@ -859,9 +885,8 @@ QPushButton#rpHeaderBtn[btn_type="danger"]:disabled:hover {
     border: 1px solid rgba(239, 68, 68, 0.18);
 }
 QPushButton#rpHeaderSaveBtn {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #00d464, stop:1 #008f48);
-    border: none;
+    background-color: rgba(0, 212, 100, 0.15);
+    border: 1px solid rgba(0, 212, 100, 0.35);
     border-radius: 10px;
     min-width: 32px;
     max-width: 32px;
@@ -869,8 +894,8 @@ QPushButton#rpHeaderSaveBtn {
     max-height: 32px;
 }
 QPushButton#rpHeaderSaveBtn:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #1ce080, stop:1 #00a258);
+    background-color: rgba(0, 212, 100, 0.24);
+    border: 1px solid rgba(0, 212, 100, 0.60);
 }
 QPushButton#rpHeaderSaveBtn:disabled {
     background: #1a2330;
@@ -1941,13 +1966,39 @@ QPushButton#headerAddBtn:hover {
 #rpInfoBody { background-color: transparent; }
 QFrame#rpInfoField {
     background-color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid #e2e8ef;
     border-radius: 12px;
+}
+QFrame#rpInfoField QLineEdit,
+QFrame#rpInfoField QSpinBox,
+QFrame#rpInfoField QComboBox {
+    padding: 0;
+    min-height: 16px;
+    max-height: 20px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid #c8d0dc;
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 400;
+    color: #1a2332;
+}
+QFrame#rpInfoField QLineEdit:focus,
+QFrame#rpInfoField QSpinBox:focus,
+QFrame#rpInfoField QComboBox:focus {
+    border-bottom: 1px solid #0077b6;
+    background-color: transparent;
+}
+QFrame#rpInfoField QPushButton {
+    min-height: 16px;
+    max-height: 20px;
+    padding: 0 4px;
+    font-size: 14px;
 }
 #rpSectionLabel {
     color: #0077b6;
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
     padding-top: 4px;
@@ -2007,9 +2058,8 @@ QPushButton#rpHeaderBtn[btn_type="danger"]:disabled:hover {
     border: 1px solid rgba(220, 38, 38, 0.20);
 }
 QPushButton#rpHeaderSaveBtn {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #00d464, stop:1 #008f48);
-    border: none;
+    background-color: rgba(0, 180, 80, 0.15);
+    border: 1px solid rgba(0, 180, 80, 0.35);
     border-radius: 10px;
     min-width: 32px;
     max-width: 32px;
@@ -2017,8 +2067,8 @@ QPushButton#rpHeaderSaveBtn {
     max-height: 32px;
 }
 QPushButton#rpHeaderSaveBtn:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #1ce080, stop:1 #00a258);
+    background-color: rgba(0, 180, 80, 0.24);
+    border: 1px solid rgba(0, 180, 80, 0.60);
 }
 QPushButton#rpHeaderSaveBtn:disabled {
     background: #f4f7fa;

@@ -20,10 +20,11 @@ class ConnectionCard(QFrame):
     ssh_requested = pyqtSignal(str)
     open_path_requested = pyqtSignal(str)
 
-    def __init__(self, conn: Connection, mounted: bool = False, parent=None):
+    def __init__(self, conn: Connection, mounted: bool = False, theme: str = "dark", parent=None):
         super().__init__(parent)
         self._conn = conn
         self._mounted = mounted
+        self._theme = theme
         self._loading = False
         self.setObjectName("connectionCard")
         self.setFixedHeight(68)
@@ -122,7 +123,15 @@ class ConnectionCard(QFrame):
             self._drive_badge.setCursor(Qt.CursorShape.ArrowCursor)
 
         self._ssh_btn.setIcon(svg_icon("terminal", "#aab4c4", 16))
-        self._edit_btn.setIcon(svg_icon("edit", "#aab4c4" if not mounted else "#6a7a8a", 15))
+        # Light theme: active icon must be darker (#4a5a6a) to be visible on a light
+        # background; disabled icon lighter (#b8c4cf). Dark theme keeps original values.
+        if self._theme == "light":
+            _edit_active   = "#4a5a6a"
+            _edit_disabled = "#b8c4cf"
+        else:
+            _edit_active   = "#aab4c4"
+            _edit_disabled = "#6a7a8a"
+        self._edit_btn.setIcon(svg_icon("edit", _edit_active if not mounted else _edit_disabled, 15))
         self._edit_btn.setToolTip(
             tr("card.tooltip.edit_locked") if mounted else tr("card.tooltip.edit")
         )

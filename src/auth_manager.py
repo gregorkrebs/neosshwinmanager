@@ -41,6 +41,10 @@ _LOCKOUT_SCHEDULE: list[tuple[int, int]] = [
     (3,   86_400),
     (2,  604_800),
 ]
+
+# SECURITY FIX (FINDING-05): _login_attempts is now a cache backed by the
+# database.  On startup the cache is populated from the DB so that a process
+# restart cannot be used to bypass lockouts.
 _login_attempts: dict = {}   # key: username.lower() → {"count": int, "locked_until": float}
 _LOGIN_LOCK = threading.Lock()
 
@@ -58,6 +62,75 @@ def _lockout_for_count(count: int) -> int:
     if count > last_boundary and (count - last_boundary) % last_step == 0:
         return last_dur
     return 0
+
+
+# ------------------------------------------------------------------
+# FINDING-05: Persistent login-attempt helpers
+# ------------------------------------------------------------------
+
+def _ensure_login_attempts_table() -> None:
+    """Create the login_attempts persistence table if it does not exist."""
+    try:
+        with get_connection() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS login_attempts (
+                    username_key TEXT PRIMARY KEY,
+                    fail_count   INTEGER NOT NULL DEFAULT 0,
+                    locked_until REAL    NOT NULL DEFAULT 0.0
+                )
+            """)
+    except Exception as e:
+        logger.warning(f"login_attempts Tabelle konnte nicht erstellt werden: {e}")
+
+
+def _load_login_attempts_from_db() -> None:
+    """Populate in-memory cache from the database on startup."""
+    try:
+        _ensure_login_attempts_table()
+        with get_connection() as conn:
+            rows = conn.execute(
+                "SELECT username_key, fail_count, locked_until FROM login_attempts"
+            ).fetchall()
+        with _LOGIN_LOCK:
+            for row in rows:
+                _login_attempts[row["username_key"]] = {
+                    "count": row["fail_count"],
+                    "locked_until": row["locked_until"],
+                }
+    except Exception as e:
+        logger.warning(f"Fehlversuche konnten nicht aus DB geladen werden: {e}")
+
+
+def _persist_login_attempt(key: str, attempt: dict) -> None:
+    """Write a single attempt record to the database (called under _LOGIN_LOCK)."""
+    try:
+        with get_connection() as conn:
+            conn.execute(
+                """INSERT INTO login_attempts (username_key, fail_count, locked_until)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(username_key) DO UPDATE SET
+                     fail_count   = excluded.fail_count,
+                     locked_until = excluded.locked_until""",
+                (key, attempt["count"], attempt["locked_until"])
+            )
+    except Exception as e:
+        logger.warning(f"Fehlversuch konnte nicht in DB persistiert werden: {e}")
+
+
+def _clear_login_attempt_from_db(key: str) -> None:
+    """Remove a successfully-authenticated user's attempt record from the DB."""
+    try:
+        with get_connection() as conn:
+            conn.execute(
+                "DELETE FROM login_attempts WHERE username_key = ?", (key,)
+            )
+    except Exception as e:
+        logger.warning(f"Login-Attempt konnte nicht aus DB gelöscht werden: {e}")
+
+
+# Load persisted attempts when this module is first imported.
+# This ensures lockouts survive process restarts (FINDING-05).
+_load_login_attempts_from_db()
 
 
 class LoginLockedError(Exception):
@@ -218,7 +291,8 @@ class AuthManager:
             ).fetchone()
 
         def _record_failure():
-            """Zählt Fehlversuch; wirft LoginLockedError wenn Tier-Grenze getroffen."""
+            """Zählt Fehlversuch; wirft LoginLockedError wenn Tier-Grenze getroffen.
+            FINDING-05: count and locked_until are written to DB for persistence."""
             with _LOGIN_LOCK:
                 a = _login_attempts.get(key, {"count": 0, "locked_until": 0.0})
                 a["count"] += 1
@@ -230,6 +304,9 @@ class AuthManager:
                         f"(Versuch #{a['count']})"
                     )
                 _login_attempts[key] = a
+                # SECURITY FIX (FINDING-05): persist to DB so process restart
+                # cannot reset the counter and bypass brute-force protection.
+                _persist_login_attempt(key, a)
                 return lockout
 
         if not row:
@@ -285,8 +362,10 @@ class AuthManager:
             logger.warning(f"Migrations fehlgeschlagen (nicht kritisch): {e}")
 
         # Erfolgreichen Login → Fehlversuchs-Zähler zurücksetzen (CWE-307)
+        # FINDING-05: also clear from DB so persistent counter is removed.
         with _LOGIN_LOCK:
             _login_attempts.pop(key, None)
+        _clear_login_attempt_from_db(key)
 
         return user
 

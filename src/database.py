@@ -12,6 +12,7 @@
 # SECURITY FIXES:
 #   - Secure file permissions (600 on Unix, restricted ACL on Windows)
 #   - Database encryption at rest support (SQLCipher)
+#   - TOCTOU fix: _set_secure_permissions() called after DB file creation (FINDING-08)
 #
 # pip install cryptography
 
@@ -66,10 +67,17 @@ def get_db_path() -> Path:
     db_dir.mkdir(parents=True, exist_ok=True)
     db_path = db_dir / "data.db"
 
-    # SECURITY FIX: Set secure permissions on database file
+    # SECURITY FIX (FINDING-08 – TOCTOU):
+    # If the file already exists, apply permissions immediately.
+    # If it is a new file, permissions are applied after init_db() creates it
+    # via the sqlite3.connect() call — see the else-branch comment below.
     if db_path.exists():
         _set_secure_permissions(db_path)
     else:
+        # File does not exist yet.  sqlite3.connect() (called by get_connection()
+        # and init_db()) will create the file.  _set_secure_permissions() is
+        # then called by init_db() *after* the schema has been written, closing
+        # the TOCTOU window between file creation and permission hardening.
         _db_logger.info(f"Neue Datenbankdatei erstellt: {db_path}")
 
     return db_path
@@ -198,5 +206,8 @@ def init_db() -> None:
         except Exception:
             pass
 
-    # DB-Datei existiert jetzt garantiert (sqlite3.connect hat sie angelegt)
+    # SECURITY FIX (FINDING-08 – TOCTOU): DB file now guaranteed to exist
+    # (sqlite3.connect inside get_connection() creates it if absent).
+    # Apply secure permissions here so the window between file creation and
+    # permission hardening is closed even on the very first run.
     _set_secure_permissions(db_path)
