@@ -216,7 +216,7 @@ def main():
 
     # Windows taskbar icon fix (AppUserModelID)
     try:
-        myappid = 'neo.sshwinmanager.v1.4.1'
+        myappid = 'neo.sshwinmanager.v1.5.0'
         if os.name == 'nt':
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
@@ -225,7 +225,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("NEO SSH-Win Manager")
     app.setApplicationDisplayName("NEO SSH-Win Manager")
-    app.setApplicationVersion("1.4.1")
+    app.setApplicationVersion("1.5.0")
     app.setOrganizationName("NeoSSHWinManager")
 
     _install_global_exception_handlers()
@@ -335,7 +335,6 @@ def main():
 
         # Start Update Check
         from src.updater import UpdaterManager
-        # app_version ist beispielsweise '1.4.1'
         updater = UpdaterManager(app.applicationVersion())
         
         def _on_update_available(version: str, changelog: str, download_url: str, obj_type: str):
