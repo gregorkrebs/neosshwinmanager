@@ -8,7 +8,7 @@ Admins können weitere Benutzer anlegen.
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QFrame, QCheckBox, QMessageBox, QTabWidget, QWidget,
+    QPushButton, QFrame, QCheckBox, QTabWidget, QWidget,
     QScrollArea, QApplication
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer
@@ -18,6 +18,7 @@ import os
 from src.auth_manager import AuthManager, Session, LoginLockedError
 from src.crypto import is_available
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
+from src.ui.dialogs.styled_message_box import StyledMessageBox
 from src.ui.icons import icon as svg_icon
 from src.ui.widgets.no_wheel import NoWheelScrollArea
 from src.i18n import tr
@@ -280,7 +281,7 @@ class LoginDialog(QDialog):
             return
 
         if not is_available():
-            QMessageBox.critical(self, tr("dialog.error"), tr("login.no_crypto"))
+            StyledMessageBox.critical(self, tr("dialog.error"), tr("login.no_crypto"))
             return
 
         try:
@@ -549,10 +550,10 @@ class UserManagementDialog(QDialog):
         is_admin = self._new_is_admin.isChecked()
 
         if not username or len(username) < 3:
-            QMessageBox.warning(self, tr("dialog.error"), tr("users.username_min"))
+            StyledMessageBox.warning(self, tr("dialog.error"), tr("users.username_min"))
             return
         if len(pw) < 6:
-            QMessageBox.warning(self, tr("dialog.error"), tr("users.password_min"))
+            StyledMessageBox.warning(self, tr("dialog.error"), tr("users.password_min"))
             return
 
         try:
@@ -562,37 +563,32 @@ class UserManagementDialog(QDialog):
             self._new_is_admin.setChecked(False)
             self._refresh_users()
         except Exception as e:
-            QMessageBox.critical(self, tr("dialog.error"), str(e))
+            StyledMessageBox.critical(self, tr("dialog.error"), str(e))
 
     def _delete_user(self, user_id: str, username: str):
-        reply = QMessageBox.question(
+        if StyledMessageBox.question(
             self, tr("users.delete.title"),
             tr("users.delete.confirm", name=username),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+            yes_text="Löschen", no_text="Abbrechen"
+        ):
             AuthManager.delete_user(user_id)
             self._refresh_users()
 
     def _reset_user_password(self, user_id: str, username: str):
-        reply = QMessageBox.question(
+        if not StyledMessageBox.question(
             self, tr("users.reset.title"),
             tr("users.reset.confirm", name=username),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            yes_text="Zurücksetzen", no_text="Abbrechen"
+        ):
             return
         new_pw = AuthManager.admin_reset_password(user_id)
         if not new_pw:
-            QMessageBox.critical(self, tr("dialog.error"), tr("users.not_found"))
+            StyledMessageBox.critical(self, tr("dialog.error"), tr("users.not_found"))
             return
-        box = QMessageBox(self)
-        box.setWindowTitle(tr("users.reset.new_title"))
-        box.setIcon(QMessageBox.Icon.Information)
-        box.setText(tr("users.reset.new_msg", name=username, pw=new_pw))
-        box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        box.exec()
+        StyledMessageBox.information(
+            self, tr("users.reset.new_title"),
+            tr("users.reset.new_msg", name=username, pw=new_pw)
+        )
 
     def _change_own_password(self):
         user = Session.current()
@@ -689,14 +685,14 @@ class ChangePasswordDialog(QDialog):
         new_pw = self._new_pw.text()
         confirm = self._confirm_pw.text()
         if len(new_pw) < 6:
-            QMessageBox.warning(self, tr("dialog.error"), tr("chgpw.new_min"))
+            StyledMessageBox.warning(self, tr("dialog.error"), tr("chgpw.new_min"))
             return
         if new_pw != confirm:
-            QMessageBox.warning(self, tr("dialog.error"), tr("chgpw.mismatch"))
+            StyledMessageBox.warning(self, tr("dialog.error"), tr("chgpw.mismatch"))
             return
         ok = AuthManager.change_password(self._user_id, old_pw, new_pw)
         if not ok:
-            QMessageBox.critical(self, tr("dialog.error"), tr("chgpw.wrong_old"))
+            StyledMessageBox.critical(self, tr("dialog.error"), tr("chgpw.wrong_old"))
             return
-        QMessageBox.information(self, tr("dialog.success"), tr("chgpw.success"))
+        StyledMessageBox.information(self, tr("dialog.success"), tr("chgpw.success"))
         self.accept()

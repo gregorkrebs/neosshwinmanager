@@ -5,10 +5,10 @@ main_window.py – The primary application window for NEO SSH-Win Manager.
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QPushButton, QScrollArea,
-    QMessageBox, QApplication, QSystemTrayIcon, QDialog,
+    QApplication, QSystemTrayIcon, QDialog,
     QLineEdit, QSpinBox, QComboBox, QCheckBox, QFrame,
     QFileDialog, QRadioButton, QDialogButtonBox,
-    QInputDialog, QSplitter, QSplitterHandle, QSizePolicy, QStackedWidget
+    QInputDialog, QSplitter, QSplitterHandle, QSizePolicy, QStackedWidget, QGridLayout
 )
 from PyQt6.QtGui import QFont, QIcon, QPainter, QColor, QPen, QBrush, QShortcut, QKeySequence
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot, QSize
@@ -32,6 +32,7 @@ from src.ui.system_tray import SystemTray
 from src.ui.debug_window import DebugWindow
 from src.app_logger import logger
 from src.ui.worker import MountWorker, UnmountWorker
+from src.ui.dialogs.styled_message_box import StyledMessageBox
 from src.ui.icons import icon as svg_icon, pixmap as svg_pixmap
 from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelSpinBox
 from src.i18n import tr, current_language, available_languages
@@ -48,6 +49,7 @@ _PANEL_EDIT     = "edit"
 _PANEL_SETTINGS = "settings"
 _PANEL_ADD      = "add"
 _PANEL_USERS    = "users"
+_PANEL_PROFILE  = "profile"
 
 
 class _PillHandle(QSplitterHandle):
@@ -91,7 +93,7 @@ class MainWindow(QMainWindow):
         self._debug_mode = False  # Can be toggled via F2
 
         self.setObjectName("MainWindow")
-        self.setWindowTitle("NEO SSH-Win Manager v1.4.1")
+        self.setWindowTitle("NEO SSH-Win Manager v1.5.0")
         self.setMinimumSize(820, 520)
         self.resize(1100, 640)
 
@@ -292,6 +294,15 @@ class MainWindow(QMainWindow):
                                     }}
                                 else:
                                     response = {"success": False, "error": "Ungültiger Access Key."}
+                        elif request.get("action") == "get_askpass":
+                            # Hardened SSH_ASKPASS: Exchange token for password
+                            from src.askpass_manager import consume_token
+                            token = request.get("token", "")
+                            password = consume_token(token)
+                            if password is not None:
+                                response = {"success": True, "password": password}
+                            else:
+                                response = {"success": False, "error": "Invalid or expired token."}
                         else:
                             response = {"success": False, "error": "Unbekannte Aktion."}
                         res = json.dumps(response).encode('utf-8')
@@ -387,13 +398,14 @@ class MainWindow(QMainWindow):
         self._sb_home_btn.clicked.connect(self._nav_home)
         v.addWidget(self._sb_home_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self._sb_settings_btn = self._sidebar_btn("settings", self._on_settings)
-        v.addWidget(self._sb_settings_btn, 0, Qt.AlignmentFlag.AlignHCenter)
-
         self._sb_users_btn = None
         if Session.is_admin():
             self._sb_users_btn = self._sidebar_btn("users", self._on_user_management)
             v.addWidget(self._sb_users_btn, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        # Profile button for all users (password change, etc.)
+        self._sb_profile_btn = self._sidebar_btn("key", self._on_profile)
+        v.addWidget(self._sb_profile_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
         v.addStretch()
 
@@ -404,17 +416,21 @@ class MainWindow(QMainWindow):
         self._about_btn = self._sidebar_btn("info", self._on_about)
         v.addWidget(self._about_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
+        self._sb_settings_btn = self._sidebar_btn("settings", self._on_settings)
+        v.addWidget(self._sb_settings_btn, 0, Qt.AlignmentFlag.AlignHCenter)
+
         logout_btn = self._sidebar_btn("logout", self._on_logout, btn_type="danger")
         v.addWidget(logout_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
         return sidebar
 
     def _set_sidebar_active(self, name: str):
-        """Set active state on tracked sidebar buttons. name: 'home'|'settings'|'users'"""
+        """Set active state on tracked sidebar buttons. name: 'home'|'settings'|'users'|'profile'"""
         candidates = [
             ("home",     "cloud",    self._sb_home_btn),
             ("settings", "settings", self._sb_settings_btn),
             ("users",    "users",    self._sb_users_btn),
+            ("profile",  "key",      self._sb_profile_btn),
         ]
         for key, icon_name, btn in candidates:
             if btn is None:
@@ -462,6 +478,35 @@ class MainWindow(QMainWindow):
         self._add_btn.setToolTip(tr("main.add_connection"))
         self._add_btn.clicked.connect(self._on_add)
         header_h.addWidget(self._add_btn)
+
+        # Mount/Dismount All Buttons
+        self._mount_all_btn = QPushButton()
+        self._mount_all_btn.setObjectName("headerActionBtn")
+        self._mount_all_btn.setFixedSize(QSize(30, 30))
+        self._mount_all_btn.setIcon(svg_icon("cloud", "#00b4d8", 16))
+        self._mount_all_btn.setIconSize(QSize(16, 16))
+        self._mount_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._mount_all_btn.setToolTip(tr("main.mount_all"))
+        self._mount_all_btn.clicked.connect(self._on_mount_all)
+        header_h.addWidget(self._mount_all_btn)
+
+        self._dismount_all_btn = QPushButton()
+        self._dismount_all_btn.setObjectName("headerActionBtn")
+        self._dismount_all_btn.setFixedSize(QSize(30, 30))
+        self._dismount_all_btn.setIcon(svg_icon("x", "#ef4444", 16))
+        self._dismount_all_btn.setIconSize(QSize(16, 16))
+        self._dismount_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._dismount_all_btn.setToolTip(tr("main.dismount_all"))
+        self._dismount_all_btn.clicked.connect(self._on_dismount_all)
+        header_h.addWidget(self._dismount_all_btn)
+
+        # Groups Filter Combo - centered with same height as badge
+        self._groups_combo = NoWheelComboBox()
+        self._groups_combo.setObjectName("headerGroupsCombo")
+        self._groups_combo.setFixedSize(QSize(120, 30))
+        self._groups_combo.setToolTip(tr("main.groups_filter"))
+        self._groups_combo.currentIndexChanged.connect(self._on_group_filter_changed)
+        header_h.addWidget(self._groups_combo, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._badge_lbl = QLabel("")
         self._badge_lbl.setObjectName("connectionsBadge")
@@ -681,7 +726,7 @@ class MainWindow(QMainWindow):
         self._mount_count_lbl.setObjectName("versionLabel")
         h.addWidget(self._mount_count_lbl)
 
-        ver_lbl = QLabel("  v1.3.2")
+        ver_lbl = QLabel("  v1.5.0")
         ver_lbl.setObjectName("versionLabel")
         h.addWidget(ver_lbl)
 
@@ -812,7 +857,7 @@ class MainWindow(QMainWindow):
         self._containers.clear()
         self._selected_id = None
 
-        connections = self._mgr.get_all()
+        connections = self._mgr.get_connections()  # Nur normale Verbindungen (keine Templates)
         mounted_map = self._controller.get_mounted_drives()
 
         for conn in connections:
@@ -826,6 +871,7 @@ class MainWindow(QMainWindow):
 
         self._update_status()
         self._tray.update_connections_menu(connections, set(mounted_map.keys()))
+        self._refresh_groups_combo()  # Gruppen-Filter aktualisieren
 
     def _create_connection_container(self, conn, mounted):
         container = QWidget()
@@ -868,7 +914,7 @@ class MainWindow(QMainWindow):
             "_ef_conn", "_ef_name", "_ef_host", "_ef_user", "_ef_path", "_ef_port",
             "_ef_drive", "_ef_auth", "_ef_pw", "_ef_key", "_ef_cli_cb",
             "_ef_cli_widget", "_ef_cli_key", "_ef_cli_copy_btn", "_ef_cli_gen_btn",
-            "_ef_putty_key"
+            "_ef_putty_key", "_ef_groups", "_ef_template_cb"
         ):
             setattr(self, attr, None)
         self._ef_initial_snapshot = None
@@ -1314,6 +1360,209 @@ class MainWindow(QMainWindow):
         self._main_stack.setCurrentIndex(1)
         self._set_sidebar_active("users")
 
+    def _build_profile_form(self):
+        """Build the profile form for password change (available to all users)."""
+        from src.auth_manager import AuthManager
+        current_user = Session.current()
+        if not current_user:
+            return
+
+        body = QWidget()
+        body.setObjectName("fullscreenForm")
+        body.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        body.setMinimumWidth(320)
+        v = QVBoxLayout(body)
+        v.setContentsMargins(24, 24, 24, 24)
+        v.setSpacing(16)
+
+        # User info section
+        def _section_card(title: str, pill_text: str = ""):
+            frame = QFrame()
+            frame.setObjectName("fullscreenSectionCard")
+            frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+            layout = QVBoxLayout(frame)
+            layout.setContentsMargins(18, 16, 18, 16)
+            layout.setSpacing(12)
+
+            head = QWidget()
+            head_layout = QHBoxLayout(head)
+            head_layout.setContentsMargins(0, 0, 0, 0)
+            head_layout.setSpacing(10)
+
+            head_title = QLabel(title)
+            head_title.setStyleSheet("color: #deebf7; font-size: 14px; font-weight: 700;")
+            head_layout.addWidget(head_title)
+            head_layout.addStretch()
+
+            if pill_text:
+                pill = QLabel(pill_text)
+                pill.setStyleSheet("background-color: #00b4d8; color: #ffffff; border-radius: 10px; padding: 2px 8px; font-size: 10px; font-weight: 700;")
+                head_layout.addWidget(pill)
+
+            layout.addWidget(head)
+            return frame, layout
+
+        # User info card
+        info_card, info_l = _section_card(tr("profile.user_info"), tr("profile.active"))
+        
+        username_row = QWidget()
+        username_h = QHBoxLayout(username_row)
+        username_h.setContentsMargins(0, 0, 0, 0)
+        username_lbl = QLabel(tr("profile.username"))
+        username_lbl.setStyleSheet("color: #8fa4b8; font-size: 12px;")
+        username_val = QLabel(current_user.username)
+        username_val.setStyleSheet("color: #deebf7; font-size: 14px; font-weight: 600;")
+        username_h.addWidget(username_lbl)
+        username_h.addWidget(username_val)
+        username_h.addStretch()
+        info_l.addWidget(username_row)
+
+        role_row = QWidget()
+        role_h = QHBoxLayout(role_row)
+        role_h.setContentsMargins(0, 0, 0, 0)
+        role_lbl = QLabel(tr("profile.role"))
+        role_lbl.setStyleSheet("color: #8fa4b8; font-size: 12px;")
+        role_val = QLabel(tr("profile.role.admin") if Session.is_admin() else tr("profile.role.user"))
+        role_val.setStyleSheet("color: #00d464; font-size: 14px; font-weight: 600;" if Session.is_admin() else "color: #deebf7; font-size: 14px; font-weight: 600;")
+        role_h.addWidget(role_lbl)
+        role_h.addWidget(role_val)
+        role_h.addStretch()
+        info_l.addWidget(role_row)
+
+        v.addWidget(info_card)
+
+        # Password change card
+        pw_card, pw_l = _section_card(tr("profile.change_password"))
+
+        # Current password
+        curr_pw_row = QWidget()
+        curr_pw_v = QVBoxLayout(curr_pw_row)
+        curr_pw_v.setContentsMargins(0, 0, 0, 0)
+        curr_pw_v.setSpacing(4)
+        curr_pw_lbl = QLabel(tr("chgpw.current"))
+        curr_pw_lbl.setStyleSheet("color: #8fa4b8; font-size: 11px;")
+        self._pf_curr_pw = QLineEdit()
+        self._pf_curr_pw.setEchoMode(QLineEdit.EchoMode.Password)
+        self._pf_curr_pw.setStyleSheet("background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; color: #deebf7;")
+        self._pf_curr_pw.setPlaceholderText(tr("chgpw.current"))
+        curr_pw_v.addWidget(curr_pw_lbl)
+        curr_pw_v.addWidget(self._pf_curr_pw)
+        pw_l.addWidget(curr_pw_row)
+
+        # New password
+        new_pw_row = QWidget()
+        new_pw_v = QVBoxLayout(new_pw_row)
+        new_pw_v.setContentsMargins(0, 0, 0, 0)
+        new_pw_v.setSpacing(4)
+        new_pw_lbl = QLabel(tr("chgpw.new"))
+        new_pw_lbl.setStyleSheet("color: #8fa4b8; font-size: 11px;")
+        self._pf_new_pw = QLineEdit()
+        self._pf_new_pw.setEchoMode(QLineEdit.EchoMode.Password)
+        self._pf_new_pw.setStyleSheet("background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; color: #deebf7;")
+        self._pf_new_pw.setPlaceholderText(tr("chgpw.new"))
+        new_pw_v.addWidget(new_pw_lbl)
+        new_pw_v.addWidget(self._pf_new_pw)
+        pw_l.addWidget(new_pw_row)
+
+        # Confirm password
+        conf_pw_row = QWidget()
+        conf_pw_v = QVBoxLayout(conf_pw_row)
+        conf_pw_v.setContentsMargins(0, 0, 0, 0)
+        conf_pw_v.setSpacing(4)
+        conf_pw_lbl = QLabel(tr("chgpw.confirm"))
+        conf_pw_lbl.setStyleSheet("color: #8fa4b8; font-size: 11px;")
+        self._pf_conf_pw = QLineEdit()
+        self._pf_conf_pw.setEchoMode(QLineEdit.EchoMode.Password)
+        self._pf_conf_pw.setStyleSheet("background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; color: #deebf7;")
+        self._pf_conf_pw.setPlaceholderText(tr("chgpw.confirm"))
+        conf_pw_v.addWidget(conf_pw_lbl)
+        conf_pw_v.addWidget(self._pf_conf_pw)
+        pw_l.addWidget(conf_pw_row)
+
+        # Error label
+        self._pf_error_lbl = QLabel("")
+        self._pf_error_lbl.setStyleSheet("color: #ef4444; font-size: 12px;")
+        self._pf_error_lbl.hide()
+        pw_l.addWidget(self._pf_error_lbl)
+
+        # Save button
+        save_btn = QPushButton(tr("dialog.save"))
+        save_btn.setStyleSheet("background-color: #00b4d8; color: #ffffff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 600;")
+        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        save_btn.clicked.connect(self._save_profile_form)
+        pw_l.addWidget(save_btn)
+
+        v.addWidget(pw_card)
+        v.addStretch()
+
+        self._fs_layout.addWidget(body)
+
+    def _save_profile_form(self):
+        """Save password change from profile form."""
+        from src.auth_manager import AuthManager
+        current_user = Session.current()
+        if not current_user:
+            return
+
+        curr_pw = self._pf_curr_pw.text()
+        new_pw = self._pf_new_pw.text()
+        conf_pw = self._pf_conf_pw.text()
+
+        # Validation
+        if not curr_pw:
+            self._pf_error_lbl.setText(tr("chgpw.wrong_old"))
+            self._pf_error_lbl.show()
+            return
+
+        if len(new_pw) < 6:
+            self._pf_error_lbl.setText(tr("chgpw.new_min"))
+            self._pf_error_lbl.show()
+            return
+
+        if new_pw != conf_pw:
+            self._pf_error_lbl.setText(tr("chgpw.mismatch"))
+            self._pf_error_lbl.show()
+            return
+
+        # Try to change password
+        mgr = AuthManager(current_user)
+        try:
+            if mgr.change_password(current_user.id, curr_pw, new_pw):
+                self._pf_error_lbl.setStyleSheet("color: #00d464; font-size: 12px;")
+                self._pf_error_lbl.setText(tr("chgpw.success"))
+                self._pf_error_lbl.show()
+                self._pf_curr_pw.clear()
+                self._pf_new_pw.clear()
+                self._pf_conf_pw.clear()
+                QTimer.singleShot(2000, lambda: self._nav_home())
+            else:
+                self._pf_error_lbl.setStyleSheet("color: #ef4444; font-size: 12px;")
+                self._pf_error_lbl.setText(tr("chgpw.wrong_old"))
+                self._pf_error_lbl.show()
+        except Exception as e:
+            self._pf_error_lbl.setStyleSheet("color: #ef4444; font-size: 12px;")
+            self._pf_error_lbl.setText(str(e))
+            self._pf_error_lbl.show()
+
+    def _open_profile_panel(self):
+        """Show user profile panel for password change."""
+        if self._panel_mode == _PANEL_PROFILE:
+            self._nav_home()
+            return
+        if not self._guard_leave_form():
+            return
+        if self._panel_conn_id and self._panel_conn_id in self._cards:
+            self._cards[self._panel_conn_id].set_info_active(False)
+        self._panel_mode = _PANEL_PROFILE
+        self._panel_conn_id = None
+
+        self._clear_fs_content()
+        self._set_fullscreen_header(tr("main.profile"), tr("profile.title"), True)
+        self._build_profile_form()
+        self._fs_btn_bar.setVisible(False)
+        self._main_stack.setCurrentIndex(1)
+        self._set_sidebar_active("profile")
+
     def _build_users_form(self):
         from src.auth_manager import AuthManager
         from src.database import get_connection
@@ -1444,17 +1693,7 @@ class MainWindow(QMainWindow):
 
             rl.addWidget(meta, stretch=1)
 
-            if is_me:
-                chg_btn = QPushButton()
-                chg_btn.setObjectName("rpHeaderBtn")
-                chg_btn.setFixedSize(QSize(32, 32))
-                chg_btn.setIcon(svg_icon("key", "#aab4c4", 15))
-                chg_btn.setIconSize(QSize(15, 15))
-                chg_btn.setToolTip(tr("users.tooltip.change_pw"))
-                chg_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                chg_btn.clicked.connect(self._uf_focus_change_password)
-                rl.addWidget(chg_btn)
-            else:
+            if not is_me:
                 if Session.is_admin():
                     rst_btn = QPushButton()
                     rst_btn.setObjectName("rpHeaderBtn")
@@ -1500,27 +1739,6 @@ class MainWindow(QMainWindow):
         create_btn.clicked.connect(self._uf_add_user)
         create_layout.addWidget(create_btn)
 
-        password_card, password_layout = _section_card(tr("users.section.password"), current_username)
-        password_layout.addWidget(self._field_label(tr("chgpw.current")))
-        self._uf_pw_current = QLineEdit()
-        self._uf_pw_current.setEchoMode(QLineEdit.EchoMode.Password)
-        password_layout.addWidget(self._uf_pw_current)
-
-        password_layout.addWidget(self._field_label(tr("chgpw.new")))
-        self._uf_pw_new = QLineEdit()
-        self._uf_pw_new.setEchoMode(QLineEdit.EchoMode.Password)
-        password_layout.addWidget(self._uf_pw_new)
-
-        password_layout.addWidget(self._field_label(tr("chgpw.confirm")))
-        self._uf_pw_confirm = QLineEdit()
-        self._uf_pw_confirm.setEchoMode(QLineEdit.EchoMode.Password)
-        password_layout.addWidget(self._uf_pw_confirm)
-
-        password_btn = QPushButton(tr("dialog.save"))
-        password_btn.setObjectName("primaryBtn")
-        password_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        password_btn.clicked.connect(self._uf_change_password)
-        password_layout.addWidget(password_btn)
 
         left_col = QVBoxLayout()
         left_col.setContentsMargins(0, 0, 0, 0)
@@ -1530,7 +1748,6 @@ class MainWindow(QMainWindow):
         right_col.setContentsMargins(0, 0, 0, 0)
         right_col.setSpacing(16)
         right_col.addWidget(create_card, 0, Qt.AlignmentFlag.AlignTop)
-        right_col.addWidget(password_card, 0, Qt.AlignmentFlag.AlignTop)
         right_col.addStretch(1)
 
         columns.addLayout(left_col, 6)
@@ -1558,68 +1775,30 @@ class MainWindow(QMainWindow):
 
     def _uf_delete_user(self, user_id: str, username: str):
         from src.auth_manager import AuthManager
-        reply = QMessageBox.question(
+        if StyledMessageBox.question(
             self, tr("users.delete.title"),
             tr("users.delete.confirm", name=username),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+            yes_text="Löschen", no_text="Abbrechen"
+        ):
             AuthManager.delete_user(user_id)
             self._open_users_panel()
 
     def _uf_reset_password(self, user_id: str, username: str):
         from src.auth_manager import AuthManager
-        reply = QMessageBox.question(
+        if not StyledMessageBox.question(
             self, tr("users.reset.title"),
             tr("users.reset.confirm", name=username),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            yes_text="Zurücksetzen", no_text="Abbrechen"
+        ):
             return
         new_pw = AuthManager.admin_reset_password(user_id)
         if not new_pw:
             self._set_status(tr("users.not_found"))
             return
-        box = QMessageBox(self)
-        box.setWindowTitle(tr("users.reset.new_title"))
-        box.setIcon(QMessageBox.Icon.Information)
-        box.setText(tr("users.reset.new_msg", name=username, pw=new_pw))
-        box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        box.exec()
-
-    def _uf_focus_change_password(self):
-        if hasattr(self, "_uf_pw_current"):
-            self._uf_pw_current.setFocus()
-            self._uf_pw_current.selectAll()
-
-    def _uf_change_password(self):
-        from src.auth_manager import AuthManager
-
-        user = Session.current()
-        if not user:
-            return
-
-        current_pw = self._uf_pw_current.text()
-        new_pw = self._uf_pw_new.text()
-        confirm_pw = self._uf_pw_confirm.text()
-
-        if len(new_pw) < 6:
-            self._set_status(tr("chgpw.new_min"))
-            return
-        if new_pw != confirm_pw:
-            self._set_status(tr("chgpw.mismatch"))
-            return
-        if not AuthManager.change_password(user.id, current_pw, new_pw):
-            self._set_status(tr("chgpw.wrong_old"))
-            self._uf_pw_current.setFocus()
-            self._uf_pw_current.selectAll()
-            return
-
-        self._uf_pw_current.clear()
-        self._uf_pw_new.clear()
-        self._uf_pw_confirm.clear()
-        self._set_status(tr("chgpw.success"))
+        StyledMessageBox.information(
+            self, tr("users.reset.new_title"),
+            tr("users.reset.new_msg", name=username, pw=new_pw)
+        )
 
     # ------------------------------------------------------------------
     # Edit form (add + edit)
@@ -1866,6 +2045,22 @@ class MainWindow(QMainWindow):
             v.addWidget(_ef_field(tr("addedit.putty_key.label"), putty_container))
             v.addWidget(self._field_label(tr("addedit.putty_key.hint")))
 
+        # Groups/Tags
+        v.addSpacing(4)
+        v.addWidget(self._section_label(tr("addedit.section.groups")))
+        self._ef_groups = QLineEdit(conn.groups if is_edit else "")
+        self._ef_groups.setPlaceholderText(tr("addedit.placeholder.groups"))
+        v.addWidget(_ef_field(tr("addedit.label.groups"), self._ef_groups))
+        v.addWidget(self._field_label(tr("addedit.groups.hint")))
+
+        # Template Option (nur im Add-Modus oder bei Bearbeitung sichtbar)
+        v.addSpacing(4)
+        v.addWidget(self._section_label(tr("addedit.section.template_options")))
+        self._ef_template_cb = QCheckBox(tr("addedit.template.save_as_template"))
+        self._ef_template_cb.setChecked(conn.is_template if is_edit else False)
+        self._ef_template_cb.setToolTip(tr("addedit.template.save_as_template.hint"))
+        v.addWidget(self._ef_template_cb)
+
         v.addStretch()
         self._rp_layout.addWidget(body)
         self._ef_conn = conn
@@ -1881,10 +2076,11 @@ class MainWindow(QMainWindow):
             self._ef_name, self._ef_host, self._ef_port, self._ef_user,
             self._ef_auth, self._ef_pw, self._ef_key,
             self._ef_path, self._ef_drive,
-            self._ef_cli_cb, self._ef_cli_key
+            self._ef_cli_cb, self._ef_cli_key,
+            self._ef_groups, self._ef_template_cb
         ]
         if getattr(self, "_ef_putty_key", None) is not None:
-            chain.append(self._ef_putty_key)
+            chain.insert(-2, self._ef_putty_key)
         for i in range(len(chain) - 1):
             self.setTabOrder(chain[i], chain[i + 1])
 
@@ -2051,15 +2247,45 @@ class MainWindow(QMainWindow):
 
         # General
         v.addWidget(self._section_label(tr("settings.section.general")))
+        gen_grid = QGridLayout()
+        gen_grid.setHorizontalSpacing(18)
+        gen_grid.setVerticalSpacing(6)
+        gen_grid.setContentsMargins(0, 0, 0, 0)
+
         self._sf_start = QCheckBox(tr("settings.start_with_windows"))
         self._sf_start.setChecked(s.start_with_windows)
-        v.addWidget(self._sf_start)
         self._sf_tray = QCheckBox(tr("settings.minimize_to_tray"))
         self._sf_tray.setChecked(s.minimize_to_tray)
-        v.addWidget(self._sf_tray)
         self._sf_admin = QCheckBox(tr("settings.require_admin"))
         self._sf_admin.setChecked(s.require_admin)
-        v.addWidget(self._sf_admin)
+        self._sf_telemetry = QCheckBox(tr("settings.telemetry"))
+        self._sf_telemetry.setChecked(getattr(s, "telemetry_enabled", False))
+
+        gen_grid.addWidget(self._sf_start, 0, 0)
+        gen_grid.addWidget(self._sf_tray, 0, 1)
+        gen_grid.addWidget(self._sf_admin, 1, 0)
+        gen_grid.addWidget(self._sf_telemetry, 1, 1)
+        v.addLayout(gen_grid)
+
+        telemetry_hint = QLabel(tr("settings.telemetry.hint"))
+        telemetry_hint.setObjectName("fieldLabel")
+        telemetry_hint.setWordWrap(True)
+        v.addWidget(telemetry_hint)
+
+        # Updates
+        v.addWidget(self._section_label(tr("settings.section.updates")))
+        upd_row = QHBoxLayout()
+        upd_row.setSpacing(12)
+        upd_row.addWidget(self._field_label(tr("settings.updates.hint")))
+        upd_row.addStretch(1)
+        self._sf_update_btn = QPushButton(tr("settings.check_updates"))
+        self._sf_update_btn.setObjectName("actionBtn")
+        self._sf_update_btn.setProperty("btn_type", "primary")
+        self._sf_update_btn.setMinimumHeight(32)
+        self._sf_update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._sf_update_btn.clicked.connect(self._sf_check_updates)
+        upd_row.addWidget(self._sf_update_btn)
+        v.addLayout(upd_row)
 
         # Mount status
         v.addWidget(self._section_label(tr("settings.section.mount")))
@@ -2072,12 +2298,16 @@ class MainWindow(QMainWindow):
         self._sf_interval.setFixedWidth(80)
         interval_row.addWidget(self._sf_interval)
         v.addLayout(interval_row)
+        mount_opts = QHBoxLayout()
+        mount_opts.setSpacing(18)
         self._sf_auto_reconnect = QCheckBox(tr("settings.auto_reconnect"))
-        self._sf_auto_reconnect.setChecked(s.auto_reconnect)
-        v.addWidget(self._sf_auto_reconnect)
+        self._sf_auto_reconnect.setChecked(getattr(s, "auto_reconnect", False))
         self._sf_auto_remount = QCheckBox(tr("settings.auto_remount"))
-        self._sf_auto_remount.setChecked(s.auto_remount_on_lost)
-        v.addWidget(self._sf_auto_remount)
+        self._sf_auto_remount.setChecked(getattr(s, "auto_remount_on_lost", True))
+        mount_opts.addWidget(self._sf_auto_reconnect)
+        mount_opts.addWidget(self._sf_auto_remount)
+        mount_opts.addStretch(1)
+        v.addLayout(mount_opts)
 
         # Security Level
         v.addWidget(self._section_label(tr("settings.section.security")))
@@ -2161,6 +2391,61 @@ class MainWindow(QMainWindow):
 
         v.addStretch()
         self._fs_layout.addWidget(body)
+
+    def _sf_check_updates(self):
+        """Manual update check from settings screen."""
+        try:
+            from src.ui.dialogs.about_dialog import APP_VERSION
+            from src.updater import UpdaterManager
+            from src.ui.dialogs.update_dialog import UpdateDialog
+        except Exception as e:
+            self._show_inline_message("Update", str(e), is_error=True)
+            return
+
+        btn = getattr(self, "_sf_update_btn", None)
+        if btn:
+            btn.setEnabled(False)
+            btn.setText(tr("settings.check_updates_running"))
+
+        updater = UpdaterManager(APP_VERSION)
+        self._sf_updater = updater  # keep alive until callbacks fire
+
+        def _reset_btn():
+            if btn:
+                btn.setEnabled(True)
+                btn.setText(tr("settings.check_updates"))
+
+        def _on_update_available(version: str, changelog: str, download_url: str, obj_type: str):
+            try:
+                dlg = UpdateDialog(self, version, changelog, download_url, obj_type)
+                dlg.start_background_download.connect(lambda: updater.download_update_async(download_url))
+                updater.download_progress.connect(dlg.update_progress)
+
+                def _on_finished(success: bool, msg: str):
+                    if success:
+                        updater.install_on_exit()
+                    dlg.on_download_finished(success, msg)
+
+                updater.download_finished.connect(_on_finished)
+                dlg.exec()
+            finally:
+                _reset_btn()
+
+        def _on_no_update():
+            StyledMessageBox.information(self, "Update", tr("settings.up_to_date"))
+            _reset_btn()
+
+        def _on_failed(msg: str):
+            StyledMessageBox.warning(self, tr("dialog.error"), tr("settings.update_check_failed", msg=msg))
+            _reset_btn()
+
+        updater.update_available.connect(_on_update_available)
+        if hasattr(updater, "no_update_available"):
+            updater.no_update_available.connect(_on_no_update)
+        if hasattr(updater, "check_failed"):
+            updater.check_failed.connect(_on_failed)
+
+        updater.check_for_updates_async()
 
     def _on_sf_security_changed(self, index: int):
         _WARNINGS = [
@@ -2342,6 +2627,8 @@ class MainWindow(QMainWindow):
             "drive": self._safe_current_data("_ef_drive", "Z:"),
             "cli_enabled": self._safe_bool_checked("_ef_cli_cb", False),
             "cli_key": self._safe_lineedit_text("_ef_cli_key"),
+            "groups": self._safe_lineedit_text("_ef_groups"),
+            "is_template": self._safe_bool_checked("_ef_template_cb", False),
         }
 
     def _form_is_dirty(self) -> bool:
@@ -2354,15 +2641,10 @@ class MainWindow(QMainWindow):
     def _guard_leave_form(self) -> bool:
         if not self._form_is_dirty():
             return True
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle(tr("dirty.title"))
-        box.setText(tr("dirty.body"))
-        discard_btn = box.addButton(tr("dirty.discard"), QMessageBox.ButtonRole.DestructiveRole)
-        keep_btn = box.addButton(tr("dirty.keep"), QMessageBox.ButtonRole.RejectRole)
-        box.setDefaultButton(keep_btn)
-        box.exec()
-        return box.clickedButton() == discard_btn
+        return StyledMessageBox.question(
+            self, tr("dirty.title"), tr("dirty.body"),
+            yes_text=tr("dirty.discard"), no_text=tr("dirty.keep")
+        )
 
     def _validate_edit_form(self):
         required = ("_ef_name", "_ef_host", "_ef_user")
@@ -2424,6 +2706,8 @@ class MainWindow(QMainWindow):
             drive_letter=self._safe_current_data("_ef_drive", "Z:"),
             cli_access_enabled=cli_enabled,
             cli_access_key=self._safe_lineedit_text("_ef_cli_key") if cli_enabled else None,
+            groups=self._safe_lineedit_text("_ef_groups"),
+            is_template=self._safe_bool_checked("_ef_template_cb", False),
         )
         self._mgr.update(updated)
         self._refresh_list()
@@ -2458,6 +2742,8 @@ class MainWindow(QMainWindow):
             drive_letter=self._safe_current_data("_ef_drive", "Z:"),
             cli_access_enabled=cli_enabled,
             cli_access_key=self._safe_lineedit_text("_ef_cli_key") if cli_enabled else None,
+            groups=self._safe_lineedit_text("_ef_groups"),
+            is_template=self._safe_bool_checked("_ef_template_cb", False),
         )
         self._mgr.add(new_conn)
         self._refresh_list()
@@ -2490,6 +2776,7 @@ class MainWindow(QMainWindow):
             check_interval_seconds=self._sf_interval.value(),
             auto_reconnect=self._sf_auto_reconnect.isChecked(),
             auto_remount_on_lost=self._sf_auto_remount.isChecked(),
+            auto_reconnect_mounts=self._sf_auto_reconnect.isChecked(),
             debug_mode=self._sf_debug.isChecked(),
             use_putty=self._sf_putty.isChecked(),
             putty_path=self._sf_putty_path.text().strip(),
@@ -2498,6 +2785,8 @@ class MainWindow(QMainWindow):
             security_level=_sec,
             allow_passwordless_key_auth=_sec >= 1,
             allow_insecure_password_auth=_sec >= 2,
+            telemetry_enabled=getattr(self, "_sf_telemetry").isChecked() if hasattr(self, "_sf_telemetry") else False,
+            telemetry_prompt_shown=getattr(self._mgr.get_settings(), "telemetry_prompt_shown", False),
         )
         self._mgr.save_settings(new_settings)
         self._apply_settings_object(new_settings)
@@ -2735,21 +3024,19 @@ class MainWindow(QMainWindow):
             return
         card = self._cards.get(conn_id)
         if card and card.is_mounted:
-            reply = QMessageBox.question(
+            if not StyledMessageBox.question(
                 self, tr("delete.title"),
                 tr("delete.mounted_confirm", name=conn.name),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                yes_text="Trotzdem löschen", no_text="Abbrechen"
+            ):
                 return
             self._controller.unmount(conn.drive_letter)
         else:
-            reply = QMessageBox.question(
+            if not StyledMessageBox.question(
                 self, tr("delete.title"),
                 tr("delete.confirm", name=conn.name),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                yes_text="Löschen", no_text="Abbrechen"
+            ):
                 return
         self._mgr.delete(conn_id)
         self._close_right_panel()
@@ -2843,11 +3130,40 @@ class MainWindow(QMainWindow):
                     self._sync_rp_mount_button(conn_id)
         else:
             name = conn.name if conn else "?"
+            # SSH Key Fallback: Wenn Key fehlschlägt aber Passwort hinterlegt ist
+            if conn and conn.auth_method == "key" and conn.password:
+                if self._show_key_fallback_dialog(conn):
+                    # Temporär auf Passwort-Auth wechseln und retry
+                    conn.auth_method = "password"
+                    QTimer.singleShot(500, lambda: self._retry_mount_with_password(conn_id, conn))
+                    return
             if self._show_mount_failure_dialog(conn, result.message):
                 QTimer.singleShot(500, lambda: self._on_mount(conn_id))
                 return
             self._set_status(tr("status.connect_failed", name=name))
         self._update_status()
+
+    def _show_key_fallback_dialog(self, conn) -> bool:
+        """Zeigt Dialog an, der fragt ob mit Passwort statt Key verbunden werden soll.
+        Returns True wenn User zustimmt."""
+        return StyledMessageBox.question(
+            self, tr("dialog.key_fallback.title"),
+            tr("dialog.key_fallback.message", name=conn.name),
+            yes_text=tr("dialog.key_fallback.yes"), no_text=tr("dialog.key_fallback.no")
+        )
+
+    def _retry_mount_with_password(self, conn_id: str, conn):
+        """Retry mount with password authentication."""
+        if conn_id in self._workers:
+            return
+        self._set_status(tr("status.connecting", name=conn.name, drive=conn.drive_letter))
+        card = self._cards.get(conn_id)
+        if card:
+            card.show_loading(tr("card.loading.connect"))
+        worker = MountWorker(conn, self._controller)
+        worker.finished.connect(self._on_mount_finished)
+        self._workers[conn_id] = worker
+        worker.start()
 
     @pyqtSlot(str)
     def _on_unmount(self, conn_id: str):
@@ -3032,15 +3348,33 @@ class MainWindow(QMainWindow):
         ChangePasswordDialog(user.id, self).exec()
 
     def _on_logout(self):
-        reply = QMessageBox.question(
+        if not StyledMessageBox.question(
             self, tr("logout.title"), tr("logout.confirm"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            yes_text="Abmelden", no_text="Abbrechen"
+        ):
             return
         self._unmount_all()
         Session.logout()
         QApplication.quit()
+
+    def _on_profile(self):
+        """Show user profile panel for password change."""
+        if self._panel_mode == _PANEL_PROFILE:
+            self._nav_home()
+            return
+        if not self._guard_leave_form():
+            return
+        if self._panel_conn_id and self._panel_conn_id in self._cards:
+            self._cards[self._panel_conn_id].set_info_active(False)
+        self._panel_mode = _PANEL_PROFILE
+        self._panel_conn_id = None
+
+        self._clear_fs_content()
+        self._set_fullscreen_header(tr("main.profile"), tr("profile.title"), True)
+        self._build_profile_form()
+        self._fs_btn_bar.setVisible(False)
+        self._main_stack.setCurrentIndex(1)
+        self._set_sidebar_active("profile")
 
     def _on_about(self):
         from src.ui.dialogs.about_dialog import AboutDialog
@@ -3118,6 +3452,72 @@ class MainWindow(QMainWindow):
             conn = self._mgr.get_by_id(conn_id)
             if conn and not self._controller.is_mounted(conn.drive_letter):
                 QTimer.singleShot(1000, lambda cid=conn_id: self._on_mount(cid))
+
+    def _on_mount_all(self):
+        """Mount all connections (or filtered by selected group)."""
+        selected_group = self._groups_combo.currentData()
+        conns = self._mgr.get_connections()
+
+        mounted_count = 0
+        for conn in conns:
+            # Filter by group if selected
+            if selected_group and selected_group != "__all__":
+                conn_groups = [g.strip() for g in (conn.groups or "").split(",") if g.strip()]
+                if selected_group not in conn_groups:
+                    continue
+
+            card = self._cards.get(conn.id)
+            if card and not card.is_mounted:
+                self._on_mount(conn.id)
+                mounted_count += 1
+
+        if mounted_count > 0:
+            self._set_status(tr("status.mount_all_started", count=mounted_count))
+        else:
+            self._set_status(tr("status.mount_all_none"))
+
+    def _on_dismount_all(self):
+        """Dismount all mounted connections (or filtered by selected group)."""
+        selected_group = self._groups_combo.currentData()
+        conns = self._mgr.get_connections()
+
+        dismounted_count = 0
+        for conn in conns:
+            # Filter by group if selected
+            if selected_group and selected_group != "__all__":
+                conn_groups = [g.strip() for g in (conn.groups or "").split(",") if g.strip()]
+                if selected_group not in conn_groups:
+                    continue
+
+            card = self._cards.get(conn.id)
+            if card and card.is_mounted:
+                self._on_unmount(conn.id)
+                dismounted_count += 1
+
+        if dismounted_count > 0:
+            self._set_status(tr("status.dismount_all_started", count=dismounted_count))
+        else:
+            self._set_status(tr("status.dismount_all_none"))
+
+    def _on_group_filter_changed(self, index: int):
+        """Handle group filter selection change."""
+        # Could implement filtering the visible connections here
+        pass
+
+    def _refresh_groups_combo(self):
+        """Refresh the groups filter combo with available groups."""
+        self._groups_combo.clear()
+        self._groups_combo.addItem(tr("main.groups_all"), "__all__")
+
+        # Collect all unique groups from connections
+        all_groups = set()
+        for conn in self._mgr.get_connections():
+            if conn.groups:
+                groups = [g.strip() for g in conn.groups.split(",") if g.strip()]
+                all_groups.update(groups)
+
+        for group in sorted(all_groups):
+            self._groups_combo.addItem(group, group)
 
     def _unmount_all(self):
         mounted_map = self._controller.get_mounted_drives()

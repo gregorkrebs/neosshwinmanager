@@ -67,7 +67,7 @@ def _launch_native_ssh(conn: Connection, settings: AppSettings | None = None) ->
     
     ssh_cmd_list = [
         ssh_exe,
-        "-o", "StrictHostKeyChecking=yes", # Erhöhte Sicherheit: Nur bekannte Hosts
+        "-o", "StrictHostKeyChecking=accept-new", # First use is trusted, changed hosts still fail
         "-o", f"UserKnownHostsFile={known_hosts_path}",
         "-p", str(conn.port),
     ]
@@ -84,27 +84,31 @@ def _launch_native_ssh(conn: Connection, settings: AppSettings | None = None) ->
     sec_level = getattr(settings, 'security_level', 0) if settings else 0
 
     if (sec_level >= 2 and conn.auth_method == "password" and conn.password):
-        # Security level 2: pass password via SSH_ASKPASS mechanism.
-        # The password is visible to this process but not on the command line.
+        # Hardened SSH_ASKPASS: Tokens instead of plaintext passwords in environment.
+        # The password is exchanged via IPC after the helper starts.
         import sys
         import os.path as _osp
+        from src.askpass_manager import create_token
+        
         if getattr(sys, "frozen", False):
             askpass_cmd = f'"{sys.executable}" --pass-helper'
         else:
             _main_py = _osp.abspath(_osp.join(_osp.dirname(__file__), "..", "main.py"))
             askpass_cmd = f'"{sys.executable}" "{_main_py}" --pass-helper'
-        env["SSH_ASKPASS_PASS"] = conn.password
+        
+        token = create_token(conn.password)
+        env["SSH_ASKPASS_TOKEN"] = token
         env["SSH_ASKPASS"] = askpass_cmd
         env["SSH_ASKPASS_REQUIRE"] = "force"
         env["DISPLAY"] = "dummy:0"
-        logger.warning("Passwort-Login via SSH_ASKPASS (Sicherheitsstufe 2) – Passwort im Prozesskontext.")
+        logger.info(f"Hardened SSH_ASKPASS: Token-Austausch initiiert für {conn.name}")
 
     logger.debug(f"Native SSH cmd: {ssh_cmd_list}")
     try:
         # CWE-78: cmd.exe
-        # CREATE_NEW_CONSOLE öffnet ein eigenes Fenster; /k hält es nach SSH-Ende offen.
-        # title setzt den Fenstertitel; & ist ein cmd-interner Verketter, kein Shell-Risiko,
-        # da conn.name durch _is_safe_label() bereits von Quotes und Metacharakteren befreit ist.
+        # CREATE_NEW_CONSOLE opens a new window; /k keeps it open after SSH ends.
+        # title sets the window title; & is a cmd internal concatenator, not a shell risk,
+        # since conn.name is already sanitized by _is_safe_label().
         cmd_str = subprocess.list2cmdline(ssh_cmd_list)
         subprocess.Popen(
             ['cmd.exe', '/k', f'title "{conn.name} SSH" & {cmd_str}'],
@@ -119,14 +123,14 @@ def _launch_native_ssh(conn: Connection, settings: AppSettings | None = None) ->
 
 def launch_ssh_in_current_terminal(conn_data: dict, exec_command: str = None):
     """
-    Startet eine interaktive SSH-Shell direkt in diesem Terminal via Paramiko.
-    Kein extra Fenster, kein ssh.exe-Subprozess, keine SSH_ASKPASS-Probleme.
-    Wird für den CLI-Modus verwendet.
+    Starts an interactive SSH shell directly in this terminal via Paramiko.
+    No extra window, no ssh.exe subprocess, no SSH_ASKPASS issues.
+    Used for CLI mode.
     """
     try:
         import paramiko
     except ImportError:
-        print("Fehler: paramiko ist nicht installiert. Bitte 'pip install paramiko' ausführen.")
+        print("Error: paramiko is not installed. Please run 'pip install paramiko'.")
         return
 
     import sys
@@ -166,7 +170,7 @@ def launch_ssh_in_current_terminal(conn_data: dict, exec_command: str = None):
     )
 
     def _con_write(handle, data: bytes):
-        """Schreibt bytes direkt über WriteFile auf einen Windows-Console-Handle."""
+        """Writes bytes directly to a Windows console handle using WriteFile."""
         written = ctypes.wintypes.DWORD(0)
         ctypes.windll.kernel32.WriteFile(
             handle, data, len(data), ctypes.byref(written), None
@@ -242,7 +246,7 @@ def launch_ssh_in_current_terminal(conn_data: dict, exec_command: str = None):
             data = data[written:]
 
     def stdin_to_channel():
-        """Liest zeichenweise von der Windows-Konsole und schreibt zum SSH-Channel."""
+        """Reads characters from the Windows console and writes them to the SSH channel."""
         try:
             while not stop_event.is_set() and not channel.closed:
                 try:
@@ -277,7 +281,7 @@ def launch_ssh_in_current_terminal(conn_data: dict, exec_command: str = None):
 
     try:
         while not channel.closed:
-            # Ausgabe vom Server lesen und direkt in stdout schreiben
+            # Read output from the server and write it directly to stdout
             if channel.recv_ready():
                 data = channel.recv(4096)
                 if not data:
@@ -298,12 +302,12 @@ def launch_ssh_in_current_terminal(conn_data: dict, exec_command: str = None):
                 import time
                 time.sleep(0.01)
     except KeyboardInterrupt:
-        channel.send(b'\x03')  # Ctrl+C an remote senden
+        channel.send(b'\x03')  # Send Ctrl+C to the remote
     finally:
         stop_event.set()
         channel.close()
         client.close()
-        # Console-Mode wiederherstellen, damit die aufrufende Shell nicht im VT-Modus bleibt.
+        # Restore console mode to prevent the calling shell from staying in VT mode.
         try:
             ctypes.windll.kernel32.SetConsoleMode(_hOut, _old_out_mode.value)
             ctypes.windll.kernel32.SetConsoleMode(_hIn,  _old_in_mode.value)

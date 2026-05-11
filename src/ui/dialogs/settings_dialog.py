@@ -5,11 +5,12 @@ settings_dialog.py – Settings dialog for NEO SSH-Win Manager.
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
     QPushButton, QSpinBox, QFrame, QWidget, QLineEdit,
-    QFileDialog, QMessageBox, QScrollArea, QApplication, QComboBox
+    QFileDialog, QMessageBox, QScrollArea, QApplication, QComboBox, QGridLayout
 )
 from PyQt6.QtCore import Qt
 from src.config import AppSettings
 from src.sshfs_controller import SSHFSController
+from src.ui.dialogs.styled_message_box import StyledMessageBox
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelScrollArea, NoWheelSpinBox
 from src.i18n import tr, available_languages
@@ -89,73 +90,94 @@ class SettingsDialog(QDialog):
         form.setContentsMargins(22, 20, 22, 20)
         form.setSpacing(10)
 
-        # ── LANGUAGE ─────────────────────────────────────────────────
-        form.addWidget(self._section(tr("settings.section.language")))
-        lang_row = QHBoxLayout()
-        lang_row.setContentsMargins(0, 0, 0, 0)
+        # ── APPEARANCE ───────────────────────────────────────────────
+        form.addWidget(self._section("APPEARANCE"))
+        app_grid = QGridLayout()
+        app_grid.setHorizontalSpacing(16)
+        
         lang_lbl = QLabel(tr("settings.language.label"))
         lang_lbl.setObjectName("fieldLabel")
         self._lang_combo = NoWheelComboBox()
         for code in available_languages():
             self._lang_combo.addItem(_LANG_LABELS.get(code, code), code)
-        self._lang_combo.setFixedWidth(140)
-        lang_row.addWidget(lang_lbl)
-        lang_row.addStretch()
-        lang_row.addWidget(self._lang_combo)
-        form.addLayout(lang_row)
-
+            
+        theme_lbl = QLabel(tr("settings.theme.label"))
+        theme_lbl.setObjectName("fieldLabel")
+        self._theme_combo = NoWheelComboBox()
+        self._theme_combo.addItem(tr("settings.theme.dark"), "dark")
+        self._theme_combo.addItem(tr("settings.theme.light"), "light")
+        
+        app_grid.addWidget(lang_lbl, 0, 0)
+        app_grid.addWidget(self._lang_combo, 0, 1)
+        app_grid.addWidget(theme_lbl, 0, 2)
+        app_grid.addWidget(self._theme_combo, 0, 3)
+        form.addLayout(app_grid)
+        
         restart_hint = QLabel(tr("settings.language.restart"))
         restart_hint.setObjectName("fieldLabel")
         restart_hint.setWordWrap(True)
         form.addWidget(restart_hint)
         form.addWidget(self._divider())
 
-        # ── THEME ────────────────────────────────────────────────────
-        form.addWidget(self._section(tr("settings.section.theme")))
-        theme_row = QHBoxLayout()
-        theme_row.setContentsMargins(0, 0, 0, 0)
-        theme_lbl = QLabel(tr("settings.theme.label"))
-        theme_lbl.setObjectName("fieldLabel")
-        self._theme_combo = NoWheelComboBox()
-        self._theme_combo.addItem(tr("settings.theme.dark"), "dark")
-        self._theme_combo.addItem(tr("settings.theme.light"), "light")
-        self._theme_combo.setFixedWidth(140)
-        theme_row.addWidget(theme_lbl)
-        theme_row.addStretch()
-        theme_row.addWidget(self._theme_combo)
-        form.addLayout(theme_row)
-        form.addWidget(self._divider())
-
         # ── GENERAL ──────────────────────────────────────────────────
         form.addWidget(self._section(tr("settings.section.general")))
+        gen_grid = QGridLayout()
+        gen_grid.setHorizontalSpacing(16)
+        
         self._start_with_windows = QCheckBox(tr("settings.start_with_windows"))
         self._minimize_to_tray = QCheckBox(tr("settings.minimize_to_tray"))
         self._require_admin = QCheckBox(tr("settings.require_admin"))
-        form.addWidget(self._start_with_windows)
-        form.addWidget(self._minimize_to_tray)
-        form.addWidget(self._require_admin)
+        self._telemetry_enabled = QCheckBox("Anonyme Volkszählung (Telemetrie) erlauben")
+        
+        gen_grid.addWidget(self._start_with_windows, 0, 0)
+        gen_grid.addWidget(self._minimize_to_tray, 0, 1)
+        gen_grid.addWidget(self._require_admin, 1, 0)
+        gen_grid.addWidget(self._telemetry_enabled, 1, 1)
+        form.addLayout(gen_grid)
+        form.addWidget(self._divider())
+        
+        # ── UPDATE ──────────────────────────────────────────────────
+        form.addWidget(self._section("UPDATES"))
+        update_row = QHBoxLayout()
+        update_lbl = QLabel("Manuell nach neuen Versionen auf GitHub suchen")
+        update_lbl.setObjectName("fieldLabel")
+        update_row.addWidget(update_lbl, stretch=1)
+        
+        self._update_btn = QPushButton("Auf Updates prüfen")
+        self._update_btn.setObjectName("actionBtn")
+        self._update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._update_btn.setFixedWidth(140)
+        self._update_btn.clicked.connect(self._on_check_updates)
+        update_row.addWidget(self._update_btn)
+        form.addLayout(update_row)
         form.addWidget(self._divider())
 
         # ── MOUNT STATUS ─────────────────────────────────────────────
         form.addWidget(self._section(tr("settings.section.mount")))
 
-        interval_row = QHBoxLayout()
-        interval_row.setContentsMargins(0, 0, 0, 0)
+        mount_grid = QGridLayout()
+        mount_grid.setHorizontalSpacing(16)
+        
+        interval_wrapper = QWidget()
+        iw_l = QHBoxLayout(interval_wrapper)
+        iw_l.setContentsMargins(0, 0, 0, 0)
         interval_lbl = QLabel(tr("settings.check_interval"))
         interval_lbl.setObjectName("fieldLabel")
         self._interval_spin = NoWheelSpinBox()
         self._interval_spin.setRange(5, 300)
         self._interval_spin.setValue(30)
         self._interval_spin.setFixedWidth(80)
-        interval_row.addWidget(interval_lbl)
-        interval_row.addStretch()
-        interval_row.addWidget(self._interval_spin)
-        form.addLayout(interval_row)
-
+        iw_l.addWidget(interval_lbl)
+        iw_l.addWidget(self._interval_spin)
+        iw_l.addStretch()
+        
         self._auto_reconnect = QCheckBox(tr("settings.auto_reconnect"))
         self._auto_remount_on_lost = QCheckBox(tr("settings.auto_remount"))
-        form.addWidget(self._auto_reconnect)
-        form.addWidget(self._auto_remount_on_lost)
+        
+        mount_grid.addWidget(interval_wrapper, 0, 0)
+        mount_grid.addWidget(self._auto_reconnect, 0, 1)
+        mount_grid.addWidget(self._auto_remount_on_lost, 1, 0, 1, 2)
+        form.addLayout(mount_grid)
         form.addWidget(self._divider())
 
         # ── SSH TERMINAL ─────────────────────────────────────────────
@@ -261,6 +283,7 @@ class SettingsDialog(QDialog):
         self._start_with_windows.setChecked(s.start_with_windows)
         self._minimize_to_tray.setChecked(s.minimize_to_tray)
         self._require_admin.setChecked(s.require_admin)
+        self._telemetry_enabled.setChecked(getattr(s, 'telemetry_enabled', False))
         self._interval_spin.setValue(s.check_interval_seconds)
         self._auto_reconnect.setChecked(s.auto_reconnect)
         self._auto_remount_on_lost.setChecked(s.auto_remount_on_lost)
@@ -301,29 +324,79 @@ class SettingsDialog(QDialog):
         controller = SSHFSController()
         ok = controller.purge_all_stale_mounts()
         if ok:
-            QMessageBox.information(self, tr("dialog.success"), tr("settings.ghosts_ok"))
+            StyledMessageBox.information(self, tr("dialog.success"), tr("settings.ghosts_ok"))
             SSHFSController.restart_explorer()
         else:
-            QMessageBox.warning(self, tr("dialog.error"), tr("settings.ghosts_failed"))
+            StyledMessageBox.warning(self, tr("dialog.error"), tr("settings.ghosts_failed"))
 
     def _on_restart_explorer(self):
         SSHFSController.restart_explorer()
-        QMessageBox.information(self, "Explorer", tr("settings.explorer_restarted"))
+        StyledMessageBox.information(self, "Explorer", tr("settings.explorer_restarted"))
+
+    def _on_check_updates(self):
+        self._update_btn.setText("Prüfe... ⏳")
+        self._update_btn.setEnabled(False)
+        QApplication.processEvents()
+
+        try:
+            from src.ui.dialogs.about_dialog import APP_VERSION
+            from src.updater import UpdaterManager
+            from src.ui.dialogs.update_dialog import UpdateDialog
+        except Exception as e:
+            StyledMessageBox.warning(self, "Fehler", f"Fehler bei der Update-Prüfung: {e}")
+            self._update_btn.setText("Auf Updates prüfen")
+            self._update_btn.setEnabled(True)
+            return
+
+        updater = UpdaterManager(APP_VERSION)
+        self._update_mgr = updater  # keep alive
+
+        def _reset():
+            self._update_btn.setText("Auf Updates prüfen")
+            self._update_btn.setEnabled(True)
+
+        def _on_update_available(version: str, changelog: str, download_url: str, obj_type: str):
+            try:
+                dlg = UpdateDialog(self, version, changelog, download_url, obj_type)
+                dlg.start_background_download.connect(lambda: updater.download_update_async(download_url))
+                updater.download_progress.connect(dlg.update_progress)
+
+                def _on_finished(success: bool, msg: str):
+                    if success:
+                        updater.install_on_exit()
+                    dlg.on_download_finished(success, msg)
+
+                updater.download_finished.connect(_on_finished)
+                dlg.exec()
+            finally:
+                _reset()
+
+        def _on_no_update():
+            StyledMessageBox.information(self, "Update", "Du bist auf dem neuesten Stand!")
+            _reset()
+
+        def _on_failed(msg: str):
+            StyledMessageBox.warning(self, "Fehler", f"Fehler bei der Update-Prüfung: {msg}")
+            _reset()
+
+        updater.update_available.connect(_on_update_available)
+        updater.no_update_available.connect(_on_no_update)
+        updater.check_failed.connect(_on_failed)
+        updater.check_for_updates_async()
 
     def _on_save(self):
         if self._use_putty.isChecked():
             import os
             path = self._putty_path_edit.text().strip()
             if not path:
-                QMessageBox.warning(self, "PuTTY", tr("settings.putty_missing"))
+                StyledMessageBox.warning(self, "PuTTY", tr("settings.putty_missing"))
                 return
             if not os.path.exists(path):
-                reply = QMessageBox.question(
+                reply = StyledMessageBox.question(
                     self, tr("settings.putty_not_found_title"),
-                    tr("settings.putty_not_found", path=path),
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    tr("settings.putty_not_found", path=path)
                 )
-                if reply != QMessageBox.StandardButton.Yes:
+                if not reply:
                     return
         self.accept()
 
@@ -340,6 +413,8 @@ class SettingsDialog(QDialog):
             putty_path=self._putty_path_edit.text().strip(),
             language=self._lang_combo.currentData() or "en",
             theme=self._theme_combo.currentData() or "dark",
+            telemetry_enabled=self._telemetry_enabled.isChecked(),
+            telemetry_prompt_shown=self._settings.telemetry_prompt_shown
         )
         self._apply_autostart(s.start_with_windows)
         return s

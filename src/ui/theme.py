@@ -761,6 +761,55 @@ QPushButton#headerAddBtn:hover {
     border: 1px solid #36506c;
 }
 
+/* ---- Mount/Dismount All Buttons ------------------------- */
+QPushButton#headerActionBtn {
+    background-color: #111822;
+    border: 1px solid #1f2b3a;
+    border-radius: 12px;
+    min-height: 30px;
+    max-height: 30px;
+    min-width: 30px;
+    max-width: 30px;
+}
+QPushButton#headerActionBtn:hover {
+    background-color: #182232;
+    border: 1px solid #31465d;
+}
+
+/* ---- Groups Filter Dropdown ---------------------------- */
+QComboBox#headerGroupsCombo {
+    background-color: #111822;
+    color: #deebf7;
+    border: 1px solid #00b4d8;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+    min-height: 22px;
+}
+QComboBox#headerGroupsCombo:hover {
+    border: 1px solid #7ddfff;
+}
+QComboBox#headerGroupsCombo::drop-down {
+    border: none;
+    width: 20px;
+}
+QComboBox#headerGroupsCombo::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #deebf7;
+    width: 0;
+    height: 0;
+}
+QComboBox#headerGroupsCombo QAbstractItemView {
+    background-color: #111822;
+    color: #deebf7;
+    border: 1px solid #1f2b3a;
+    border-radius: 8px;
+    selection-background-color: #182232;
+    selection-color: #7ddfff;
+}
+
 /* ---- Version label in status bar -------------------------- */
 #versionLabel {
     color: #607489;
@@ -1321,6 +1370,9 @@ QMessageBox {
 }
 QMessageBox QPushButton {
     min-width: 90px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0 14px;
 }
 """
 
@@ -1955,6 +2007,55 @@ QPushButton#headerAddBtn:hover {
     border: 1px solid #007a3d;
 }
 
+/* ---- Mount/Dismount All Buttons (Light) ---------------- */
+QPushButton#headerActionBtn {
+    background-color: #ffffff;
+    border: 1px solid #d5dde7;
+    border-radius: 12px;
+    min-height: 30px;
+    max-height: 30px;
+    min-width: 30px;
+    max-width: 30px;
+}
+QPushButton#headerActionBtn:hover {
+    background-color: #edf5fb;
+    border: 1px solid #aec6dd;
+}
+
+/* ---- Groups Filter Dropdown (Light) -------------------- */
+QComboBox#headerGroupsCombo {
+    background-color: #ffffff;
+    color: #182536;
+    border: 1px solid #0077b6;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+    min-height: 22px;
+}
+QComboBox#headerGroupsCombo:hover {
+    border: 1px solid #00b4d8;
+}
+QComboBox#headerGroupsCombo::drop-down {
+    border: none;
+    width: 20px;
+}
+QComboBox#headerGroupsCombo::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #182536;
+    width: 0;
+    height: 0;
+}
+QComboBox#headerGroupsCombo QAbstractItemView {
+    background-color: #ffffff;
+    color: #182536;
+    border: 1px solid #d5dde7;
+    border-radius: 8px;
+    selection-background-color: #edf5fb;
+    selection-color: #0077b6;
+}
+
 #versionLabel { color: #7d8fa2; font-size: 11px; font-family: "Consolas"; }
 
 /* ---- Right Panel – content elements (Light) --------------- */
@@ -2484,5 +2585,10 @@ QToolTip {
 }
 
 QMessageBox { background-color: #ffffff; }
-QMessageBox QPushButton { min-width: 90px; }
+QMessageBox QPushButton {
+    min-width: 90px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0 14px;
+}
 """

@@ -10,10 +10,41 @@ from pathlib import Path
 
 # ── 0. SSH askpass helper (MUST BE FIRST, before anything else) ───────────
 # OpenSSH SSH_ASKPASS helper for non-interactive password input.
-# Reads SSH_ASKPASS_PASS env var and prints to stdout.
+# Reads SSH_ASKPASS_TOKEN env var and fetches password via Secure IPC.
 # Used by system_info_panel.py for password-based SSH connections.
 if len(sys.argv) > 1 and sys.argv[1] == "--pass-helper":
-    print(os.environ.get("SSH_ASKPASS_PASS", ""), end="")
+    # Hardened SSH_ASKPASS helper: Fetch password from main instance via Secure IPC.
+    token = os.environ.get("SSH_ASKPASS_TOKEN", "")
+    if not token:
+        sys.exit(1)
+    
+    import json
+    import ctypes
+    import ctypes.wintypes
+    
+    pipe_name = r"\\.\pipe\SSHWinManager_IPC_v1"
+    GENERIC_READ = 0x80000000
+    GENERIC_WRITE = 0x40000000
+    OPEN_EXISTING = 3
+    
+    handle = ctypes.windll.kernel32.CreateFileW(
+        pipe_name, GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None
+    )
+    if handle != -1:
+        req = json.dumps({"action": "get_askpass", "token": token}).encode('utf-8')
+        written = ctypes.wintypes.DWORD()
+        ctypes.windll.kernel32.WriteFile(handle, req, len(req), ctypes.byref(written), None)
+        
+        buf = ctypes.create_string_buffer(4096)
+        read = ctypes.wintypes.DWORD()
+        if ctypes.windll.kernel32.ReadFile(handle, buf, 4096, ctypes.byref(read), None):
+            try:
+                resp = json.loads(buf.value[:read.value].decode('utf-8'))
+                if resp.get("success"):
+                    print(resp.get("password", ""), end="")
+            except Exception:
+                pass
+        ctypes.windll.kernel32.CloseHandle(handle)
     sys.exit(0)
 
 # ── 0.5 CLI-Modus ist nicht Sache der GUI-EXE ───────────────────────────────
@@ -272,8 +303,27 @@ def main():
         user_settings = ucm.get_settings()
         set_language(user_settings.language)
         app.setStyleSheet(get_stylesheet(user_settings.theme))
+        
+        # Telemetry Opt-In / Send
+        if not getattr(user_settings, 'telemetry_prompt_shown', False):
+            from src.ui.dialogs.telemetry_prompt_dialog import TelemetryPromptDialog
+            from PyQt6.QtWidgets import QDialog
+            prompt = TelemetryPromptDialog()
+            if prompt.exec() == QDialog.DialogCode.Accepted:
+                user_settings.telemetry_enabled = True
+            else:
+                user_settings.telemetry_enabled = False
+            user_settings.telemetry_prompt_shown = True
+            ucm.update_settings(user_settings)
+            
+            from src.telemetry import send_telemetry_async
+            send_telemetry_async('install', user_settings)
+        
+        from src.telemetry import send_telemetry_async
+        send_telemetry_async('login', user_settings)
+        
     except Exception as e:
-        logger.warning(f"Language/theme init failed: {e}")
+        logger.warning(f"Language/theme/telemetry init failed: {e}")
 
     # Don't quit when the last window is hidden (tray support)
     app.setQuitOnLastWindowClosed(False)
@@ -282,6 +332,23 @@ def main():
         # Create and show main window (maximiert mit Titelleiste)
         window = MainWindow()
         window.showMaximized()
+
+        # Start Update Check
+        from src.updater import UpdaterManager
+        # app_version ist beispielsweise '1.4.1'
+        updater = UpdaterManager(app.applicationVersion())
+        
+        def _on_update_available(version: str, changelog: str, download_url: str, obj_type: str):
+            from src.ui.dialogs.update_dialog import UpdateDialog
+            dlg = UpdateDialog(window, version, changelog, download_url, obj_type)
+            dlg.start_background_download.connect(lambda: updater.download_update_async(download_url))
+            updater.download_progress.connect(dlg.update_progress)
+            updater.download_finished.connect(dlg.on_download_finished)
+            dlg.exec()
+            
+        updater.update_available.connect(_on_update_available)
+        app.aboutToQuit.connect(updater.install_on_exit)
+        updater.check_for_updates_async()
 
         sys.exit(app.exec())
     except Exception as e:

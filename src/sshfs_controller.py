@@ -84,14 +84,14 @@ def _is_safe_remote_path(path: str) -> bool:
 
 def _is_host_known(host: str, port: int, known_hosts_path: str) -> bool:
     """
-    Prüft ob ein Host bereits in known_hosts verifiziert wurde.
-    Nutzt ssh-keygen -F für korrekte Behandlung von gehashten Einträgen.
-    Fallback: direkte Textsuche für nicht-gehashte Einträge.
+    Checks if a host is already verified in known_hosts.
+    Uses ssh-keygen -F for correct handling of hashed entries.
+    Fallback: direct text search for non-hashed entries.
     """
     if not os.path.exists(known_hosts_path):
         return False
 
-    # Primär: ssh-keygen -F (behandelt auch gehashte known_hosts korrekt)
+    # Primär: ssh-keygen -F (also handles hashed known_hosts correctly)
     ssh_keygen = shutil.which("ssh-keygen") or r"C:\Windows\System32\OpenSSH\ssh-keygen.exe"
     if os.path.exists(ssh_keygen if os.path.isabs(ssh_keygen) else "") or shutil.which("ssh-keygen"):
         try:
@@ -105,7 +105,7 @@ def _is_host_known(host: str, port: int, known_hosts_path: str) -> bool:
         except Exception:
             pass
 
-    # Fallback: direkte Textsuche (funktioniert nur für nicht-gehashte Einträge)
+    # Fallback: direct text search (only works for non-hashed entries)
     try:
         target_plain = host
         target_port = f"[{host}]:{port}" if port != 22 else None
@@ -125,6 +125,16 @@ def _is_host_known(host: str, port: int, known_hosts_path: str) -> bool:
         pass
 
     return False
+
+
+def _ssh_host_key_check_option() -> str:
+    """
+    Use OpenSSH's TOFU mode so the first verified connection can populate known_hosts.
+
+    Existing host-key mismatches still fail, but brand-new hosts no longer need a
+    separate manual OpenSSH pre-registration step.
+    """
+    return "StrictHostKeyChecking=accept-new"
 
 
 def _has_winfsp() -> bool:
@@ -154,8 +164,8 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
     target_arg = f"{letter}:"
 
     try:
-        # Fallback: Native Windows Tasklist nutzen, falls psutil nicht verfügbar ist
-        # Wir suchen nach sshfs.exe und filtern manuell
+        # Fallback: Use native Windows tasklist if psutil is not available
+        # We search for sshfs.exe and filter manually by CommandLine to find the one with the target drive letter.
         output = subprocess.check_output(
             ['wmic', 'process', 'where', "name='sshfs.exe'", 'get', 'CommandLine,ProcessId', '/format:csv'],
             creationflags=0x08000000,
@@ -168,11 +178,11 @@ def _find_sshfs_pid_for_drive(drive_letter: str) -> int | None:
                 if len(parts) >= 3:
                     return int(parts[-1])
     except Exception:
-        # Letzter Versuch über tasklist (weniger Details)
+        # Last attempt using tasklist (less details, but better than nothing)
         try:
             task_out = subprocess.check_output(['tasklist', '/FI', 'IMAGENAME eq sshfs.exe', '/FO', 'CSV'],
                                               creationflags=0x08000000, text=True)
-            # Hier können wir leider nicht die CommandLine prüfen, nur ob er läuft
+            # Here we unfortunately cannot check the CommandLine, only if it is running. This is a fallback and may lead to false positives if multiple sshfs.exe are running.
             pass
         except Exception:
             pass
@@ -241,19 +251,6 @@ class SSHFSController:
         # SSHFS cannot expand %USERPROFILE% correctly
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
 
-        # SECURITY FIX: Verweigere Mount für unbekannte Hosts (MITM-Schutz).
-        # Bekannte Hosts → StrictHostKeyChecking=yes (kein accept-new mehr).
-        # Unbekannte Hosts → Benutzer muss zuerst per SSH-Terminal verbinden
-        # und den Fingerprint dort interaktiv bestätigen.
-        if not _is_host_known(conn.host, conn.port, known_hosts_path):
-            return MountResult(
-                False,
-                f"Host '{conn.host}:{conn.port}' ist noch nicht in known_hosts verifiziert.\n\n"
-                "Bitte zuerst eine SSH-Terminal-Verbindung zu diesem Server aufbauen "
-                "und den Host-Key-Fingerprint dort bestätigen. "
-                "Danach kann der Mount durchgeführt werden."
-            )
-
         cmd = [
             sshfs_exe,
             remote,
@@ -262,14 +259,11 @@ class SSHFSController:
             f"-ovolname={safe_name}",
             "-odebug",
             "-ologlevel=debug1",
-            "-oStrictHostKeyChecking=yes",
+            f"-o{_ssh_host_key_check_option()}",
             f"-oUserKnownHostsFile={known_hosts_path}",
             "-oreconnect",
             "-oServerAliveInterval=15",
             "-oServerAliveCountMax=3",
-            # WinFsp: Mount dem aktuellen User voll zugänglich machen.
-            # Ohne diese Options taucht das Laufwerk im Explorer auf, aber
-            # der Zugriff auf Inhalte triggert UAC ("Zugriff verweigert").
             "-oidmap=user",
             "-ouid=-1",
             "-ogid=-1",
@@ -433,14 +427,14 @@ class SSHFSController:
 
     def _set_drive_label(self, conn: Connection, delay: float = 1.5):
         """
-        Setzt das Laufwerks-Label.
+        Set the drive label.
 
-        Bei direkten WinFsp-Mounts:
-          - -ovolname= setzt es schon beim Mount → Backup via label.exe + DriveIcons
-          - WNetGetConnection gibt None zurück → kein MountPoints2 Trick nötig/möglich
+        For direct WinFsp mounts:
+          - -ovolname= sets it during mount → Backup via label.exe + DriveIcons
+          - WNetGetConnection returns None → no MountPoints2 trick needed/possible
 
-        Bei net use Mounts (Fallback):
-          - WNetGetConnection gibt den UNC-Pfad zurück → MountPoints2 Key setzen
+        For net use mounts (fallback):
+          - WNetGetConnection returns the UNC path → set MountPoints2 key
         """
         import winreg
         import threading
@@ -454,11 +448,11 @@ class SSHFSController:
 
             from src.app_logger import logger
 
-            # Prüfen ob direkter WinFsp-Mount oder net use
+            # Check if direct WinFsp mount or net use
             actual_unc = self._get_actual_unc(letter)
             logger.debug(f"Label: WNetGetConnection({letter}:) = {actual_unc!r}")
 
-            # 1. label.exe – funktioniert für beide Mount-Typen
+            # 1. label.exe – works for both mount types
             # SECURITY FIX: Removed shell=True to prevent command injection
             try:
                 subprocess.run(
@@ -486,7 +480,7 @@ class SSHFSController:
             except Exception as e:
                 logger.debug(f"DriveIcons Fehler: {e}")
 
-            # 3. MountPoints2 – nur wenn net use (actual_unc vorhanden)
+            # 3. MountPoints2 – only for net use (actual_unc present)
             if actual_unc:
                 mp_base = (
                     "Software\\Microsoft\\Windows\\CurrentVersion\\"
@@ -506,7 +500,7 @@ class SSHFSController:
                 except Exception as e:
                     logger.debug(f"MountPoints2 Fehler: {e}")
 
-            # Shell benachrichtigen – NUR für diesen Buchstaben
+            # Notify shell – ONLY for this drive letter
             try:
                 path_w = f"{letter}:\\".encode("utf-16le")
                 ctypes.windll.shell32.SHChangeNotify(0x00000100, 0x0005, path_w, None)
@@ -531,7 +525,7 @@ class SSHFSController:
         return None
 
     # ------------------------------------------------------------------
-    # Unmount – für direkte WinFsp-Mounts (kein WNetCancelConnection!)
+    # Unmount – for direct WinFsp mounts (no WNetCancelConnection!)
     # ------------------------------------------------------------------
 
     def unmount(self, drive_letter: str) -> MountResult:
@@ -556,19 +550,19 @@ class SSHFSController:
 
         log("Start unmount")
 
-        # UNC vor Unmount lesen (für net use Mounts)
+        # Read UNC before unmount (for net use mounts)
         unc_before = self._get_actual_unc(letter_up)
         is_network_mount = unc_before is not None
-        log(f"Mount-Typ: {'net use' if is_network_mount else 'WinFsp direkt'} | UNC={unc_before!r}")
+        log(f"Mount type: {'net use' if is_network_mount else 'WinFsp direct'} | UNC={unc_before!r}")
 
         def cleanup():
             self._cleanup_drive_label(letter_up, known_unc=unc_before)
 
-        # ── Strategie A: Direkter WinFsp-Mount ──────────────────────────
+        # ── Strategy A: Direct WinFsp Mount ──────────────────────────
         if not is_network_mount:
-            # Schritt 1: sshfs.exe Prozess für diesen Buchstaben finden und beenden
+            # Step 1: Find and terminate sshfs.exe process for this drive letter
             pid = _find_sshfs_pid_for_drive(drive_char)
-            log(f"sshfs PID für {drive_char}: = {pid!r}")
+            log(f"sshfs PID for {drive_char}: = {pid!r}")
 
             if pid:
                 try:
@@ -577,17 +571,17 @@ class SSHFSController:
                         capture_output=True, timeout=5,
                         creationflags=0x08000000,
                     )
-                    log(f"PID {pid} beendet.")
+                    log(f"PID {pid} terminated.")
                 except Exception as e:
-                    log(f"taskkill PID Fehler: {e}")
+                    log(f"taskkill PID error: {e}")
 
                 if verify(1.5):
                     cleanup()
-                    return MountResult(True, f"Laufwerk {letter_up} getrennt.")
+                    return MountResult(True, f"Drive {letter_up} disconnected.")
             else:
-                log("Kein sshfs-Prozess für diesen Buchstaben gefunden.")
+                log("No sshfs process found for this drive letter.")
 
-            # Schritt 2: WinFsp launchctl als Fallback
+            # Step 2: WinFsp launchctl as fallback
             for winfsp_bin in [
                 r"C:\Program Files\WinFsp\bin\launchctl.exe",
                 r"C:\Program Files (x86)\WinFsp\bin\launchctl.exe",
@@ -646,14 +640,14 @@ class SSHFSController:
         try:
             letter = drive_letter.rstrip("\\").rstrip(":")
 
-            # DriveIcons NUR für diesen Buchstaben entfernen
+            # Remove DriveIcons ONLY for this drive letter
             di_path = (
                 f"Software\\Microsoft\\Windows\\CurrentVersion\\"
                 f"Explorer\\DriveIcons\\{letter}"
             )
             self._delete_reg_key_recursive(winreg.HKEY_CURRENT_USER, di_path)
 
-            # MountPoints2 nur wenn net use (UNC bekannt)
+            # MountPoints2 only if net use (UNC known)
             if known_unc:
                 mp_base = (
                     "Software\\Microsoft\\Windows\\CurrentVersion\\"
@@ -668,7 +662,7 @@ class SSHFSController:
                 except Exception:
                     pass
 
-            # Shell NUR für diesen Buchstaben benachrichtigen
+            # Notify shell ONLY for this drive letter
             ctypes.windll.shell32.SHChangeNotify(
                 0x00000080, 0x0005, f"{letter}:\\".encode("utf-16le"), None
             )

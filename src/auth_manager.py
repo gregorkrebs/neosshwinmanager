@@ -604,6 +604,20 @@ class UserConnectionManager:
         except (KeyError, IndexError):
             pass
 
+        # Neue Felder mit Fallback für alte Datenbanken
+        try:
+            groups = row["groups"] or ""
+        except (KeyError, IndexError):
+            groups = ""
+        try:
+            is_template = bool(row["is_template"])
+        except (KeyError, IndexError):
+            is_template = False
+        try:
+            template_id = row["template_id"] or None
+        except (KeyError, IndexError):
+            template_id = None
+
         return Connection(
             id=row["id"],
             name=name,
@@ -618,14 +632,41 @@ class UserConnectionManager:
             drive_letter=row["drive_letter"],
             cli_access_enabled=bool(row["cli_access_enabled"]),
             cli_access_key=cli_key,
+            groups=groups,
+            is_template=is_template,
+            template_id=template_id,
         )
 
-    def get_all(self) -> List[Connection]:
+    def get_all(self, include_templates: bool = False) -> List[Connection]:
+        """Alle Verbindungen holen. Wenn include_templates=False, werden Templates ausgeschlossen."""
+        with get_connection() as conn:
+            if include_templates:
+                rows = conn.execute(
+                    """SELECT * FROM connections
+                       WHERE user_id = ?
+                       ORDER BY sort_order, name""",
+                    (self._user.id,)
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """SELECT * FROM connections
+                       WHERE user_id = ? AND is_template = 0
+                       ORDER BY sort_order, name""",
+                    (self._user.id,)
+                ).fetchall()
+        return [self._row_to_conn(r) for r in rows]
+
+    def get_connections(self) -> List[Connection]:
+        """Nur normale Verbindungen (keine Templates)."""
+        return self.get_all(include_templates=False)
+
+    def get_templates(self) -> List[Connection]:
+        """Nur Templates holen."""
         with get_connection() as conn:
             rows = conn.execute(
                 """SELECT * FROM connections
-                   WHERE user_id = ?
-                   ORDER BY sort_order, name""",
+                   WHERE user_id = ? AND is_template = 1
+                   ORDER BY name""",
                 (self._user.id,)
             ).fetchall()
         return [self._row_to_conn(r) for r in rows]
@@ -671,14 +712,16 @@ class UserConnectionManager:
                     auth_method, pw_enc, pw_iv, key_path, putty_key_path, drive_letter,
                     sort_order, cli_access_enabled, cli_access_key, cli_access_key_iv,
                     name_enc, name_iv, host_enc, host_iv,
-                    ssh_user_enc, ssh_user_iv, remote_path_enc, remote_path_iv)
-                   VALUES (?, ?, '', '', '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ssh_user_enc, ssh_user_iv, remote_path_enc, remote_path_iv,
+                    groups, is_template, template_id)
+                   VALUES (?, ?, '', '', '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     c.id, self._user.id, c.port, c.auth_method,
                     pw_enc, pw_iv, c.key_path, c.putty_key_path, c.drive_letter,
                     c.sort_order, int(c.cli_access_enabled), cli_key_enc, cli_key_iv,
                     name_enc, name_iv, host_enc, host_iv,
                     user_enc, user_iv, path_enc, path_iv,
+                    c.groups, int(c.is_template), c.template_id,
                 )
             )
         return c
@@ -699,13 +742,15 @@ class UserConnectionManager:
                    auth_method=?, pw_enc=?, pw_iv=?, key_path=?, putty_key_path=?, drive_letter=?,
                    cli_access_enabled=?, cli_access_key=?, cli_access_key_iv=?,
                    name_enc=?, name_iv=?, host_enc=?, host_iv=?,
-                   ssh_user_enc=?, ssh_user_iv=?, remote_path_enc=?, remote_path_iv=?
+                   ssh_user_enc=?, ssh_user_iv=?, remote_path_enc=?, remote_path_iv=?,
+                   groups=?, is_template=?, template_id=?
                    WHERE id=? AND user_id=?""",
                 (c.port, c.auth_method, pw_enc, pw_iv,
                  c.key_path, c.putty_key_path, c.drive_letter,
                  int(c.cli_access_enabled), cli_key_enc, cli_key_iv,
                  name_enc, name_iv, host_enc, host_iv,
                  user_enc, user_iv, path_enc, path_iv,
+                 c.groups, int(c.is_template), c.template_id,
                  c.id, self._user.id)
             )
         return result.rowcount > 0
@@ -730,6 +775,7 @@ class UserConnectionManager:
             ).fetchone()
         if not row:
             return AppSettings()
+        auto_reconnect = bool(row["auto_reconnect"]) if "auto_reconnect" in row.keys() else True
         return AppSettings(
             start_with_windows=bool(row["start_with_windows"]),
             minimize_to_tray=bool(row["minimize_to_tray"]),
@@ -739,12 +785,16 @@ class UserConnectionManager:
             use_putty=bool(row["use_putty"]),
             putty_path=row["putty_path"] or "",
             auto_login=bool(row["auto_login"]) if "auto_login" in row.keys() else False,
-            auto_reconnect_mounts=bool(row["auto_reconnect"]) if "auto_reconnect" in row.keys() else True,
+            auto_reconnect=auto_reconnect,
+            auto_reconnect_mounts=auto_reconnect,
+            auto_remount_on_lost=bool(row["auto_remount_on_lost"]) if "auto_remount_on_lost" in row.keys() else True,
             language=(row["language"] if "language" in row.keys() and row["language"] else "en"),
             theme=(row["theme"] if "theme" in row.keys() and row["theme"] else "dark"),
             security_level=row["security_level"] if "security_level" in row.keys() else 0,
             allow_passwordless_key_auth=bool(row["allow_passwordless_key_auth"]) if "allow_passwordless_key_auth" in row.keys() else False,
             allow_insecure_password_auth=bool(row["allow_insecure_password_auth"]) if "allow_insecure_password_auth" in row.keys() else False,
+            telemetry_enabled=bool(row["telemetry_enabled"]) if "telemetry_enabled" in row.keys() else False,
+            telemetry_prompt_shown=bool(row["telemetry_prompt_shown"]) if "telemetry_prompt_shown" in row.keys() else False,
         )
 
     def save_settings(self, s: AppSettings) -> None:
@@ -755,8 +805,9 @@ class UserConnectionManager:
                     check_interval_seconds, debug_mode, require_admin,
                     use_putty, putty_path, auto_login, auto_reconnect, language, theme,
                     security_level, allow_passwordless_key_auth, allow_insecure_password_auth,
+                    auto_remount_on_lost, telemetry_enabled, telemetry_prompt_shown,
                     updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
                    ON CONFLICT(user_id) DO UPDATE SET
                      start_with_windows=excluded.start_with_windows,
                      minimize_to_tray=excluded.minimize_to_tray,
@@ -772,15 +823,25 @@ class UserConnectionManager:
                      security_level=excluded.security_level,
                      allow_passwordless_key_auth=excluded.allow_passwordless_key_auth,
                      allow_insecure_password_auth=excluded.allow_insecure_password_auth,
+                     auto_remount_on_lost=excluded.auto_remount_on_lost,
+                     telemetry_enabled=excluded.telemetry_enabled,
+                     telemetry_prompt_shown=excluded.telemetry_prompt_shown,
                      updated_at=excluded.updated_at""",
                 (self._user.id,
                  int(s.start_with_windows), int(s.minimize_to_tray),
                  s.check_interval_seconds, int(s.debug_mode),
                  int(s.require_admin), int(s.use_putty), s.putty_path,
-                 int(s.auto_login), int(s.auto_reconnect_mounts), s.language, s.theme,
+                 int(s.auto_login), int(bool(getattr(s, "auto_reconnect", False) or getattr(s, "auto_reconnect_mounts", False))), s.language, s.theme,
                  int(s.security_level),
-                 int(s.allow_passwordless_key_auth), int(s.allow_insecure_password_auth))
+                 int(s.allow_passwordless_key_auth), int(s.allow_insecure_password_auth),
+                 int(bool(getattr(s, "auto_remount_on_lost", True))),
+                 int(bool(getattr(s, "telemetry_enabled", False))),
+                 int(bool(getattr(s, "telemetry_prompt_shown", False))))
             )
+
+    # Backwards-compatible alias used by main.py
+    def update_settings(self, s: AppSettings) -> None:
+        self.save_settings(s)
 
     # ------------------------------------------------------------------
     # Active Mounts Tracking (für Auto-Reconnect)

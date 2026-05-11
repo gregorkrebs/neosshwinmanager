@@ -27,6 +27,7 @@ class ConnectionCard(QFrame):
         self._theme = theme
         self._loading = False
         self.setObjectName("connectionCard")
+        # Increase height when groups are present
         self.setFixedHeight(68)
         self._build_ui()
         self.update_mount_state(mounted)
@@ -49,10 +50,24 @@ class ConnectionCard(QFrame):
         info_col.setSpacing(2)
         info_col.setContentsMargins(0, 0, 0, 0)
 
+        # Row 1: Name + Tags (minimal spacing)
+        name_row = QHBoxLayout()
+        name_row.setSpacing(6)
+        name_row.setContentsMargins(0, 0, 0, 0)
+
         self._name_lbl = QLabel(self._conn.name)
         self._name_lbl.setObjectName("connName")
-        # Elide name if too long
-        self._name_lbl.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        # Let the name only take what it needs, but allow it to shrink if needed
+        self._name_lbl.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
+        name_row.addWidget(self._name_lbl)
+
+        # Groups/Tags pills (directly behind name)
+        self._groups_widget = self._build_groups_pills()
+        if self._groups_widget:
+            name_row.addWidget(self._groups_widget)
+        
+        name_row.addStretch() # Push both to the left
+        info_col.addLayout(name_row)
 
         self._detail_lbl = QLabel()
         self._detail_lbl.setObjectName("connDetail")
@@ -60,7 +75,6 @@ class ConnectionCard(QFrame):
         self._detail_lbl.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self._update_detail_text()
 
-        info_col.addWidget(self._name_lbl)
         info_col.addWidget(self._detail_lbl)
 
         info_wrapper = QWidget()
@@ -159,15 +173,102 @@ class ConnectionCard(QFrame):
 
     def _update_detail_text(self):
         """Set detail label with elided remote_path if it would be very long."""
-        path = self._conn.remote_path
-        if len(path) > 20:
-            path = path[:18] + "…"
-        text = f"{self._conn.user}@{self._conn.host}:{path}"
-        self._detail_lbl.setText(text)
+        drive_text = f"{self._conn.drive_letter}  •  "
+        detail = f"{drive_text}{self._conn.user}@{self._conn.host}:{self._conn.port}"
+        self._detail_lbl.setText(detail)
         # Full text as tooltip so user can see the whole path
         self._detail_lbl.setToolTip(
             f"{self._conn.user}@{self._conn.host}:{self._conn.remote_path}"
         )
+
+    def _build_groups_pills(self) -> QWidget | None:
+        """Build small pill badges for groups/tags. Returns None if no groups."""
+        if not self._conn.groups:
+            return None
+        
+        groups = [g.strip() for g in self._conn.groups.split(",") if g.strip()]
+        if not groups:
+            return None
+        
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        
+        # Show max 3 pills, then +N indicator
+        max_pills = 3
+        for i, group in enumerate(groups[:max_pills]):
+            pill = QLabel(group)
+            pill.setObjectName("groupPill")
+            pill.setStyleSheet(self._get_pill_stylesheet())
+            pill.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            pill.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+            layout.addWidget(pill)
+        
+        if len(groups) > max_pills:
+            more = QLabel(f"+{len(groups) - max_pills}")
+            more.setObjectName("groupPillMore")
+            more.setStyleSheet(self._get_pill_more_stylesheet())
+            more.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            more.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+            layout.addWidget(more)
+        
+        return widget
+
+    def _get_pill_stylesheet(self) -> str:
+        """Get stylesheet for group pills based on theme."""
+        if self._theme == "dark":
+            return """
+                QLabel {
+                    background-color: rgba(0, 180, 216, 0.12);
+                    color: #7ddfff;
+                    border: 1px solid rgba(0, 180, 216, 0.35);
+                    border-radius: 4px;
+                    padding: 1px 8px;
+                    font-size: 9px;
+                    font-weight: 600;
+                }
+            """
+        else:
+            return """
+                QLabel {
+                    background-color: rgba(0, 119, 182, 0.10);
+                    color: #0077b6;
+                    border: 1px solid rgba(0, 119, 182, 0.30);
+                    border-radius: 4px;
+                    padding: 1px 8px;
+                    font-size: 9px;
+                    font-weight: 600;
+                }
+            """
+    
+    def _get_pill_more_stylesheet(self) -> str:
+        """Get stylesheet for +N indicator."""
+        if self._theme == "dark":
+            return """
+                QLabel {
+                    background-color: rgba(106, 122, 138, 0.20);
+                    color: #8fa4b8;
+                    border: 1px solid rgba(106, 122, 138, 0.35);
+                    border-radius: 4px;
+                    padding: 1px 6px;
+                    font-size: 9px;
+                    font-weight: 600;
+                }
+            """
+        else:
+            return """
+                QLabel {
+                    background-color: rgba(106, 122, 138, 0.15);
+                    color: #617386;
+                    border: 1px solid rgba(106, 122, 138, 0.30);
+                    border-radius: 4px;
+                    padding: 1px 6px;
+                    font-size: 9px;
+                    font-weight: 600;
+                }
+            """
 
     def update_connection(self, conn: Connection):
         self._conn = conn

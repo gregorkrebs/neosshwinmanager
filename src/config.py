@@ -32,6 +32,9 @@ class Connection:
     drive_letter: str = "Z:"
     cli_access_enabled: bool = False
     cli_access_key: Optional[str] = None
+    groups: str = ""                # Kommaseparierte Gruppen/Tags
+    is_template: bool = False       # True = Template, False = normale Verbindung
+    template_id: Optional[str] = None  # Referenz zu Template
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -53,6 +56,8 @@ class AppSettings:
     allow_passwordless_key_auth: bool = False
     security_level: int = 0  # 0=Strict, 1=Keys, 2=Passwords
     allow_insecure_password_auth: bool = False
+    telemetry_enabled: bool = False
+    telemetry_prompt_shown: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)

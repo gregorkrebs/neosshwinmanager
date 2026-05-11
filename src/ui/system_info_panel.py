@@ -96,6 +96,13 @@ def _is_host_known(host: str, port: int, known_hosts_path: str) -> bool:
     return False
 
 
+def _ssh_host_key_check_option() -> str:
+    """
+    Use OpenSSH's TOFU mode so a first-time host can be added to known_hosts.
+    """
+    return "StrictHostKeyChecking=accept-new"
+
+
 class SSHSystemInfoThread(QThread):
     """Fetches system info via SSH in background."""
 
@@ -129,7 +136,8 @@ class SSHSystemInfoThread(QThread):
 
     def _validate_auth(self) -> None:
         """Raise AuthLevelError if neither key nor password is configured."""
-        has_key = bool(self._conn.key_path or self._conn.putty_key_path)
+        # Key is only "available" if auth_method is "key" AND key exists
+        has_key = self._conn.auth_method == "key" and bool(self._conn.key_path or self._conn.putty_key_path)
         has_password = self._conn.auth_method == "password" and bool(self._conn.password)
         if not has_key and not has_password:
             raise AuthLevelError("missing")
@@ -149,18 +157,7 @@ class SSHSystemInfoThread(QThread):
             info["error"] = "SSH client not found (ssh.exe or plink.exe)"
             return info
 
-        # SECURITY FIX (FINDING-02): Before initiating any SSH connection, verify
-        # that the target host is already present in known_hosts.  If the host is
-        # not yet known, refuse to connect and emit an error instead, preventing
-        # a potential MITM attack on first connection.
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
-        if not _is_host_known(self._conn.host, self._conn.port, known_hosts_path):
-            info["error"] = (
-                f"Host '{self._conn.host}:{self._conn.port}' ist noch nicht in known_hosts verifiziert.\n"
-                "Bitte zuerst eine SSH-Terminal-Verbindung zu diesem Server aufbauen "
-                "und den Host-Key-Fingerprint dort bestätigen."
-            )
-            return info
 
         # Build command based on client type
         if client_type == 'plink':
@@ -171,24 +168,6 @@ class SSHSystemInfoThread(QThread):
         run_opts = {}
         if os.name == "nt":
             run_opts["creationflags"] = subprocess.CREATE_NO_WINDOW
-
-        test_cmd = cmd_base + [target, "echo 'SSH_OK'"]
-        try:
-            result = subprocess.run(
-                test_cmd, capture_output=True, text=True, timeout=15,
-                env=self._get_ssh_env(), **run_opts
-            )
-            if "SSH_OK" not in result.stdout:
-                info["error"] = result.stderr or result.stdout or "SSH connection failed"
-                return info
-        except subprocess.TimeoutExpired:
-            info["error"] = "SSH connection timed out (15s)"
-            return info
-        except Exception as e:
-            info["error"] = f"SSH error: {e}"
-            return info
-
-        info["connected"] = True
 
         commands = {
             "os": "cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"' || uname -s",
@@ -210,35 +189,68 @@ class SSHSystemInfoThread(QThread):
             "temperature": "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null | awk '{printf \"%.1f°C\", $1/1000}'",
         }
 
+        # Build a single compound command — one SSH handshake for all data.
+        # Each section is bracketed by ##key## sentinel lines for parsing.
+        cmd_parts = ["echo '##SSH_OK##'"]
         for key, shell_cmd in commands.items():
-            try:
-                full_cmd = cmd_base + [target, shell_cmd]
-                result = subprocess.run(
-                    full_cmd, capture_output=True, text=True, timeout=10,
-                    env=self._get_ssh_env(), **run_opts
-                )
-                output = result.stdout.strip()
-                if output:
-                    info[key] = output
-            except Exception:
-                pass
+            cmd_parts.append(f"echo '##_{key}_##'")
+            cmd_parts.append(f"( {shell_cmd} ) 2>/dev/null || true")
+        compound_cmd = "; ".join(cmd_parts)
+
+        try:
+            result = subprocess.run(
+                cmd_base + [target, compound_cmd],
+                capture_output=True, text=True, timeout=25,
+                env=self._get_ssh_env(), **run_opts
+            )
+        except subprocess.TimeoutExpired:
+            info["error"] = "SSH connection timed out (25s)"
+            return info
+        except Exception as e:
+            info["error"] = f"SSH error: {e}"
+            return info
+
+        raw = result.stdout
+        if "##SSH_OK##" not in raw:
+            info["error"] = result.stderr or raw or "SSH connection failed"
+            return info
+
+        info["connected"] = True
+
+        # Parse sentinel-delimited output into info dict
+        current_key = None
+        current_lines: list[str] = []
+        for line in raw.splitlines():
+            if line.startswith("##_") and line.endswith("_##"):
+                if current_key:
+                    val = " ".join(current_lines).strip()
+                    if val:
+                        info[current_key] = val
+                current_key = line[3:-3]
+                current_lines = []
+            elif current_key:
+                current_lines.append(line)
+        if current_key and current_lines:
+            val = " ".join(current_lines).strip()
+            if val:
+                info[current_key] = val
 
         # Parse memory
         if "memory" in info:
-            parts = info["memory"].split()
-            if len(parts) >= 3:
-                info["memory_total"] = parts[1]
-                info["memory_used"] = parts[2]
+            mem_parts = info["memory"].split()
+            if len(mem_parts) >= 3:
+                info["memory_total"] = mem_parts[1]
+                info["memory_used"] = mem_parts[2]
 
         # Parse disk
         if "disk" in info:
-            parts = info["disk"].split()
-            if len(parts) >= 4:
-                info["disk_total"] = parts[1]
-                info["disk_used"] = parts[2]
-                info["disk_avail"] = parts[3]
-                if len(parts) >= 5:
-                    info["disk_use_percent"] = parts[4].replace("%", "")
+            disk_parts = info["disk"].split()
+            if len(disk_parts) >= 4:
+                info["disk_total"] = disk_parts[1]
+                info["disk_used"] = disk_parts[2]
+                info["disk_avail"] = disk_parts[3]
+                if len(disk_parts) >= 5:
+                    info["disk_use_percent"] = disk_parts[4].replace("%", "")
 
         return info
 
@@ -258,7 +270,8 @@ class SSHSystemInfoThread(QThread):
         Returns (executable_path, client_type) where client_type is 'ssh' or 'plink'."""
         use_putty = getattr(self._settings, 'use_putty', False) if self._settings else False
         sec_level = int(getattr(self._settings, 'security_level', 0) or 0) if self._settings else 0
-        has_key = bool(self._conn.putty_key_path or self._conn.key_path)
+        # Key is only "available" if auth_method is "key" AND key exists
+        has_key = self._conn.auth_method == "key" and bool(self._conn.putty_key_path or self._conn.key_path)
 
         # Password-only connections at level 2 always use native ssh.exe + SSH_ASKPASS,
         # even when PuTTY is active — plink's -pw flag exposes the password in the process list.
@@ -298,7 +311,8 @@ class SSHSystemInfoThread(QThread):
         """Build SSH command for native ssh.exe. Password auth uses SSH_ASKPASS from _get_ssh_env().
         SECURITY FIX (FINDING-02): Uses StrictHostKeyChecking=yes (not accept-new) because
         _gather_info() already verified the host is present in known_hosts."""
-        has_key = bool(self._conn.key_path)
+        # Key is only "available" if auth_method is "key" AND key exists
+        has_key = self._conn.auth_method == "key" and bool(self._conn.key_path)
         known_hosts_path = os.path.expanduser("~\\.ssh\\known_hosts")
 
         if has_key:
@@ -317,11 +331,7 @@ class SSHSystemInfoThread(QThread):
 
         cmd_base = [
             ssh_exe,
-            # SECURITY FIX (FINDING-02): Changed from accept-new to yes.
-            # The host has already been verified in known_hosts by _gather_info()
-            # before this function is called, so accept-new is no longer needed
-            # and would introduce MITM risk on first connection.
-            "-o", "StrictHostKeyChecking=yes",
+            "-o", _ssh_host_key_check_option(),
             "-o", f"UserKnownHostsFile={known_hosts_path}",
             "-o", "ConnectTimeout=10",
         ]
@@ -348,7 +358,10 @@ class SSHSystemInfoThread(QThread):
         ]
 
         sec_level = getattr(self._settings, 'security_level', 0) if self._settings else 0
-        key_to_use = self._conn.putty_key_path or self._conn.key_path
+        # Key is only "available" if auth_method is "key" AND key exists
+        key_to_use = None
+        if self._conn.auth_method == "key":
+            key_to_use = self._conn.putty_key_path or self._conn.key_path
         has_password = self._conn.auth_method == "password" and bool(self._conn.password)
 
         if key_to_use:
@@ -382,7 +395,10 @@ class SSHSystemInfoThread(QThread):
                 import os.path as osp
                 main_py = osp.abspath(osp.join(osp.dirname(__file__), "..", "..", "main.py"))
                 askpass_cmd = f'"{sys.executable}" "{main_py}" --pass-helper'
-            env["SSH_ASKPASS_PASS"] = self._conn.password
+            
+            from src.askpass_manager import create_token
+            token = create_token(self._conn.password)
+            env["SSH_ASKPASS_TOKEN"] = token
             env["SSH_ASKPASS"] = askpass_cmd
             env["SSH_ASKPASS_REQUIRE"] = "force"
             env["DISPLAY"] = "dummy:0"

@@ -6,21 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [1.4.1] — 2026-05-10
+## [1.5.0] — 2026-05-11
 
-### Fixed
-- Crash when clicking a mounted host (NameError: `conn_id` not defined in info panel lambdas)
-- Copy button in error dialogs not working (`_copy_to_clipboard` undefined)
-- Loading state not clearing when "ask password" dialog is cancelled
-- Edit mode: section headers too bold compared to info panel (font-weight 800 → 600)
-- Edit mode: password dots disproportionately large (inline font-size fix)
+### Added
+- Connection groups/tags and reusable templates across the data model, database migration, add/edit flows and translations
+- Bulk mount/dismount actions and a group filter in the main connection header
+- Dedicated profile panel for end users to review their account and change their password
+- Manual GitHub update checks with download progress and an install-on-exit flow
+- Telemetry opt-in prompt, persisted telemetry settings and asynchronous telemetry submission
 
 ### Changed
-- Info panel: drive badge replaced with folder SVG; only visible when host is mounted
-- Edit mode: same field order, container structure and section labels as info panel for seamless info → edit transition
-- Edit mode: status badge (connected/disconnected pill) visible at top for visual continuity
-- Save button: floppy disk icon (white dark mode, green light mode) replaces checkmark
-- Light mode: save button gets subtle green background; delete icon changed to solid red for contrast
+- Reworked the main window, settings screen and right-panel forms for the 1.5.0 release layout
+- Connection cards now show group pills and compact host details with the drive letter in the subtitle
+- Add/Edit connection flows now support templates explicitly and surface group metadata in the UI
+- Replaced many native message boxes with a themed custom dialog for warnings, confirmations and success messages
+- Pinned core Python dependency versions for the 1.5.0 release environment
+- Updated visible application version strings in the main window, about dialog and single-instance mutex
+
+### Security
+- Hardened SSH_ASKPASS password exchange by replacing plaintext environment transfer with one-time IPC tokens
+- Relaxed first-contact host-key handling to OpenSSH `accept-new` for SSH and sysinfo flows while keeping changed-host failures
+
+### Fixed
+- Added password fallback when a stored SSH key fails but a password is still available for the same connection
+- Unified destructive confirmation prompts and dirty-form handling through the styled dialog layer
+- Corrected multiple German translation strings and save-label spellings used in the 1.5.0 UI
 
 ---
 

@@ -36,11 +36,13 @@ class AddEditDialog(QDialog):
         used_letters: List[str] = None,
         existing_connections: List[Connection] = None,
         settings: AppSettings = None,
+        templates: List[Connection] = None,
     ):
         super().__init__(parent)
         self._connection = connection          # None = Add-Modus
         self._used_letters = used_letters or []
         self._existing = existing_connections or []
+        self._templates = templates or []    # Nur Templates für Template-Auswahl
         self._settings = settings or AppSettings()
         self._is_edit = connection is not None
 
@@ -122,7 +124,7 @@ class AddEditDialog(QDialog):
         form.setSpacing(8)
 
         # ── Template (nur im Add-Modus) ───────────────────────────────
-        if not self._is_edit and self._existing:
+        if not self._is_edit and self._templates:
             form.addWidget(self._section(tr("addedit.section.template")))
 
             template_row = QHBoxLayout()
@@ -131,9 +133,9 @@ class AddEditDialog(QDialog):
 
             self._template_combo = NoWheelComboBox()
             self._template_combo.addItem(tr("addedit.template.none"), userData=None)
-            for conn in self._existing:
+            for conn in self._templates:
                 self._template_combo.addItem(
-                    f"{conn.name}  ({conn.host})",
+                    f"{conn.name}  ({conn.host or 'Template'})",
                     userData=conn
                 )
             self._template_combo.currentIndexChanged.connect(self._on_template_selected)
@@ -159,6 +161,17 @@ class AddEditDialog(QDialog):
         name_hint.setObjectName("hintLabel")
         name_hint.setWordWrap(True)
         form.addWidget(name_hint)
+
+        # Groups/Tags Field
+        form.addWidget(self._field_label(tr("addedit.label.groups")))
+        self._groups_edit = QLineEdit()
+        self._groups_edit.setPlaceholderText(tr("addedit.placeholder.groups"))
+        form.addWidget(self._groups_edit)
+
+        groups_hint = QLabel(tr("addedit.groups.hint"))
+        groups_hint.setObjectName("hintLabel")
+        groups_hint.setWordWrap(True)
+        form.addWidget(groups_hint)
 
         form.addWidget(self._field_label(tr("addedit.label.host")))
         self._host_edit = QLineEdit()
@@ -325,6 +338,14 @@ class AddEditDialog(QDialog):
         # Only show if PuTTY is enabled globally
         self._putty_key_widget.setVisible(self._settings.use_putty)
         form.addWidget(self._putty_key_widget)
+
+        # ── TEMPLATE OPTIONS ─────────────────────────────────────────
+        form.addWidget(self._divider())
+        form.addWidget(self._section(tr("addedit.section.template_options")))
+
+        self._template_cb = QCheckBox(tr("addedit.template.save_as_template"))
+        self._template_cb.setToolTip(tr("addedit.template.save_as_template.hint"))
+        form.addWidget(self._template_cb)
 
         form.addStretch()
         layout.addWidget(form_card)
@@ -499,11 +520,15 @@ class AddEditDialog(QDialog):
         self._pw_edit.setText(conn.password)
         self._key_edit.setText(conn.key_path)
         self._putty_key_edit.setText(conn.putty_key_path or "")
-        
+
         self._cli_key_edit.setText(conn.cli_access_key or "")
         self._cli_enabled_cb.setChecked(conn.cli_access_enabled)
         self._cli_key_widget.setVisible(conn.cli_access_enabled)
-        
+
+        # Neue Felder laden
+        self._groups_edit.setText(conn.groups or "")
+        self._template_cb.setChecked(conn.is_template)
+
         self._populate_drive_combo()
 
     def _on_cli_toggle(self, state: int):
@@ -543,8 +568,8 @@ class AddEditDialog(QDialog):
             errors.append(tr("addedit.required.user"))
 
         if errors:
-            from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, tr("addedit.required.title"), "\n".join(errors))
+            from src.ui.dialogs.styled_message_box import StyledMessageBox
+            StyledMessageBox.warning(self, tr("addedit.required.title"), "\n".join(errors))
             return
 
         self.accept()
@@ -565,7 +590,9 @@ class AddEditDialog(QDialog):
             putty_key_path=self._putty_key_edit.text().strip(),
             drive_letter=drive,
             cli_access_enabled=self._cli_enabled_cb.isChecked(),
-            cli_access_key=self._cli_key_edit.text() if self._cli_enabled_cb.isChecked() else None
+            cli_access_key=self._cli_key_edit.text() if self._cli_enabled_cb.isChecked() else None,
+            groups=self._groups_edit.text().strip(),
+            is_template=self._template_cb.isChecked()
         )
 
         # Bei Bearbeitung: ID beibehalten

@@ -129,6 +129,9 @@ def init_db() -> None:
                 cli_access_enabled INTEGER NOT NULL DEFAULT 0,
                 cli_access_key     TEXT UNIQUE,  -- CLI-Access-Key AES verschlüsselt (hex)
                 cli_access_key_iv  TEXT,         -- IV für cli_access_key (hex)
+                groups       TEXT DEFAULT '',    -- Kommaseparierte Gruppen/Tags
+                is_template  INTEGER NOT NULL DEFAULT 0,  -- 1 = Template, 0 = normale Verbindung
+                template_id  TEXT,               -- Referenz zu Template (falls von Template erstellt)
                 created_at   TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
@@ -145,9 +148,13 @@ def init_db() -> None:
                 auto_login               INTEGER DEFAULT 0,  -- Windows Auto-Login
                 auto_reconnect           INTEGER DEFAULT 1,  -- Beim Start automatisch reconnecten
                 language                 TEXT    DEFAULT 'en',  -- UI Sprache (en, de)
+                theme                    TEXT    DEFAULT 'dark',  -- UI Theme (dark, light)
                 security_level           INTEGER DEFAULT 0,  -- 0=Strict, 1=Key-Auth, 2=Insecure-PW
                 allow_passwordless_key_auth INTEGER DEFAULT 0,
                 allow_insecure_password_auth INTEGER DEFAULT 0,
+                auto_remount_on_lost     INTEGER DEFAULT 1,  -- Bei Verbindungsverlust remounten
+                telemetry_enabled        INTEGER DEFAULT 0,
+                telemetry_prompt_shown   INTEGER DEFAULT 0,
                 updated_at               TEXT DEFAULT (datetime('now'))
             );
 
@@ -177,6 +184,13 @@ def init_db() -> None:
                         "name_enc", "name_iv", "remote_path_enc", "remote_path_iv"):
                 if col not in cols:
                     conn.execute(f"ALTER TABLE connections ADD COLUMN {col} TEXT")
+            # Neue Spalten für Gruppen/Tags und Templates
+            if "groups" not in cols:
+                conn.execute("ALTER TABLE connections ADD COLUMN groups TEXT DEFAULT ''")
+            if "is_template" not in cols:
+                conn.execute("ALTER TABLE connections ADD COLUMN is_template INTEGER NOT NULL DEFAULT 0")
+            if "template_id" not in cols:
+                conn.execute("ALTER TABLE connections ADD COLUMN template_id TEXT")
         except Exception:
             pass
 
@@ -203,6 +217,12 @@ def init_db() -> None:
                 conn.execute("ALTER TABLE app_settings ADD COLUMN allow_passwordless_key_auth INTEGER DEFAULT 0")
             if "allow_insecure_password_auth" not in cols:
                 conn.execute("ALTER TABLE app_settings ADD COLUMN allow_insecure_password_auth INTEGER DEFAULT 0")
+            if "auto_remount_on_lost" not in cols:
+                conn.execute("ALTER TABLE app_settings ADD COLUMN auto_remount_on_lost INTEGER DEFAULT 1")
+            if "telemetry_enabled" not in cols:
+                conn.execute("ALTER TABLE app_settings ADD COLUMN telemetry_enabled INTEGER DEFAULT 0")
+            if "telemetry_prompt_shown" not in cols:
+                conn.execute("ALTER TABLE app_settings ADD COLUMN telemetry_prompt_shown INTEGER DEFAULT 0")
         except Exception:
             pass
 
