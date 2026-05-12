@@ -26,6 +26,9 @@ dist/
 .gemini/
 *.swp
 *.swo
+
+# Local-only security review notes
+SECURITY_AUDIT.md
 .DS_Store
 
 # Local runtime / user data
