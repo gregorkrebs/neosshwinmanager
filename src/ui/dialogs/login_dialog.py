@@ -271,7 +271,7 @@ class LoginDialog(QDialog):
         if len(username) < 3:
             self._show_reg_error(tr("login.username_min"))
             return
-        if len(pw) < 6:
+        if len(pw) < 8:  # SECURITY FIX (FINDING-D): NIST SP 800-63B minimum is 8 for user-chosen passwords
             self._show_reg_error(tr("login.password_min"))
             return
         if pw != pw2:
@@ -552,7 +552,7 @@ class UserManagementDialog(QDialog):
         if not username or len(username) < 3:
             StyledMessageBox.warning(self, tr("dialog.error"), tr("users.username_min"))
             return
-        if len(pw) < 6:
+        if len(pw) < 8:  # SECURITY FIX (FINDING-D): NIST SP 800-63B minimum is 8
             StyledMessageBox.warning(self, tr("dialog.error"), tr("users.password_min"))
             return
 
