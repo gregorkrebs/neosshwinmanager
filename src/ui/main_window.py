@@ -1764,7 +1764,7 @@ class MainWindow(QMainWindow):
         if not username or len(username) < 3:
             self._set_status(tr("users.username_min"))
             return
-        if len(pw) < 6:
+        if len(pw) < 8:  # SECURITY FIX: NIST SP 800-63B minimum is 8
             self._set_status(tr("users.password_min"))
             return
         try:
