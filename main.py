@@ -155,6 +155,14 @@ def _install_global_exception_handlers():
                 with open(report_path, "a", encoding="utf-8") as f:
                     f.write("\n" + "=" * 80 + "\n")
                     f.write(err_text)
+                # SECURITY FIX (FINDING-I): Restrict crash_report.txt to owner only
+                # to prevent other local users from reading stack traces that may
+                # contain connection metadata (host, user, etc.)
+                try:
+                    from src.database import _set_secure_permissions
+                    _set_secure_permissions(report_path)
+                except Exception:
+                    pass
             except Exception:
                 pass
 

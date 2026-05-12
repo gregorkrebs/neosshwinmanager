@@ -422,7 +422,12 @@ def _launch_putty(conn: Connection, putty_path: str, settings: AppSettings | Non
         return False, f"Ungültige Verbindung: {user_host}"
     cmd.append(user_host)
 
-    logger.debug(f"PuTTY cmd: {' '.join(cmd)}")
+    # SECURITY FIX (FINDING-A): Mask -pw argument value in log to prevent credential exposure
+    safe_cmd = [
+        ("[REDACTED]" if (i > 0 and cmd[i - 1] == "-pw") else a)
+        for i, a in enumerate(cmd)
+    ]
+    logger.debug(f"PuTTY cmd: {' '.join(safe_cmd)}")
     try:
         subprocess.Popen(cmd, creationflags=0x08000000)
         return True, ""
