@@ -7,10 +7,11 @@ data classes and the legacy config-file path (used for the admin-
 elevation check in main.py before the DB is initialised).
 """
 
+import json
 import os
 import uuid
-from dataclasses import dataclass, field, asdict
-from typing import List, Optional
+from dataclasses import MISSING, dataclass, field, asdict, fields
+from typing import List, Optional, Tuple
 from pathlib import Path
 
 
@@ -36,6 +37,21 @@ class Connection:
     is_template: bool = False       # True = Template, False = normale Verbindung
     template_id: Optional[str] = None  # Referenz zu Template
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Connection":
+        values = {}
+        for field_info in fields(cls):
+            if field_info.name in data:
+                values[field_info.name] = data[field_info.name]
+            elif field_info.default is not MISSING:
+                values[field_info.name] = field_info.default
+            elif field_info.default_factory is not MISSING:
+                values[field_info.name] = field_info.default_factory()
+        return cls(**values)
 
 
 @dataclass
@@ -81,3 +97,43 @@ def get_config_dir() -> Path:
 
 def get_config_path() -> Path:
     return get_config_dir() / "config.json"
+
+
+def save_config(connections: List[Connection], settings: AppSettings) -> None:
+    payload = {
+        "connections": [
+            {
+                key: value
+                for key, value in conn.to_dict().items()
+                if key != "password"
+            }
+            for conn in connections
+        ],
+        "settings": settings.to_dict(),
+    }
+
+    config_path = get_config_path()
+    with config_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, ensure_ascii=False)
+
+
+def load_config() -> Tuple[List[Connection], AppSettings]:
+    config_path = get_config_path()
+    if not config_path.exists():
+        return [], AppSettings()
+
+    with config_path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    # Support the current object shape and older list-only files.
+    if isinstance(data, list):
+        connections_data = data
+        settings_data = {}
+    else:
+        connections_data = data.get("connections", [])
+        settings_data = data.get("settings", {})
+
+    return (
+        [Connection.from_dict(item) for item in connections_data],
+        AppSettings.from_dict(settings_data),
+    )
