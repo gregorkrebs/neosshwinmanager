@@ -380,10 +380,12 @@ class AuthManager:
         if not row or not verify_password(old_pw, row["pw_hash"], row["pw_salt"]):
             return False
 
+        kdf = row["enc_key_kdf"] if "enc_key_kdf" in row.keys() else "pbkdf2"
+
         try:
             enc_key = decrypt_key(
                 row["enc_key_enc"], row["enc_key_iv"],
-                old_pw, row["pw_salt"]
+                old_pw, row["pw_salt"], kdf=kdf
             )
         except Exception:
             return False

@@ -684,7 +684,7 @@ class ChangePasswordDialog(QDialog):
         old_pw = self._old_pw.text()
         new_pw = self._new_pw.text()
         confirm = self._confirm_pw.text()
-        if len(new_pw) < 6:
+        if len(new_pw) < 8:
             StyledMessageBox.warning(self, tr("dialog.error"), tr("chgpw.new_min"))
             return
         if new_pw != confirm:

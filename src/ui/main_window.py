@@ -1514,7 +1514,7 @@ class MainWindow(QMainWindow):
             self._pf_error_lbl.show()
             return
 
-        if len(new_pw) < 6:
+        if len(new_pw) < 8:
             self._pf_error_lbl.setText(tr("chgpw.new_min"))
             self._pf_error_lbl.show()
             return
@@ -1525,9 +1525,8 @@ class MainWindow(QMainWindow):
             return
 
         # Try to change password
-        mgr = AuthManager(current_user)
         try:
-            if mgr.change_password(current_user.id, curr_pw, new_pw):
+            if AuthManager.change_password(current_user.id, curr_pw, new_pw):
                 self._pf_error_lbl.setStyleSheet("color: #00d464; font-size: 12px;")
                 self._pf_error_lbl.setText(tr("chgpw.success"))
                 self._pf_error_lbl.show()
