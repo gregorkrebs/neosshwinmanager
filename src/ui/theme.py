@@ -169,7 +169,7 @@ QCheckBox::indicator:checked:hover {
     font-size: 10px;
     font-weight: 700;
     border: 1px solid rgba(125, 223, 255, 0.24);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 4px 10px;
 }
 
@@ -864,7 +864,7 @@ QFrame#rpInfoField QPushButton {
 }
 #rpSectionLabel {
     color: #00b4d8;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -872,6 +872,9 @@ QFrame#rpInfoField QPushButton {
 }
 #rpFieldLabel {
     color: #6f8599;
+    font-size: 11px;
+}
+QLabel#rpFieldLabelCaps {
     font-size: 11px;
 }
 #rpValue {
@@ -2098,7 +2101,7 @@ QFrame#rpInfoField QPushButton {
 }
 #rpSectionLabel {
     color: #0077b6;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -2115,6 +2118,9 @@ QFrame#rpInfoField QPushButton {
 }
 QFrame#rpInfoField QLabel#rpFieldLabelCaps {
     color: #6a7685;
+}
+QLabel#rpFieldLabelCaps {
+    font-size: 11px;
 }
 #rpDivider {
     background-color: #d5dde7;

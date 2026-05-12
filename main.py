@@ -155,7 +155,7 @@ def _install_global_exception_handlers():
                 with open(report_path, "a", encoding="utf-8") as f:
                     f.write("\n" + "=" * 80 + "\n")
                     f.write(err_text)
-                # SECURITY FIX (FINDING-I): Restrict crash_report.txt to owner only
+                # SECURITY FIX: Restrict crash_report.txt to owner only
                 # to prevent other local users from reading stack traces that may
                 # contain connection metadata (host, user, etc.)
                 try:
@@ -222,9 +222,15 @@ def main():
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
 
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "src", "version.txt"), "r", encoding="utf-8") as f:
+            APP_VERSION = f.read().strip()
+    except Exception:
+        APP_VERSION = "?"
+
     # Windows taskbar icon fix (AppUserModelID)
     try:
-        myappid = 'neo.sshwinmanager.v1.5.0'
+        myappid = f'neo.sshwinmanager.{APP_VERSION}'
         if os.name == 'nt':
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
@@ -233,7 +239,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("NEO SSH-Win Manager")
     app.setApplicationDisplayName("NEO SSH-Win Manager")
-    app.setApplicationVersion("1.5.0")
+    app.setApplicationVersion(APP_VERSION)
     app.setOrganizationName("NeoSSHWinManager")
 
     _install_global_exception_handlers()

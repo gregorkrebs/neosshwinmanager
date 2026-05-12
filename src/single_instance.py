@@ -13,12 +13,19 @@
 import ctypes
 import ctypes.wintypes
 import sys
+import os
 
 # Must match the app's main window title (or a unique prefix of it)
 APP_WINDOW_TITLE = "NEO SSH-Win Manager"
 
+try:
+    with open(os.path.join(os.path.dirname(__file__), "version.txt"), "r", encoding="utf-8") as f:
+        APP_VERSION = f.read().strip()
+except Exception:
+    APP_VERSION = "?"
+
 # Unique mutex name – use your app name + a GUID to avoid collisions
-MUTEX_NAME = "SSHFSWinManager_SingleInstance_Mutex_v1.5.0_{A3F2B1C4-9E7D-4A8F-B3C2-1D5E6F7A8B9C}"
+MUTEX_NAME = f"SSHFSWinManager_SingleInstance_Mutex_v{APP_VERSION}{{A3F2B1C4-9E7D-4A8F-B3C2-1D5E6F7A8B9C}}"
 
 
 def _find_and_focus_existing_window() -> bool:

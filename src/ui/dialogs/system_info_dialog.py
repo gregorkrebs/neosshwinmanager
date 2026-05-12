@@ -85,5 +85,4 @@ class SystemInfoDialog(QDialog):
         btn_row.addWidget(close_btn)
 
         footer_l.addLayout(btn_row)
-        outer.addWidget(footer)row)
         outer.addWidget(footer)

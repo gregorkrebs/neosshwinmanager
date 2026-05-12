@@ -14,7 +14,11 @@ from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.ui.widgets.no_wheel import NoWheelScrollArea
 from src.i18n import tr
 
-APP_VERSION = "1.5.0"
+try:
+    with open(os.path.join(os.path.dirname(__file__), "..", "..", "version.txt"), "r", encoding="utf-8") as f:
+        APP_VERSION = f.read().strip()
+except Exception:
+    APP_VERSION = "?"
 
 _URL_PROJECT_WEBSITE = "https://www.neosshwinmanager.org/"
 _URL_PROJECT_DOCS    = "https://gregorkrebs.github.io/neosshwinmanager/"

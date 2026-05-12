@@ -11,6 +11,7 @@ from PyQt6.QtGui import QFont
 
 import src.app_logger as _app_logger
 from src.auth_manager import Session, UserConnectionManager
+from src.i18n import tr
 from src.sshfs_controller import SSHFSController
 
 
@@ -76,14 +77,15 @@ class DebugWindow(QDialog):
         title_row.addStretch()
         title_col.addLayout(title_row)
 
-        subtitle = QLabel("Interne Events, Mounting und SSH-Status in Echtzeit")
+        subtitle = QLabel(tr("debug.subtitle"))
+        subtitle.setToolTip(tr("debug.subtitle.tooltip"))
         subtitle.setObjectName("debugMeta")
         title_col.addWidget(subtitle)
 
         h.addLayout(title_col)
         h.addStretch()
 
-        self._auto_scroll_cb = QCheckBox("Auto-scroll")
+        self._auto_scroll_cb = QCheckBox(tr("debug.auto_scroll"))
         self._auto_scroll_cb.setObjectName("debugCheck")
         self._auto_scroll_cb.setChecked(True)
         self._auto_scroll_cb.toggled.connect(
@@ -92,10 +94,10 @@ class DebugWindow(QDialog):
         h.addWidget(self._auto_scroll_cb)
 
         for label, slot, btn_type in [
-            ("Bereinigen", self._purge_mounts, "danger"),
-            ("Test CPU", self._test_decryption, "warning"), # simplified label for space
-            ("Leeren",    self._clear,     "secondary"),
-            ("Speichern", self._save_log,  "primary"),
+            (tr("debug.purge_mounts"), self._purge_mounts, "danger"),
+            (tr("debug.test_decryption"), self._test_decryption, "warning"), # simplified label for space
+            (tr("debug.clear"),    self._clear,     "secondary"),
+            (tr("debug.save_log"), self._save_log,  "primary"),
         ]:
             btn = QPushButton(label)
             btn.setObjectName("actionBtn")
@@ -159,7 +161,7 @@ class DebugWindow(QDialog):
 
     def _save_log(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "Log speichern", "sshwinmanager_debug.log",
+            self, tr("debug.save_log"), "sshwinmanager_debug.log",
             "Log Files (*.log);;All Files (*)"
         )
         if path:
@@ -168,30 +170,30 @@ class DebugWindow(QDialog):
 
     def _purge_mounts(self):
         from src.app_logger import logger
-        logger.warning("Benutzer hat 'Laufwerke bereinigen' gestartet...")
+        logger.warning(tr("debug.purge_mounts.started"))
         ok = SSHFSController().purge_all_stale_mounts()
         if ok:
-            logger.info("Bereinigung erfolgreich.")
+            logger.info(tr("debug.purge_mounts.successful"))
         else:
-            logger.error("Bereinigung fehlgeschlagen.")
+            logger.error(tr("debug.purge_mounts.failed"))
 
     def _test_decryption(self):
         from src.app_logger import logger
-        logger.info("Starte Entschlüsselungs-Test...")
+        logger.info(tr("debug.test.starting"))
         user = Session.current()
         if not user:
-            logger.error("Kein Benutzer eingeloggt.")
+            logger.error(tr("debug.test.no_user"))
             return
 
         mgr = UserConnectionManager(user)
         conns = mgr.get_all()
-        logger.info(f"Test für {len(conns)} Verbindungen...")
+        logger.info(f"Test {len(conns)} Hosts...")
         for c in conns:
             if c.password:
-                logger.info(f"✓ {c.name}: Passwort erfolgreich entschlüsselt.")
+                logger.info(f"✓ {c.name}: {tr('debug.password.decryption.successful')}")
             else:
-                logger.warning(f"⚠ {c.name}: Passwort ist leer oder Entschlüsselung fehlgeschlagen.")
-        logger.info("Test abgeschlossen.")
+                logger.warning(f"⚠ {c.name}: {tr('debug.password.empty.or.decryption.failed')}")
+        logger.info(tr("debug.test.completed"))
 
     # ------------------------------------------------------------------
     # Cleanup

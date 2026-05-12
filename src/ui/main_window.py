@@ -51,6 +51,11 @@ _PANEL_ADD      = "add"
 _PANEL_USERS    = "users"
 _PANEL_PROFILE  = "profile"
 
+try:
+    with open(os.path.join(os.path.dirname(__file__), "..", "version.txt"), "r", encoding="utf-8") as f:
+        APP_VERSION = f.read().strip()
+except Exception:
+    APP_VERSION = "?"
 
 class _PillHandle(QSplitterHandle):
     """Splitter handle that paints a centred pill indicator."""
@@ -93,7 +98,7 @@ class MainWindow(QMainWindow):
         self._debug_mode = False  # Can be toggled via F2
 
         self.setObjectName("MainWindow")
-        self.setWindowTitle("NEO SSH-Win Manager v1.5.0")
+        self.setWindowTitle("NEO SSH-Win Manager v" + APP_VERSION)
         self.setMinimumSize(820, 520)
         self.resize(1100, 640)
 
@@ -726,7 +731,7 @@ class MainWindow(QMainWindow):
         self._mount_count_lbl.setObjectName("versionLabel")
         h.addWidget(self._mount_count_lbl)
 
-        ver_lbl = QLabel("  v1.5.0")
+        ver_lbl = QLabel("  v" + APP_VERSION)
         ver_lbl.setObjectName("versionLabel")
         h.addWidget(ver_lbl)
 
@@ -872,6 +877,7 @@ class MainWindow(QMainWindow):
         self._update_status()
         self._tray.update_connections_menu(connections, set(mounted_map.keys()))
         self._refresh_groups_combo()  # Gruppen-Filter aktualisieren
+        self._apply_group_filter()
 
     def _create_connection_container(self, conn, mounted):
         container = QWidget()
@@ -1121,7 +1127,7 @@ class MainWindow(QMainWindow):
         def _section(title):
             lbl = QLabel(title.upper())
             lbl.setObjectName("rpSectionLabel")
-            lbl.setStyleSheet("color: #00b4d8; font-size: 11px; font-weight: 600; letter-spacing: 2px;")
+            lbl.setStyleSheet("color: #00b4d8; font-size: 11px;font-weight: 600;text-transform: uppercase; letter-spacing: 1px; padding-top: 4px;")
             return lbl
 
         def _row(label, value, value_obj_name="rpValue"):
@@ -1367,6 +1373,15 @@ class MainWindow(QMainWindow):
         if not current_user:
             return
 
+        _theme = self._mgr.get_settings().theme or "dark"
+        _is_light = (_theme == "light")
+        _inp_bg    = "#ffffff"  if _is_light else "#0d1117"
+        _inp_bdr   = "#c0cad6" if _is_light else "#30363d"
+        _inp_fg    = "#1a2332" if _is_light else "#deebf7"
+        _lbl_muted = "#5a6a7a" if _is_light else "#8fa4b8"
+        _lbl_bold  = "#1a2332" if _is_light else "#deebf7"
+        _inp_style = f"background-color: {_inp_bg}; border: 1px solid {_inp_bdr}; border-radius: 6px; padding: 8px; color: {_inp_fg};"
+
         body = QWidget()
         body.setObjectName("fullscreenForm")
         body.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -1409,9 +1424,9 @@ class MainWindow(QMainWindow):
         username_h = QHBoxLayout(username_row)
         username_h.setContentsMargins(0, 0, 0, 0)
         username_lbl = QLabel(tr("profile.username"))
-        username_lbl.setStyleSheet("color: #8fa4b8; font-size: 12px;")
+        username_lbl.setStyleSheet(f"color: {_lbl_muted}; font-size: 12px;")
         username_val = QLabel(current_user.username)
-        username_val.setStyleSheet("color: #deebf7; font-size: 14px; font-weight: 600;")
+        username_val.setStyleSheet(f"color: {_lbl_bold}; font-size: 14px; font-weight: 600;")
         username_h.addWidget(username_lbl)
         username_h.addWidget(username_val)
         username_h.addStretch()
@@ -1421,9 +1436,9 @@ class MainWindow(QMainWindow):
         role_h = QHBoxLayout(role_row)
         role_h.setContentsMargins(0, 0, 0, 0)
         role_lbl = QLabel(tr("profile.role"))
-        role_lbl.setStyleSheet("color: #8fa4b8; font-size: 12px;")
+        role_lbl.setStyleSheet(f"color: {_lbl_muted}; font-size: 12px;")
         role_val = QLabel(tr("profile.role.admin") if Session.is_admin() else tr("profile.role.user"))
-        role_val.setStyleSheet("color: #00d464; font-size: 14px; font-weight: 600;" if Session.is_admin() else "color: #deebf7; font-size: 14px; font-weight: 600;")
+        role_val.setStyleSheet("color: #00d464; font-size: 14px; font-weight: 600;" if Session.is_admin() else f"color: {_lbl_bold}; font-size: 14px; font-weight: 600;")
         role_h.addWidget(role_lbl)
         role_h.addWidget(role_val)
         role_h.addStretch()
@@ -1440,10 +1455,10 @@ class MainWindow(QMainWindow):
         curr_pw_v.setContentsMargins(0, 0, 0, 0)
         curr_pw_v.setSpacing(4)
         curr_pw_lbl = QLabel(tr("chgpw.current"))
-        curr_pw_lbl.setStyleSheet("color: #8fa4b8; font-size: 11px;")
+        curr_pw_lbl.setStyleSheet(f"color: {_lbl_muted}; font-size: 11px;")
         self._pf_curr_pw = QLineEdit()
         self._pf_curr_pw.setEchoMode(QLineEdit.EchoMode.Password)
-        self._pf_curr_pw.setStyleSheet("background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; color: #deebf7;")
+        self._pf_curr_pw.setStyleSheet(_inp_style)
         self._pf_curr_pw.setPlaceholderText(tr("chgpw.current"))
         curr_pw_v.addWidget(curr_pw_lbl)
         curr_pw_v.addWidget(self._pf_curr_pw)
@@ -1455,10 +1470,10 @@ class MainWindow(QMainWindow):
         new_pw_v.setContentsMargins(0, 0, 0, 0)
         new_pw_v.setSpacing(4)
         new_pw_lbl = QLabel(tr("chgpw.new"))
-        new_pw_lbl.setStyleSheet("color: #8fa4b8; font-size: 11px;")
+        new_pw_lbl.setStyleSheet(f"color: {_lbl_muted}; font-size: 11px;")
         self._pf_new_pw = QLineEdit()
         self._pf_new_pw.setEchoMode(QLineEdit.EchoMode.Password)
-        self._pf_new_pw.setStyleSheet("background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; color: #deebf7;")
+        self._pf_new_pw.setStyleSheet(_inp_style)
         self._pf_new_pw.setPlaceholderText(tr("chgpw.new"))
         new_pw_v.addWidget(new_pw_lbl)
         new_pw_v.addWidget(self._pf_new_pw)
@@ -1470,10 +1485,10 @@ class MainWindow(QMainWindow):
         conf_pw_v.setContentsMargins(0, 0, 0, 0)
         conf_pw_v.setSpacing(4)
         conf_pw_lbl = QLabel(tr("chgpw.confirm"))
-        conf_pw_lbl.setStyleSheet("color: #8fa4b8; font-size: 11px;")
+        conf_pw_lbl.setStyleSheet(f"color: {_lbl_muted}; font-size: 11px;")
         self._pf_conf_pw = QLineEdit()
         self._pf_conf_pw.setEchoMode(QLineEdit.EchoMode.Password)
-        self._pf_conf_pw.setStyleSheet("background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; color: #deebf7;")
+        self._pf_conf_pw.setStyleSheet(_inp_style)
         self._pf_conf_pw.setPlaceholderText(tr("chgpw.confirm"))
         conf_pw_v.addWidget(conf_pw_lbl)
         conf_pw_v.addWidget(self._pf_conf_pw)
@@ -3141,6 +3156,7 @@ class MainWindow(QMainWindow):
                 return
             self._set_status(tr("status.connect_failed", name=name))
         self._update_status()
+        self._apply_group_filter()
 
     def _show_key_fallback_dialog(self, conn) -> bool:
         """Zeigt Dialog an, der fragt ob mit Passwort statt Key verbunden werden soll.
@@ -3218,6 +3234,7 @@ class MainWindow(QMainWindow):
         finally:
             try:
                 self._update_status()
+                self._apply_group_filter()
             except Exception:
                 pass
 
@@ -3460,7 +3477,7 @@ class MainWindow(QMainWindow):
         mounted_count = 0
         for conn in conns:
             # Filter by group if selected
-            if selected_group and selected_group != "__all__":
+            if selected_group and selected_group not in ("__all__", "__mounted__", "__unmounted__"):
                 conn_groups = [g.strip() for g in (conn.groups or "").split(",") if g.strip()]
                 if selected_group not in conn_groups:
                     continue
@@ -3483,7 +3500,7 @@ class MainWindow(QMainWindow):
         dismounted_count = 0
         for conn in conns:
             # Filter by group if selected
-            if selected_group and selected_group != "__all__":
+            if selected_group and selected_group not in ("__all__", "__mounted__", "__unmounted__"):
                 conn_groups = [g.strip() for g in (conn.groups or "").split(",") if g.strip()]
                 if selected_group not in conn_groups:
                     continue
@@ -3500,13 +3517,35 @@ class MainWindow(QMainWindow):
 
     def _on_group_filter_changed(self, index: int):
         """Handle group filter selection change."""
-        # Could implement filtering the visible connections here
-        pass
+        self._apply_group_filter()
+
+    def _apply_group_filter(self):
+        """Show/hide connection containers based on the active filter selection."""
+        selected = self._groups_combo.currentData()
+        for conn_id, container in self._containers.items():
+            card = self._cards.get(conn_id)
+            if selected == "__all__":
+                container.setVisible(True)
+            elif selected == "__mounted__":
+                container.setVisible(bool(card and card.is_mounted))
+            elif selected == "__unmounted__":
+                container.setVisible(bool(card and not card.is_mounted))
+            else:
+                conn = self._mgr.get_by_id(conn_id)
+                if conn:
+                    conn_groups = [g.strip() for g in (conn.groups or "").split(",") if g.strip()]
+                    container.setVisible(selected in conn_groups)
+                else:
+                    container.setVisible(False)
 
     def _refresh_groups_combo(self):
         """Refresh the groups filter combo with available groups."""
+        prev = self._groups_combo.currentData()
+        self._groups_combo.blockSignals(True)
         self._groups_combo.clear()
         self._groups_combo.addItem(tr("main.groups_all"), "__all__")
+        self._groups_combo.addItem(tr("main.groups_mounted"), "__mounted__")
+        self._groups_combo.addItem(tr("main.groups_unmounted"), "__unmounted__")
 
         # Collect all unique groups from connections
         all_groups = set()
@@ -3517,6 +3556,13 @@ class MainWindow(QMainWindow):
 
         for group in sorted(all_groups):
             self._groups_combo.addItem(group, group)
+
+        # Restore previous selection if still present
+        if prev:
+            idx = self._groups_combo.findData(prev)
+            if idx >= 0:
+                self._groups_combo.setCurrentIndex(idx)
+        self._groups_combo.blockSignals(False)
 
     def _unmount_all(self):
         mounted_map = self._controller.get_mounted_drives()

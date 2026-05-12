@@ -299,6 +299,8 @@
   "main.dismount_all": "Dismount All",
   "main.groups_filter": "Filter by group",
   "main.groups_all": "All groups",
+  "main.groups_mounted": "Only mounted",
+  "main.groups_unmounted": "Unmounted",
   "main.profile": "Profile",
 
   "profile.title": "User Profile",
@@ -326,5 +328,22 @@
   "dialog.key_fallback.title": "SSH Key Failed",
   "dialog.key_fallback.message": "SSH key authentication failed for '{name}'.\n\nA password is stored for this connection.\nDo you want to try connecting with password instead?",
   "dialog.key_fallback.yes": "Try with Password",
-  "dialog.key_fallback.no": "Cancel"
+  "dialog.key_fallback.no": "Cancel",
+
+  "debug.title": "Debug Window",
+  "debug.subtitle": "Internal events, mounting and SSH status in real-time",
+  "debug.subtitle.tooltip": "This window shows internal events, mounting status\nand SSH-related information in real-time. Useful for troubleshooting and monitoring.",
+  "debug.auto_scroll": "Auto-scroll",
+  "debug.purge_mounts": "Purge Mounts",
+  "debug.test_decryption": "Test Decryption",
+  "debug.clear": "Clear",
+  "debug.save_log": "Save",
+  "debug.purge_mounts.started": "User started 'Purge Mounts'...",
+  "debug.purge_mounts.successful": "Purge successful.",
+  "debug.purge_mounts.failed": "Purge failed.",
+  "debug.test.starting": "Starting decryption test...",
+  "debug.test.no_user": "No logged-in user found for test.",
+  "debug.test.completed": "Test completed.",
+  "debug.password.decryption.successful": "Password successfully decrypted.",
+  "debug.password.empty.or.decryption.failed": "Password is empty or decryption failed."
 }

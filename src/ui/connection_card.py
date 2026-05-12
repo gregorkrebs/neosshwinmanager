@@ -224,7 +224,7 @@ class ConnectionCard(QFrame):
                     background-color: rgba(0, 180, 216, 0.12);
                     color: #7ddfff;
                     border: 1px solid rgba(0, 180, 216, 0.35);
-                    border-radius: 4px;
+                    border-radius: 8px;
                     padding: 1px 8px;
                     font-size: 9px;
                     font-weight: 600;

@@ -299,6 +299,8 @@
   "main.dismount_all": "Alle trennen",
   "main.groups_filter": "Nach Gruppe filtern",
   "main.groups_all": "Alle Gruppen",
+  "main.groups_mounted": "Nur aktive",
+  "main.groups_unmounted": "Nur inaktive",
   "main.profile": "Profil",
 
   "profile.title": "Benutzerprofil",
@@ -326,5 +328,22 @@
   "dialog.key_fallback.title": "SSH-Key fehlgeschlagen",
   "dialog.key_fallback.message": "SSH-Key Authentifizierung fuer '{name}' fehlgeschlagen.\n\nFuer diese Verbindung ist ein Passwort hinterlegt.\nMöchten Sie stattdessen mit Passwort verbinden?",
   "dialog.key_fallback.yes": "Mit Passwort versuchen",
-  "dialog.key_fallback.no": "Abbrechen"
+  "dialog.key_fallback.no": "Abbrechen",
+
+  "debug.title": "Debug-Konsole",
+  "debug.subtitle": "Interne Events, Mounting und SSH-Status in Echtzeit",
+  "debug.subtitle.tooltip": "Diese Konsole zeigt interne Ereignisse, Mounting-Status\nund SSH-bezogene Informationen in Echtzeit an. Nützlich für Fehlersuche und Überwachung.",
+  "debug.auto_scroll": "Auto-scroll",
+  "debug.purge_mounts": "Laufwerke bereinigen",
+  "debug.test_decryption": "Entschlüsselung testen",
+  "debug.clear": "Leeren",
+  "debug.save_log": "Speichern",
+  "debug.purge_mounts.started": "Benutzer hat 'Laufwerke bereinigen' gestartet...",
+  "debug.purge_mounts.successful": "Bereinigung erfolgreich.",
+  "debug.purge_mounts.failed": "Bereinigung fehlgeschlagen.",
+  "debug.test.starting": "Starte Entschlüsselungs-Test...",
+  "debug.test.no_user": "Kein eingeloggter Benutzer für Test gefunden.",
+  "debug.test.completed": "Test abgeschlossen.",
+  "debug.password.decryption.successful": "Passwort erfolgreich entschlüsselt.",
+  "debug.password.empty.or.decryption.failed": "Passwort ist leer oder Entschlüsselung fehlgeschlagen."
 }

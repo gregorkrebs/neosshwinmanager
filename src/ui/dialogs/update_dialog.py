@@ -10,7 +10,7 @@ from src.i18n import tr
 
 class UpdateDialog(QDialog):
     """
-    Dialog zum Anzeigen von verfügbaren Updates und Anstoßen der Installation.
+    Dialog to show available updates and initiate the installation.
     """
     
     start_background_download = pyqtSignal()

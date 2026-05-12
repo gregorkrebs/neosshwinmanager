@@ -1,9 +1,9 @@
 """
-login_dialog.py – Login-Dialog für NEO SSH-Win Manager.
+login_dialog.py – Login-Dialog for NEO SSH-Win Manager.
 
-Zeigt beim ersten Start ein Registrierungsformular.
-Bei weiteren Starts einen Login-Dialog.
-Admins können weitere Benutzer anlegen.
+Shows a registration form on the first start.
+On subsequent starts, a login dialog is displayed.
+Admins can create additional users.
 """
 
 from PyQt6.QtWidgets import (
@@ -25,10 +25,10 @@ from src.i18n import tr
 
 class LoginDialog(QDialog):
     """
-    Wird beim App-Start angezeigt.
-    - Erster Start: Registrierungsformular
-    - Weitere Starts: Login
-    - Admin-Tab zum Anlegen weiterer Benutzer
+    Shown at app start.
+    - First start: Registration form
+    - Subsequent starts: Login
+    - Admin tab for creating additional users
     """
 
     login_successful = pyqtSignal()
@@ -111,6 +111,17 @@ class LoginDialog(QDialog):
         title.setObjectName("dialogTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hero_l.addWidget(title)
+
+        try:
+            with open(os.path.join(os.path.dirname(__file__), "..", "..", "version.txt"), "r", encoding="utf-8") as f:
+                APP_VERSION = f.read().strip()
+        except Exception:
+            APP_VERSION = "?"
+
+        ver_lbl = QLabel(tr(APP_VERSION))
+        ver_lbl.setObjectName("dialogPill")
+        ver_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hero_l.addWidget(ver_lbl, 0, Qt.AlignmentFlag.AlignCenter)
 
         lead = QLabel(tr("login.create_first") if self._first_run else tr("login.please_sign_in"))
         lead.setObjectName("dialogLead")
