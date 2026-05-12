@@ -22,10 +22,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Replaced many native message boxes with a themed custom dialog for warnings, confirmations and success messages
 - Pinned core Python dependency versions for the 1.5.0 release environment
 - Updated visible application version strings in the main window, about dialog and single-instance mutex
+- Reduced debug logging of sensitive command-line arguments in the PuTTY launcher
+- Hardened in-memory handling of temporary password tokens used by SSH ASKPASS
 
 ### Security
 - Hardened SSH_ASKPASS password exchange by replacing plaintext environment transfer with one-time IPC tokens
 - Relaxed first-contact host-key handling to OpenSSH `accept-new` for SSH and sysinfo flows while keeping changed-host failures
+- Increased minimum password length from 6 to 8 characters in registration and user-management flows
+- Restricted crash report file permissions so stack traces are no longer world-readable
+- Masked PuTTY password arguments in debug logs to prevent credential leakage
 
 ### Fixed
 - Added password fallback when a stored SSH key fails but a password is still available for the same connection
