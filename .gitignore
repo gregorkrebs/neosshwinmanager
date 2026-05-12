@@ -23,6 +23,7 @@ dist/
 # IDE / editor
 .vscode/
 .idea/
+.github/
 .gemini/
 *.swp
 *.swo
@@ -38,6 +39,7 @@ config.json
 commits.md
 commits_*
 sshfs-web-manager/
+telemetry.local.php
 
 # OS
 Thumbs.db

@@ -10,6 +10,30 @@ define('DATA_FILE', __DIR__ . '/telemetry_data.json');
 define('IP_LOG_FILE', __DIR__ . '/telemetry_ips.json');
 define('MAX_LOG_ENTRIES', 500);
 
+function load_telemetry_rate_limit_salt(): string
+{
+    $config_file = __DIR__ . '/telemetry.local.php';
+    if (is_file($config_file)) {
+        $config = include $config_file;
+        if (is_array($config)) {
+            $salt = trim((string) ($config['rate_limit_salt'] ?? ''));
+            if ($salt !== '') {
+                return $salt;
+            }
+        }
+    }
+
+    $env_salt = getenv('NEOSSH_RATE_LIMIT_SALT');
+    if (is_string($env_salt)) {
+        $env_salt = trim($env_salt);
+        if ($env_salt !== '') {
+            return $env_salt;
+        }
+    }
+
+    return '';
+}
+
 header('Content-Type: application/json');
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
@@ -27,11 +51,14 @@ if (!isset($_SERVER['HTTP_USER_AGENT']) || strpos($_SERVER['HTTP_USER_AGENT'], '
 // --- 1. IP Rate Limiting (Zero-Log mit täglichem Hash) ---
 // Um PII (IP-Adressen) nicht zu speichern, wird ein gehashter Wert generiert.
 // Dieser Hash ist unwiderruflich und wechselt um Mitternacht automatisch.
-// SECURITY: Load salt from environment variable; never hardcode secrets in source.
-$_salt = getenv('NEOSSH_RATE_LIMIT_SALT');
+// SECURITY: Load salt from a local config file or environment variable; never hardcode secrets in source.
+$_salt = load_telemetry_rate_limit_salt();
 if (!$_salt) {
     http_response_code(500);
-    exit(json_encode(["status" => "error", "message" => "Server misconfiguration"]));
+    exit(json_encode([
+        "status" => "error",
+        "message" => "Server misconfiguration: set rate_limit_salt in telemetry.local.php or NEOSSH_RATE_LIMIT_SALT"
+    ]));
 }
 define('RATE_LIMIT_SALT', $_salt);
 $client_ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
