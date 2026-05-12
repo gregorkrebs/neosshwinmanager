@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QIcon, QPainter, QColor, QPen, QBrush, QShortcut, QKeySequence
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot, QSize
 import os
+import sys
 from PyQt6 import sip
 import ctypes
 import ctypes.wintypes
@@ -33,6 +34,7 @@ from src.ui.debug_window import DebugWindow
 from src.app_logger import logger
 from src.ui.worker import MountWorker, UnmountWorker
 from src.ui.dialogs.styled_message_box import StyledMessageBox
+from src.ui.frameless_window import FramelessMainWindow
 from src.ui.icons import icon as svg_icon, pixmap as svg_pixmap
 from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelSpinBox
 from src.i18n import tr, current_language, available_languages
@@ -78,7 +80,7 @@ class _PillSplitter(QSplitter):
         return _PillHandle(self.orientation(), self)
 
 
-class MainWindow(QMainWindow):
+class MainWindow(FramelessMainWindow):
 
     def __init__(self):
         super().__init__()
@@ -135,7 +137,7 @@ class MainWindow(QMainWindow):
 
         self._check_prerequisites()
         QTimer.singleShot(2000, self._auto_reconnect_mounts)
-        QTimer.singleShot(0, self._apply_titlebar_color)
+        QTimer.singleShot(0, lambda: self._apply_titlebar_color(self._mgr.get_settings().theme or "dark"))
         QTimer.singleShot(0, lambda: self._update_header_btn_icons(self._mgr.get_settings().theme or "dark"))
 
         import src.app_logger as _log_mod
@@ -2212,59 +2214,116 @@ class MainWindow(QMainWindow):
         """Build the settings form inside the fullscreen panel."""
         s = self._mgr.get_settings()
 
+        # ── helpers ───────────────────────────────────────────────────────
+        def _group_card() -> tuple[QFrame, QVBoxLayout]:
+            card = QFrame()
+            card.setObjectName("settingsGroupCard")
+            vl = QVBoxLayout(card)
+            vl.setContentsMargins(0, 0, 0, 0)
+            vl.setSpacing(0)
+            return card, vl
+
+        def _inner_sep() -> QFrame:
+            f = QFrame()
+            f.setObjectName("rowSep")
+            f.setFixedHeight(1)
+            return f
+
+        def _row_combo(label_text: str, combo: QWidget) -> QWidget:
+            w = QWidget()
+            w.setObjectName("settingsRow")
+            hl = QHBoxLayout(w)
+            hl.setContentsMargins(16, 11, 16, 11)
+            hl.setSpacing(0)
+            lbl = QLabel(label_text)
+            lbl.setObjectName("rowLabel")
+            hl.addWidget(lbl, stretch=1)
+            hl.addWidget(combo)
+            return w
+
+        def _row_check(checkbox: QCheckBox, hint_text: str = "") -> QWidget:
+            w = QWidget()
+            w.setObjectName("settingsRow")
+            vl = QVBoxLayout(w)
+            vl.setContentsMargins(16, 11, 16, 11)
+            vl.setSpacing(4)
+            vl.addWidget(checkbox)
+            if hint_text:
+                hl = QLabel(hint_text)
+                hl.setObjectName("hintLabel")
+                hl.setWordWrap(True)
+                hl.setContentsMargins(24, 0, 0, 0)
+                vl.addWidget(hl)
+            return w
+
+        def _row_action(button: QPushButton, desc_text: str) -> QWidget:
+            w = QWidget()
+            w.setObjectName("settingsRow")
+            vl = QVBoxLayout(w)
+            vl.setContentsMargins(16, 11, 16, 13)
+            vl.setSpacing(11)
+            desc = QLabel(desc_text)
+            desc.setObjectName("hintLabel")
+            desc.setWordWrap(True)
+            vl.addWidget(desc)
+            vl.addWidget(button)
+            return w
+
+        def _section_hdr(text: str) -> QLabel:
+            lbl = QLabel(text)
+            lbl.setObjectName("sectionLabel")
+            return lbl
+
+        def _hint_row(text: str) -> QWidget:
+            w = QWidget()
+            w.setObjectName("settingsRow")
+            hl = QHBoxLayout(w)
+            hl.setContentsMargins(16, 6, 16, 8)
+            lbl = QLabel(text)
+            lbl.setObjectName("hintLabel")
+            lbl.setWordWrap(True)
+            hl.addWidget(lbl)
+            return w
+
+        # ── root scroll container ─────────────────────────────────────────
         body = QWidget()
         body.setObjectName("fullscreenForm")
         body.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         v = QVBoxLayout(body)
-        v.setContentsMargins(24, 24, 24, 24)
-        v.setSpacing(10)
+        v.setContentsMargins(24, 20, 24, 20)
+        v.setSpacing(6)
 
-        # Language
-        v.addWidget(self._section_label(tr("settings.section.language")))
-        lang_theme_row = QHBoxLayout()
-        lang_theme_row.setSpacing(12)
+        # ── APPEARANCE ────────────────────────────────────────────────────
+        v.addWidget(_section_hdr("APPEARANCE"))
+        v.addSpacing(4)
 
-        lang_col = QVBoxLayout()
-        lang_col.setContentsMargins(0, 0, 0, 0)
-        lang_col.setSpacing(6)
-        lang_col.addWidget(self._field_label(tr("settings.language.label")))
         self._sf_lang = NoWheelComboBox()
+        self._sf_lang.setFixedWidth(180)
         for code in available_languages():
             self._sf_lang.addItem(_LANG_LABELS.get(code, code), code)
         idx = self._sf_lang.findData(getattr(s, 'language', 'en') or 'en')
         if idx >= 0:
             self._sf_lang.setCurrentIndex(idx)
-        self._sf_lang.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        lang_col.addWidget(self._sf_lang)
-        lang_theme_row.addLayout(lang_col, 1)
 
-        # Theme
-        theme_col = QVBoxLayout()
-        theme_col.setContentsMargins(0, 0, 0, 0)
-        theme_col.setSpacing(6)
-        theme_col.addWidget(self._field_label(tr("settings.theme.label")))
         self._sf_theme = NoWheelComboBox()
+        self._sf_theme.setFixedWidth(180)
         self._sf_theme.addItem(tr("settings.theme.dark"), "dark")
         self._sf_theme.addItem(tr("settings.theme.light"), "light")
         idx = self._sf_theme.findData(getattr(s, 'theme', 'dark') or 'dark')
         if idx >= 0:
             self._sf_theme.setCurrentIndex(idx)
-        self._sf_theme.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        theme_col.addWidget(self._sf_theme)
-        lang_theme_row.addLayout(theme_col, 1)
-        v.addLayout(lang_theme_row)
 
-        hint = QLabel(tr("settings.language.restart"))
-        hint.setObjectName("fieldLabel")
-        hint.setWordWrap(True)
-        v.addWidget(hint)
+        app_card, app_vl = _group_card()
+        app_vl.addWidget(_row_combo(tr("settings.theme.label"), self._sf_theme))
+        app_vl.addWidget(_inner_sep())
+        app_vl.addWidget(_row_combo(tr("settings.language.label"), self._sf_lang))
+        app_vl.addWidget(_hint_row(tr("settings.language.restart")))
+        v.addWidget(app_card)
+        v.addSpacing(14)
 
-        # General
-        v.addWidget(self._section_label(tr("settings.section.general")))
-        gen_grid = QGridLayout()
-        gen_grid.setHorizontalSpacing(18)
-        gen_grid.setVerticalSpacing(6)
-        gen_grid.setContentsMargins(0, 0, 0, 0)
+        # ── GENERAL ───────────────────────────────────────────────────────
+        v.addWidget(_section_hdr(tr("settings.section.general")))
+        v.addSpacing(4)
 
         self._sf_start = QCheckBox(tr("settings.start_with_windows"))
         self._sf_start.setChecked(s.start_with_windows)
@@ -2275,59 +2334,69 @@ class MainWindow(QMainWindow):
         self._sf_telemetry = QCheckBox(tr("settings.telemetry"))
         self._sf_telemetry.setChecked(getattr(s, "telemetry_enabled", False))
 
-        gen_grid.addWidget(self._sf_start, 0, 0)
-        gen_grid.addWidget(self._sf_tray, 0, 1)
-        gen_grid.addWidget(self._sf_admin, 1, 0)
-        gen_grid.addWidget(self._sf_telemetry, 1, 1)
-        v.addLayout(gen_grid)
+        self._sf_shortcut_btn = QPushButton(tr("settings.create_shortcut"))
+        self._sf_shortcut_btn.setObjectName("settingsActionBtn")
+        self._sf_shortcut_btn.setFixedWidth(170)
+        self._sf_shortcut_btn.setMinimumHeight(32)
+        self._sf_shortcut_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._sf_shortcut_btn.clicked.connect(self._sf_create_shortcut)
 
-        telemetry_hint = QLabel(tr("settings.telemetry.hint"))
-        telemetry_hint.setObjectName("fieldLabel")
-        telemetry_hint.setWordWrap(True)
-        v.addWidget(telemetry_hint)
+        gen_card, gen_vl = _group_card()
+        gen_vl.addWidget(_row_check(self._sf_start))
+        gen_vl.addWidget(_inner_sep())
+        gen_vl.addWidget(_row_check(self._sf_tray))
+        gen_vl.addWidget(_inner_sep())
+        gen_vl.addWidget(_row_check(self._sf_admin))
+        gen_vl.addWidget(_inner_sep())
+        gen_vl.addWidget(_row_check(self._sf_telemetry, tr("settings.telemetry.hint")))
+        gen_vl.addWidget(_inner_sep())
+        gen_vl.addWidget(_row_action(self._sf_shortcut_btn, tr("settings.create_shortcut.hint")))
+        v.addWidget(gen_card)
+        v.addSpacing(14)
 
-        # Updates
-        v.addWidget(self._section_label(tr("settings.section.updates")))
-        upd_row = QHBoxLayout()
-        upd_row.setSpacing(12)
-        upd_row.addWidget(self._field_label(tr("settings.updates.hint")))
-        upd_row.addStretch(1)
+        # ── UPDATES ───────────────────────────────────────────────────────
+        v.addWidget(_section_hdr(tr("settings.section.updates")))
+        v.addSpacing(4)
+
         self._sf_update_btn = QPushButton(tr("settings.check_updates"))
-        self._sf_update_btn.setObjectName("actionBtn")
+        self._sf_update_btn.setObjectName("settingsActionBtn")
         self._sf_update_btn.setProperty("btn_type", "primary")
+        self._sf_update_btn.setFixedWidth(170)
         self._sf_update_btn.setMinimumHeight(32)
         self._sf_update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._sf_update_btn.clicked.connect(self._sf_check_updates)
-        upd_row.addWidget(self._sf_update_btn)
-        v.addLayout(upd_row)
 
-        # Mount status
-        v.addWidget(self._section_label(tr("settings.section.mount")))
-        interval_row = QHBoxLayout()
-        interval_row.addWidget(self._field_label(tr("settings.check_interval")))
-        interval_row.addStretch()
+        upd_card, upd_vl = _group_card()
+        upd_vl.addWidget(_row_action(self._sf_update_btn, tr("settings.updates.hint")))
+        v.addWidget(upd_card)
+        v.addSpacing(14)
+
+        # ── MOUNT STATUS ──────────────────────────────────────────────────
+        v.addWidget(_section_hdr(tr("settings.section.mount")))
+        v.addSpacing(4)
+
         self._sf_interval = NoWheelSpinBox()
         self._sf_interval.setRange(5, 300)
         self._sf_interval.setValue(s.check_interval_seconds)
-        self._sf_interval.setFixedWidth(80)
-        interval_row.addWidget(self._sf_interval)
-        v.addLayout(interval_row)
-        mount_opts = QHBoxLayout()
-        mount_opts.setSpacing(18)
+        self._sf_interval.setFixedWidth(72)
         self._sf_auto_reconnect = QCheckBox(tr("settings.auto_reconnect"))
         self._sf_auto_reconnect.setChecked(getattr(s, "auto_reconnect", False))
         self._sf_auto_remount = QCheckBox(tr("settings.auto_remount"))
         self._sf_auto_remount.setChecked(getattr(s, "auto_remount_on_lost", True))
-        mount_opts.addWidget(self._sf_auto_reconnect)
-        mount_opts.addWidget(self._sf_auto_remount)
-        mount_opts.addStretch(1)
-        v.addLayout(mount_opts)
 
-        # Security Level
-        v.addWidget(self._section_label(tr("settings.section.security")))
-        sec_row = QHBoxLayout()
-        sec_row.addWidget(self._field_label(tr("settings.security.level.label")))
-        sec_row.addStretch()
+        mnt_card, mnt_vl = _group_card()
+        mnt_vl.addWidget(_row_combo(tr("settings.check_interval"), self._sf_interval))
+        mnt_vl.addWidget(_inner_sep())
+        mnt_vl.addWidget(_row_check(self._sf_auto_reconnect))
+        mnt_vl.addWidget(_inner_sep())
+        mnt_vl.addWidget(_row_check(self._sf_auto_remount))
+        v.addWidget(mnt_card)
+        v.addSpacing(14)
+
+        # ── SECURITY ──────────────────────────────────────────────────────
+        v.addWidget(_section_hdr(tr("settings.section.security")))
+        v.addSpacing(4)
+
         self._sf_security_level = NoWheelComboBox()
         self._sf_security_level.addItem(tr("settings.security.level.strict"), 0)
         self._sf_security_level.addItem(tr("settings.security.level.key_no_passphrase"), 1)
@@ -2335,73 +2404,100 @@ class MainWindow(QMainWindow):
         _cur_level = getattr(s, 'security_level', 0)
         self._sf_security_level.setCurrentIndex(min(_cur_level, 2))
         self._sf_security_level.setFixedWidth(230)
-        sec_row.addWidget(self._sf_security_level)
-        v.addLayout(sec_row)
+
         self._sf_sec_warning = QLabel()
         self._sf_sec_warning.setObjectName("errorLabel")
         self._sf_sec_warning.setWordWrap(True)
-        v.addWidget(self._sf_sec_warning)
+        self._sf_sec_warning.setContentsMargins(16, 6, 16, 10)
+
+        sec_card, sec_vl = _group_card()
+        sec_vl.addWidget(_row_combo(tr("settings.security.level.label"), self._sf_security_level))
+        sec_vl.addWidget(self._sf_sec_warning)
+        v.addWidget(sec_card)
         self._sf_security_level.currentIndexChanged.connect(self._on_sf_security_changed)
         self._on_sf_security_changed(_cur_level)
+        v.addSpacing(14)
 
-        # SSH Terminal
-        v.addWidget(self._section_label(tr("settings.section.terminal")))
+        # ── SSH TERMINAL ──────────────────────────────────────────────────
+        v.addWidget(_section_hdr(tr("settings.section.terminal")))
+        v.addSpacing(4)
+
         self._sf_putty = QCheckBox(tr("settings.use_putty"))
         self._sf_putty.setChecked(getattr(s, 'use_putty', False))
         self._sf_putty.toggled.connect(self._sf_putty_toggled)
-        v.addWidget(self._sf_putty)
 
-        self._sf_putty_widget = QWidget()
-        pw_inner = QVBoxLayout(self._sf_putty_widget)
-        pw_inner.setContentsMargins(0, 4, 0, 0)
-        pw_inner.setSpacing(4)
-        pw_inner.addWidget(self._field_label(tr("settings.putty_path")))
-        putty_row = QHBoxLayout()
-        putty_row.setSpacing(6)
         self._sf_putty_path = QLineEdit(getattr(s, 'putty_path', r"C:\Program Files\PuTTY\putty.exe"))
         self._sf_putty_path.setPlaceholderText(r"C:\Program Files\PuTTY\putty.exe")
-        putty_row.addWidget(self._sf_putty_path, stretch=1)
         browse_p = QPushButton("…")
-        browse_p.setFixedWidth(32)
+        browse_p.setObjectName("rpHeaderBtn")
+        browse_p.setFixedWidth(36)
         browse_p.setCursor(Qt.CursorShape.PointingHandCursor)
         browse_p.clicked.connect(self._sf_browse_putty)
-        putty_row.addWidget(browse_p)
-        pw_inner.addLayout(putty_row)
-        hint2 = QLabel(tr("settings.putty_hint"))
-        hint2.setObjectName("fieldLabel")
-        hint2.setWordWrap(True)
-        pw_inner.addWidget(hint2)
-        self._sf_putty_widget.setVisible(getattr(s, 'use_putty', False))
-        v.addWidget(self._sf_putty_widget)
 
-        # Developer
-        v.addWidget(self._section_label(tr("settings.section.developer")))
+        putty_path_row = QWidget()
+        putty_path_row.setObjectName("settingsRow")
+        pp_vl = QVBoxLayout(putty_path_row)
+        pp_vl.setContentsMargins(16, 10, 16, 10)
+        pp_vl.setSpacing(6)
+        pp_lbl = QLabel(tr("settings.putty_path"))
+        pp_lbl.setObjectName("rowLabel")
+        pp_vl.addWidget(pp_lbl)
+        pp_hl = QHBoxLayout()
+        pp_hl.setContentsMargins(0, 0, 0, 0)
+        pp_hl.setSpacing(6)
+        pp_hl.addWidget(self._sf_putty_path, stretch=1)
+        pp_hl.addWidget(browse_p)
+        pp_vl.addLayout(pp_hl)
+        hint2 = QLabel(tr("settings.putty_hint"))
+        hint2.setObjectName("hintLabel")
+        hint2.setWordWrap(True)
+        pp_vl.addWidget(hint2)
+
+        term_card, term_vl = _group_card()
+        term_vl.addWidget(_row_check(self._sf_putty))
+        self._sf_putty_widget = putty_path_row
+        self._sf_putty_widget.setVisible(getattr(s, 'use_putty', False))
+        term_vl.addWidget(self._sf_putty_widget)
+        v.addWidget(term_card)
+        v.addSpacing(14)
+
+        # ── DEVELOPER ─────────────────────────────────────────────────────
+        v.addWidget(_section_hdr(tr("settings.section.developer")))
+        v.addSpacing(4)
+
         self._sf_debug = QCheckBox(tr("settings.debug_mode"))
         self._sf_debug.setChecked(s.debug_mode)
         self._sf_debug.toggled.connect(self._sf_debug_toggled)
-        v.addWidget(self._sf_debug)
 
-        # Tools (only when debug is on)
+        fix_btn = QPushButton(tr("settings.fix_ghosts"))
+        fix_btn.setObjectName("settingsActionBtn")
+        fix_btn.setProperty("btn_type", "primary")
+        fix_btn.setFixedWidth(170)
+        fix_btn.setMinimumHeight(32)
+        fix_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        fix_btn.clicked.connect(self._sf_fix_ghosts)
+
+        rst_btn = QPushButton(tr("settings.restart_explorer"))
+        rst_btn.setObjectName("settingsActionBtn")
+        rst_btn.setFixedWidth(170)
+        rst_btn.setMinimumHeight(32)
+        rst_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        rst_btn.clicked.connect(self._sf_restart_explorer)
+
         self._sf_tools_widget = QWidget()
         tw_inner = QVBoxLayout(self._sf_tools_widget)
         tw_inner.setContentsMargins(0, 0, 0, 0)
-        tw_inner.setSpacing(8)
-        tw_inner.addWidget(self._section_label(tr("settings.section.tools")))
-        fix_btn = QPushButton(tr("settings.fix_ghosts"))
-        fix_btn.setObjectName("actionBtn")
-        fix_btn.setProperty("btn_type", "primary")
-        fix_btn.setMinimumHeight(34)
-        fix_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        fix_btn.clicked.connect(self._sf_fix_ghosts)
-        tw_inner.addWidget(fix_btn)
-        rst_btn = QPushButton(tr("settings.restart_explorer"))
-        rst_btn.setObjectName("actionBtn")
-        rst_btn.setMinimumHeight(34)
-        rst_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        rst_btn.clicked.connect(self._sf_restart_explorer)
-        tw_inner.addWidget(rst_btn)
+        tw_inner.setSpacing(0)
+        tw_inner.addWidget(_inner_sep())
+        tw_inner.addWidget(_row_action(fix_btn, tr("settings.section.tools")))
+        tw_inner.addWidget(_inner_sep())
+        tw_inner.addWidget(_row_action(rst_btn, tr("settings.restart_explorer_hint") if hasattr(tr, '__call__') else "Windows Explorer neu starten"))
         self._sf_tools_widget.setVisible(s.debug_mode)
-        v.addWidget(self._sf_tools_widget)
+
+        dev_card, dev_vl = _group_card()
+        dev_vl.addWidget(_row_check(self._sf_debug))
+        dev_vl.addWidget(self._sf_tools_widget)
+        v.addWidget(dev_card)
 
         v.addStretch()
         self._fs_layout.addWidget(body)
@@ -2495,6 +2591,67 @@ class MainWindow(QMainWindow):
     def _sf_restart_explorer(self):
         SSHFSController.restart_explorer()
         self._show_inline_message("", tr("settings.explorer_restarted"))
+
+    def _sf_create_shortcut(self):
+        ok = StyledMessageBox.question(
+            self,
+            tr("settings.create_shortcut"),
+            tr("settings.create_shortcut.confirm"),
+            yes_text=tr("dialog.understood"),
+            no_text=tr("dialog.cancel"),
+        )
+        if not ok:
+            return
+
+        success, msg = self._create_desktop_shortcut()
+        if success:
+            StyledMessageBox.information(self, tr("dialog.success"), tr("settings.create_shortcut.success"))
+        else:
+            logger.error(f"Shortcut creation failed: {msg}")
+            StyledMessageBox.warning(self, tr("dialog.error"), tr("settings.create_shortcut.failed"))
+
+    @staticmethod
+    def _create_desktop_shortcut() -> tuple[bool, str]:
+        import subprocess
+
+        # In packaged mode this is the app EXE path.
+        if getattr(sys, "frozen", False):
+            target_path = os.path.abspath(sys.executable)
+            args = ""
+        else:
+            target_path = os.path.abspath(sys.executable)
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            main_script = os.path.join(project_root, "main.py")
+            args = f'"{main_script}"'
+
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        shortcut_path = os.path.join(desktop, "NEO SSH-Win Manager.lnk")
+
+        ps_script = (
+            "$WshShell = New-Object -ComObject WScript.Shell\n"
+            f"$Shortcut = $WshShell.CreateShortcut('{shortcut_path}')\n"
+            f"$Shortcut.TargetPath = '{target_path}'\n"
+            f"$Shortcut.WorkingDirectory = '{os.path.dirname(target_path)}'\n"
+            "$Shortcut.Description = 'NEO SSH-Win Manager'\n"
+            f"$Shortcut.IconLocation = '{target_path},0'\n"
+            + (f"$Shortcut.Arguments = '{args}'\n" if args else "")
+            + "$Shortcut.Save()"
+        )
+
+        try:
+            cp = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            if not os.path.exists(shortcut_path):
+                return False, "Shortcut file was not created"
+            return True, cp.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            return False, (e.stderr or e.stdout or str(e)).strip()
+        except Exception as e:
+            return False, str(e)
 
     # ------------------------------------------------------------------
     # Right panel save / cancel
@@ -3302,7 +3459,8 @@ class MainWindow(QMainWindow):
         from src.ui.theme import get_stylesheet
         theme = s.theme or "dark"
         QApplication.instance().setStyleSheet(get_stylesheet(theme))
-        self._apply_titlebar_color(theme)
+        self.set_app_theme(theme)          # update custom titlebar palette
+        self._apply_titlebar_color(theme)  # kept for any residual DWM calls
         self._update_header_btn_icons(theme)
 
     def _update_header_btn_icons(self, theme: str):
@@ -3316,29 +3474,10 @@ class MainWindow(QMainWindow):
         self._rp_save_top_btn.setIcon(svg_icon("floppy", save_color, 15))
 
     def _apply_titlebar_color(self, theme: str = None):
-        """Apply Windows title bar color to match the app theme (Windows 11+)."""
+        """Update the custom titlebar theme (replaces the former DWM caption-colour hack)."""
         if theme is None:
             theme = (self._mgr.get_settings().theme or "dark")
-        if theme == "light":
-            bg_hex = "#f0f2f5"
-            text_hex = "#1a2332"
-        else:
-            bg_hex = "#0d0d12"
-            text_hex = "#c8d6e5"
-        try:
-            hwnd = int(self.winId())
-            r, g, b = int(bg_hex[1:3], 16), int(bg_hex[3:5], 16), int(bg_hex[5:7], 16)
-            colorref = ctypes.c_uint32((b << 16) | (g << 8) | r)
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, 35, ctypes.byref(colorref), ctypes.sizeof(colorref)
-            )
-            tr_v, tg_v, tb_v = int(text_hex[1:3], 16), int(text_hex[3:5], 16), int(text_hex[5:7], 16)
-            text_colorref = ctypes.c_uint32((tb_v << 16) | (tg_v << 8) | tr_v)
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, 36, ctypes.byref(text_colorref), ctypes.sizeof(text_colorref)
-            )
-        except Exception:
-            pass
+        self.set_app_theme(theme)
 
     def _apply_debug_mode(self):
         enabled = self._mgr.get_settings().debug_mode

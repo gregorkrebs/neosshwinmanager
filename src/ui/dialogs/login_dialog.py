@@ -19,11 +19,12 @@ from src.auth_manager import AuthManager, Session, LoginLockedError
 from src.crypto import is_available
 from src.ui.dialog_utils import match_parent_height, make_maximize_button
 from src.ui.dialogs.styled_message_box import StyledMessageBox
+from src.ui.frameless_dialog import FramelessDialog
 from src.ui.icons import icon as svg_icon
 from src.ui.widgets.no_wheel import NoWheelScrollArea
 from src.i18n import tr
 
-class LoginDialog(QDialog):
+class LoginDialog(FramelessDialog):
     """
     Shown at app start.
     - First start: Registration form
@@ -39,12 +40,6 @@ class LoginDialog(QDialog):
         self.setWindowTitle(tr("login.title"))
         self.setMinimumWidth(440)
         self.setModal(True)
-        self.setWindowFlags(
-            Qt.WindowType.Window |
-            Qt.WindowType.WindowTitleHint |
-            Qt.WindowType.WindowSystemMenuHint |
-            Qt.WindowType.WindowCloseButtonHint
-        )
         for icon_file in ("app_icon.ico", "app_icon.png"):
             icon_path = self._resource_path(os.path.join("assets", icon_file))
             if os.path.exists(icon_path):
@@ -78,7 +73,7 @@ class LoginDialog(QDialog):
         return w
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
+        layout = QVBoxLayout(self._fdlg_content)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(14)
 
@@ -118,7 +113,7 @@ class LoginDialog(QDialog):
         except Exception:
             APP_VERSION = "?"
 
-        ver_lbl = QLabel(tr(APP_VERSION))
+        ver_lbl = QLabel(f"v{APP_VERSION}")
         ver_lbl.setObjectName("dialogPill")
         ver_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hero_l.addWidget(ver_lbl, 0, Qt.AlignmentFlag.AlignCenter)

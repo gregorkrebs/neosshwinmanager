@@ -5,7 +5,7 @@ settings_dialog.py – Settings dialog for NEO SSH-Win Manager.
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
     QPushButton, QSpinBox, QFrame, QWidget, QLineEdit,
-    QFileDialog, QMessageBox, QScrollArea, QApplication, QComboBox, QGridLayout
+    QFileDialog, QMessageBox, QScrollArea, QApplication, QComboBox
 )
 from PyQt6.QtCore import Qt
 from src.config import AppSettings
@@ -35,21 +35,105 @@ class SettingsDialog(QDialog):
             self.setMaximumHeight(int(screen.availableGeometry().height() * 0.95))
         match_parent_height(self, parent)
 
-    def _section(self, title: str) -> QLabel:
+    # ── Layout primitives ─────────────────────────────────────────────
+
+    def _section_header(self, title: str) -> QLabel:
+        """Floating section title above each group card."""
         lbl = QLabel(title)
         lbl.setObjectName("sectionLabel")
         return lbl
 
-    def _field_label(self, text: str) -> QLabel:
+    def _section(self, title: str) -> QLabel:
+        return self._section_header(title)
+
+    def _hint(self, text: str) -> QLabel:
         lbl = QLabel(text)
-        lbl.setObjectName("fieldLabel")
+        lbl.setObjectName("hintLabel")
+        lbl.setWordWrap(True)
         return lbl
 
     def _divider(self) -> QFrame:
+        """Used only for the bottom button bar separator."""
         f = QFrame()
         f.setObjectName("divider")
         f.setFixedHeight(1)
         return f
+
+    def _inner_sep(self) -> QFrame:
+        """Hairline separator between rows inside a group card."""
+        f = QFrame()
+        f.setObjectName("rowSep")
+        f.setFixedHeight(1)
+        return f
+
+    def _make_group(self) -> tuple[QFrame, QVBoxLayout]:
+        """Returns a styled group card + its content layout."""
+        card = QFrame()
+        card.setObjectName("settingsGroupCard")
+        vl = QVBoxLayout(card)
+        vl.setContentsMargins(0, 0, 0, 0)
+        vl.setSpacing(0)
+        return card, vl
+
+    def _row_combo(self, label_text: str, combo: QWidget) -> QWidget:
+        """Label | Combo row — label fixed 160 px, combo directly next to it."""
+        w = QWidget()
+        w.setObjectName("settingsRow")
+        hl = QHBoxLayout(w)
+        hl.setContentsMargins(16, 11, 16, 11)
+        hl.setSpacing(0)
+        lbl = QLabel(label_text)
+        lbl.setObjectName("rowLabel")
+        hl.addWidget(lbl, stretch=1)
+        hl.addWidget(combo)
+        return w
+
+    def _row_check(self, checkbox: QCheckBox, hint: str = "") -> QWidget:
+        """Checkbox row with optional muted hint indented directly below."""
+        w = QWidget()
+        w.setObjectName("settingsRow")
+        vl = QVBoxLayout(w)
+        vl.setContentsMargins(16, 11, 16, 11)
+        vl.setSpacing(4)
+        vl.addWidget(checkbox)
+        if hint:
+            hl = self._hint(hint)
+            hl.setContentsMargins(24, 0, 0, 0)
+            vl.addWidget(hl)
+        return w
+
+    def _row_action(self, button: QPushButton, description: str) -> QWidget:
+        """Button on far left, description text immediately to the right."""
+        w = QWidget()
+        w.setObjectName("settingsRow")
+        hl = QHBoxLayout(w)
+        hl.setContentsMargins(16, 11, 16, 11)
+        hl.setSpacing(14)
+        hl.addWidget(button)
+        desc = self._hint(description)
+        hl.addWidget(desc, stretch=1)
+        return w
+
+    def _row_path(self, label_text: str, line_edit: QLineEdit,
+                  browse_btn: QPushButton, hint: str = "") -> QWidget:
+        """Label + full-width path input + browse button, optional hint below."""
+        w = QWidget()
+        w.setObjectName("settingsRow")
+        vl = QVBoxLayout(w)
+        vl.setContentsMargins(16, 11, 16, 11)
+        vl.setSpacing(6)
+        lbl = QLabel(label_text)
+        lbl.setObjectName("rowLabel")
+        vl.addWidget(lbl)
+        hl = QHBoxLayout()
+        hl.setContentsMargins(0, 0, 0, 0)
+        hl.setSpacing(6)
+        hl.addWidget(line_edit, stretch=1)
+        hl.addWidget(browse_btn)
+        vl.addLayout(hl)
+        if hint:
+            vl.addWidget(self._hint(hint))
+        return w
 
     def _build_ui(self):
         outer = QVBoxLayout(self)
@@ -64,199 +148,205 @@ class SettingsDialog(QDialog):
 
         inner = QWidget()
         scroll.setWidget(inner)
-        layout = QVBoxLayout(inner)
-        layout.setContentsMargins(20, 20, 20, 12)
-        layout.setSpacing(14)
+        root = QVBoxLayout(inner)
+        root.setContentsMargins(20, 20, 20, 12)
+        root.setSpacing(6)
 
+        # ── Hero ──────────────────────────────────────────────────────
         hero = QFrame()
         hero.setObjectName("dialogHeroCard")
         hero_l = QVBoxLayout(hero)
-        hero_l.setContentsMargins(22, 20, 22, 20)
-        hero_l.setSpacing(8)
-
-        title = QLabel(tr("settings.title"))
-        title.setObjectName("dialogTitle")
-        hero_l.addWidget(title)
-
+        hero_l.setContentsMargins(22, 18, 22, 18)
+        hero_l.setSpacing(4)
+        title_lbl = QLabel(tr("settings.title"))
+        title_lbl.setObjectName("dialogTitle")
+        hero_l.addWidget(title_lbl)
         lead = QLabel(tr("dialog.lead.settings"))
         lead.setObjectName("dialogLead")
         lead.setWordWrap(True)
         hero_l.addWidget(lead)
-        layout.addWidget(hero)
+        root.addWidget(hero)
+        root.addSpacing(10)
 
-        form_card = QFrame()
-        form_card.setObjectName("dialogSectionCard")
-        form = QVBoxLayout(form_card)
-        form.setContentsMargins(22, 20, 22, 20)
-        form.setSpacing(10)
+        # ── APPEARANCE ────────────────────────────────────────────────
+        root.addWidget(self._section_header("APPEARANCE"))
+        root.addSpacing(4)
 
-        # ── APPEARANCE ───────────────────────────────────────────────
-        form.addWidget(self._section("APPEARANCE"))
-        app_grid = QGridLayout()
-        app_grid.setHorizontalSpacing(16)
-        
-        lang_lbl = QLabel(tr("settings.language.label"))
-        lang_lbl.setObjectName("fieldLabel")
         self._lang_combo = NoWheelComboBox()
+        self._lang_combo.setFixedWidth(180)
         for code in available_languages():
             self._lang_combo.addItem(_LANG_LABELS.get(code, code), code)
-            
-        theme_lbl = QLabel(tr("settings.theme.label"))
-        theme_lbl.setObjectName("fieldLabel")
+
         self._theme_combo = NoWheelComboBox()
+        self._theme_combo.setFixedWidth(180)
         self._theme_combo.addItem(tr("settings.theme.dark"), "dark")
         self._theme_combo.addItem(tr("settings.theme.light"), "light")
-        
-        app_grid.addWidget(lang_lbl, 0, 0)
-        app_grid.addWidget(self._lang_combo, 0, 1)
-        app_grid.addWidget(theme_lbl, 0, 2)
-        app_grid.addWidget(self._theme_combo, 0, 3)
-        form.addLayout(app_grid)
-        
-        restart_hint = QLabel(tr("settings.language.restart"))
-        restart_hint.setObjectName("fieldLabel")
-        restart_hint.setWordWrap(True)
-        form.addWidget(restart_hint)
-        form.addWidget(self._divider())
 
-        # ── GENERAL ──────────────────────────────────────────────────
-        form.addWidget(self._section(tr("settings.section.general")))
-        gen_grid = QGridLayout()
-        gen_grid.setHorizontalSpacing(16)
-        
+        app_card, app_vl = self._make_group()
+        app_vl.addWidget(self._row_combo(tr("settings.language.label"), self._lang_combo))
+        app_vl.addWidget(self._inner_sep())
+        app_vl.addWidget(self._row_combo(tr("settings.theme.label"), self._theme_combo))
+        hint_row = QWidget()
+        hint_row.setObjectName("settingsRow")
+        hint_hl = QHBoxLayout(hint_row)
+        hint_hl.setContentsMargins(16, 6, 16, 8)
+        hint_hl.addWidget(self._hint(tr("settings.language.restart")))
+        app_vl.addWidget(hint_row)
+        root.addWidget(app_card)
+        root.addSpacing(14)
+
+        # ── GENERAL ───────────────────────────────────────────────────
+        root.addWidget(self._section_header(tr("settings.section.general")))
+        root.addSpacing(4)
+
         self._start_with_windows = QCheckBox(tr("settings.start_with_windows"))
         self._minimize_to_tray = QCheckBox(tr("settings.minimize_to_tray"))
         self._require_admin = QCheckBox(tr("settings.require_admin"))
-        self._telemetry_enabled = QCheckBox("Anonyme Volkszählung (Telemetrie) erlauben")
-        
-        gen_grid.addWidget(self._start_with_windows, 0, 0)
-        gen_grid.addWidget(self._minimize_to_tray, 0, 1)
-        gen_grid.addWidget(self._require_admin, 1, 0)
-        gen_grid.addWidget(self._telemetry_enabled, 1, 1)
-        form.addLayout(gen_grid)
-        form.addWidget(self._divider())
-        
-        # ── UPDATE ──────────────────────────────────────────────────
-        form.addWidget(self._section("UPDATES"))
-        update_row = QHBoxLayout()
-        update_lbl = QLabel("Manuell nach neuen Versionen auf GitHub suchen")
-        update_lbl.setObjectName("fieldLabel")
-        update_row.addWidget(update_lbl, stretch=1)
-        
+        self._telemetry_enabled = QCheckBox("Telemetrie erlauben")
+
+        gen_card, gen_vl = self._make_group()
+        gen_vl.addWidget(self._row_check(self._start_with_windows))
+        gen_vl.addWidget(self._inner_sep())
+        gen_vl.addWidget(self._row_check(self._minimize_to_tray))
+        gen_vl.addWidget(self._inner_sep())
+        gen_vl.addWidget(self._row_check(self._require_admin))
+        gen_vl.addWidget(self._inner_sep())
+        gen_vl.addWidget(self._row_check(
+            self._telemetry_enabled,
+            "Anonyme Nutzungsdaten helfen, das Programm zu verbessern. "
+            "Es werden keine persönlichen Daten übertragen."
+        ))
+        root.addWidget(gen_card)
+        root.addSpacing(14)
+
+        # ── UPDATES ───────────────────────────────────────────────────
+        root.addWidget(self._section_header("UPDATES"))
+        root.addSpacing(4)
+
         self._update_btn = QPushButton("Auf Updates prüfen")
-        self._update_btn.setObjectName("actionBtn")
+        self._update_btn.setObjectName("settingsActionBtn")
         self._update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._update_btn.setFixedWidth(140)
+        self._update_btn.setFixedWidth(170)
+        self._update_btn.setMinimumHeight(32)
         self._update_btn.clicked.connect(self._on_check_updates)
-        update_row.addWidget(self._update_btn)
-        form.addLayout(update_row)
-        form.addWidget(self._divider())
 
-        # ── MOUNT STATUS ─────────────────────────────────────────────
-        form.addWidget(self._section(tr("settings.section.mount")))
+        self._create_shortcut_btn = QPushButton(tr("settings.create_shortcut"))
+        self._create_shortcut_btn.setObjectName("settingsActionBtn")
+        self._create_shortcut_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._create_shortcut_btn.setFixedWidth(170)
+        self._create_shortcut_btn.setMinimumHeight(32)
+        self._create_shortcut_btn.clicked.connect(self._on_create_shortcut)
 
-        mount_grid = QGridLayout()
-        mount_grid.setHorizontalSpacing(16)
-        
-        interval_wrapper = QWidget()
-        iw_l = QHBoxLayout(interval_wrapper)
-        iw_l.setContentsMargins(0, 0, 0, 0)
-        interval_lbl = QLabel(tr("settings.check_interval"))
-        interval_lbl.setObjectName("fieldLabel")
+        upd_card, upd_vl = self._make_group()
+        upd_vl.addWidget(self._row_action(
+            self._update_btn, "Manuell nach neuen Versionen auf GitHub suchen"
+        ))
+        upd_vl.addWidget(self._inner_sep())
+        upd_vl.addWidget(self._row_action(
+            self._create_shortcut_btn, "Desktop-Verknüpfung direkt auf dem Desktop erstellen"
+        ))
+        root.addWidget(upd_card)
+        root.addSpacing(14)
+
+        # ── MOUNT STATUS ──────────────────────────────────────────────
+        root.addWidget(self._section_header(tr("settings.section.mount")))
+        root.addSpacing(4)
+
         self._interval_spin = NoWheelSpinBox()
         self._interval_spin.setRange(5, 300)
         self._interval_spin.setValue(30)
-        self._interval_spin.setFixedWidth(80)
-        iw_l.addWidget(interval_lbl)
-        iw_l.addWidget(self._interval_spin)
-        iw_l.addStretch()
-        
+        self._interval_spin.setFixedWidth(72)
         self._auto_reconnect = QCheckBox(tr("settings.auto_reconnect"))
         self._auto_remount_on_lost = QCheckBox(tr("settings.auto_remount"))
-        
-        mount_grid.addWidget(interval_wrapper, 0, 0)
-        mount_grid.addWidget(self._auto_reconnect, 0, 1)
-        mount_grid.addWidget(self._auto_remount_on_lost, 1, 0, 1, 2)
-        form.addLayout(mount_grid)
-        form.addWidget(self._divider())
 
-        # ── SSH TERMINAL ─────────────────────────────────────────────
-        form.addWidget(self._section(tr("settings.section.terminal")))
+        mnt_card, mnt_vl = self._make_group()
+        mnt_vl.addWidget(self._row_combo(tr("settings.check_interval"), self._interval_spin))
+        mnt_vl.addWidget(self._inner_sep())
+        mnt_vl.addWidget(self._row_check(self._auto_reconnect))
+        mnt_vl.addWidget(self._inner_sep())
+        mnt_vl.addWidget(self._row_check(self._auto_remount_on_lost))
+        root.addWidget(mnt_card)
+        root.addSpacing(14)
+
+        # ── SSH TERMINAL ──────────────────────────────────────────────
+        root.addWidget(self._section_header(tr("settings.section.terminal")))
+        root.addSpacing(4)
 
         self._use_putty = QCheckBox(tr("settings.use_putty"))
         self._use_putty.toggled.connect(self._on_putty_toggled)
-        form.addWidget(self._use_putty)
 
-        self._putty_path_widget = QWidget()
-        putty_layout = QVBoxLayout(self._putty_path_widget)
-        putty_layout.setContentsMargins(0, 6, 0, 0)
-        putty_layout.setSpacing(4)
-        putty_layout.addWidget(self._field_label(tr("settings.putty_path")))
-
-        putty_row = QHBoxLayout()
-        putty_row.setContentsMargins(0, 0, 0, 0)
-        putty_row.setSpacing(6)
         self._putty_path_edit = QLineEdit()
         self._putty_path_edit.setPlaceholderText(r"C:\Program Files\PuTTY\putty.exe")
-        putty_row.addWidget(self._putty_path_edit, stretch=1)
         browse_btn = QPushButton("…")
         browse_btn.setObjectName("rpHeaderBtn")
         browse_btn.setFixedWidth(36)
         browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         browse_btn.clicked.connect(self._browse_putty)
-        putty_row.addWidget(browse_btn)
-        putty_layout.addLayout(putty_row)
 
-        hint = QLabel(tr("settings.putty_hint"))
-        hint.setObjectName("fieldLabel")
-        hint.setWordWrap(True)
-        putty_layout.addWidget(hint)
-
+        self._putty_path_widget = self._row_path(
+            tr("settings.putty_path"),
+            self._putty_path_edit,
+            browse_btn,
+            tr("settings.putty_hint")
+        )
         self._putty_path_widget.setVisible(False)
-        form.addWidget(self._putty_path_widget)
-        form.addWidget(self._divider())
 
-        # ── DEVELOPER ────────────────────────────────────────────────
-        form.addWidget(self._section(tr("settings.section.developer")))
+        term_card, term_vl = self._make_group()
+        term_vl.addWidget(self._row_check(self._use_putty))
+        term_vl.addWidget(self._putty_path_widget)
+        root.addWidget(term_card)
+        root.addSpacing(14)
+
+        # ── DEVELOPER ─────────────────────────────────────────────────
+        root.addWidget(self._section_header(tr("settings.section.developer")))
+        root.addSpacing(4)
+
         self._debug_mode = QCheckBox(tr("settings.debug_mode"))
         self._debug_mode.toggled.connect(self._on_debug_toggled)
-        form.addWidget(self._debug_mode)
-        form.addSpacing(4)
 
-        # ── TOOLS & RECOVERY ───────────────────────
-        self._tools_widget = QWidget()
-        tools_layout = QVBoxLayout(self._tools_widget)
-        tools_layout.setContentsMargins(0, 0, 0, 0)
-        tools_layout.setSpacing(8)
-        tools_layout.addWidget(self._divider())
-        tools_layout.addWidget(self._section(tr("settings.section.tools")))
+        dev_card, dev_vl = self._make_group()
+        dev_vl.addWidget(self._row_check(self._debug_mode))
 
+        # Tools rows — appended to dev_card when debug mode is toggled on
         self._fix_ghosts_btn = QPushButton(tr("settings.fix_ghosts"))
-        self._fix_ghosts_btn.setObjectName("actionBtn")
-        self._fix_ghosts_btn.setMinimumHeight(36)
-        self._fix_ghosts_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._fix_ghosts_btn.setObjectName("settingsActionBtn")
         self._fix_ghosts_btn.setProperty("btn_type", "primary")
+        self._fix_ghosts_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._fix_ghosts_btn.setFixedWidth(170)
+        self._fix_ghosts_btn.setMinimumHeight(32)
         self._fix_ghosts_btn.clicked.connect(self._on_fix_ghosts)
-        tools_layout.addWidget(self._fix_ghosts_btn)
 
         self._restart_explorer_btn = QPushButton(tr("settings.restart_explorer"))
-        self._restart_explorer_btn.setObjectName("actionBtn")
-        self._restart_explorer_btn.setMinimumHeight(36)
+        self._restart_explorer_btn.setObjectName("settingsActionBtn")
         self._restart_explorer_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._restart_explorer_btn.setFixedWidth(170)
+        self._restart_explorer_btn.setMinimumHeight(32)
         self._restart_explorer_btn.clicked.connect(self._on_restart_explorer)
-        tools_layout.addWidget(self._restart_explorer_btn)
 
+        self._tools_widget = QWidget()
+        tools_vl = QVBoxLayout(self._tools_widget)
+        tools_vl.setContentsMargins(0, 0, 0, 0)
+        tools_vl.setSpacing(0)
+        tools_vl.addWidget(self._inner_sep())
+        tools_vl.addWidget(self._row_action(
+            self._fix_ghosts_btn, tr("settings.section.tools")
+        ))
+        tools_vl.addWidget(self._inner_sep())
+        tools_vl.addWidget(self._row_action(
+            self._restart_explorer_btn, "Windows Explorer neu starten"
+        ))
         self._tools_widget.setVisible(False)
-        form.addWidget(self._tools_widget)
-        form.addStretch()
-        layout.addWidget(form_card)
+        dev_vl.addWidget(self._tools_widget)
 
-        # ── Buttons ──────────
+        root.addWidget(dev_card)
+        root.addStretch()
+
+        # ── Button Bar ────────────────────────────────────────────────
         btn_bar = QWidget()
         btn_bar.setObjectName("dialogBtnBar")
         btn_bar_layout = QVBoxLayout(btn_bar)
         btn_bar_layout.setContentsMargins(20, 8, 20, 16)
-        btn_bar_layout.setSpacing(8)
+        btn_bar_layout.setSpacing(0)
         btn_bar_layout.addWidget(self._divider())
 
         btn_row = QHBoxLayout()
@@ -332,6 +422,69 @@ class SettingsDialog(QDialog):
     def _on_restart_explorer(self):
         SSHFSController.restart_explorer()
         StyledMessageBox.information(self, "Explorer", tr("settings.explorer_restarted"))
+
+    def _on_create_shortcut(self):
+        reply = StyledMessageBox.question(
+            self,
+            tr("settings.create_shortcut"),
+            tr("settings.create_shortcut.confirm"),
+            yes_text=tr("dialog.understood"),
+            no_text=tr("dialog.cancel"),
+        )
+        if not reply:
+            return
+
+        success, msg = self._create_desktop_shortcut()
+        if success:
+            StyledMessageBox.information(self, tr("dialog.success"), tr("settings.create_shortcut.success"))
+        else:
+            from src.app_logger import logger
+            logger.error(f"Shortcut creation failed: {msg}")
+            StyledMessageBox.warning(self, tr("dialog.error"), tr("settings.create_shortcut.failed"))
+
+    @staticmethod
+    def _create_desktop_shortcut() -> tuple[bool, str]:
+        import os
+        import sys
+        import subprocess
+
+        if getattr(sys, "frozen", False):
+            target_path = os.path.abspath(sys.executable)
+            args = ""
+        else:
+            target_path = os.path.abspath(sys.executable)
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            main_script = os.path.join(project_root, "main.py")
+            args = f'"{main_script}"'
+
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        shortcut_path = os.path.join(desktop, "NEO SSH-Win Manager.lnk")
+
+        ps_script = (
+            "$WshShell = New-Object -ComObject WScript.Shell\n"
+            f"$Shortcut = $WshShell.CreateShortcut('{shortcut_path}')\n"
+            f"$Shortcut.TargetPath = '{target_path}'\n"
+            f"$Shortcut.WorkingDirectory = '{os.path.dirname(target_path)}'\n"
+            "$Shortcut.Description = 'NEO SSH-Win Manager'\n"
+            f"$Shortcut.IconLocation = '{target_path},0'\n"
+            + (f"$Shortcut.Arguments = '{args}'\n" if args else "")
+            + "$Shortcut.Save()"
+        )
+
+        try:
+            cp = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            if not os.path.exists(shortcut_path):
+                return False, "Shortcut file was not created"
+            return True, cp.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            return False, (e.stderr or e.stdout or str(e)).strip()
+        except Exception as e:
+            return False, str(e)
 
     def _on_check_updates(self):
         self._update_btn.setText("Prüfe... ⏳")

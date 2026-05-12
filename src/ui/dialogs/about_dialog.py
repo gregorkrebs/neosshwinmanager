@@ -10,7 +10,8 @@ from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QIcon, QPixmap, QDesktopServices
 
 import os
-from src.ui.dialog_utils import match_parent_height, make_maximize_button
+from src.ui.dialog_utils import match_parent_height
+from src.ui.frameless_dialog import FramelessDialog
 from src.ui.widgets.no_wheel import NoWheelScrollArea
 from src.i18n import tr
 
@@ -65,22 +66,27 @@ def _divider() -> QFrame:
     return sep
 
 
-class AboutDialog(QDialog):
+class AboutDialog(FramelessDialog):
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, show_maximize=True)
         self.setObjectName("dialogSurface")
         self.setWindowTitle(tr("about.title"))
         self.setMinimumWidth(440)
         self.setMaximumWidth(540)
         self.setModal(True)
         self._build_ui()
+        # Always start at full available screen height
         screen = QApplication.primaryScreen()
         if screen:
-            self.setMaximumHeight(int(screen.availableGeometry().height() * 0.95))
-        match_parent_height(self, parent)
+            geo = screen.availableGeometry()
+            full_h = int(geo.height() * 0.95)
+            self.setMinimumHeight(0)
+            self.setMaximumHeight(16777215)  # reset QWIDGETSIZE_MAX
+            self.resize(self.width(), full_h)
+            self._fdlg_titlebar.set_maximized(True)
 
     def _build_ui(self):
-        outer = QVBoxLayout(self)
+        outer = QVBoxLayout(self._fdlg_content)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
@@ -245,13 +251,9 @@ class AboutDialog(QDialog):
 
         btn_row = QHBoxLayout()
         btn_row.setContentsMargins(0, 10, 0, 0)
-        btn_row.addWidget(make_maximize_button(self))
         btn_row.addStretch()
         btn_row.addWidget(ok_btn)
         btn_row.addStretch()
-        _sp = QWidget()
-        _sp.setFixedWidth(32)
-        btn_row.addWidget(_sp)
         btn_bar_layout.addLayout(btn_row)
 
         self.layout().addWidget(btn_bar)

@@ -140,6 +140,12 @@
   "settings.putty_not_found": "putty.exe was not found at:\n{path}\n\nSave anyway?",
   "settings.putty_not_found_title": "PuTTY not found",
   "settings.select_putty": "Select putty.exe",
+  "settings.create_shortcut": "Create desktop shortcut",
+  "settings.create_shortcut.hint": "Create a desktop shortcut to the currently running app",
+  "settings.create_shortcut.confirm": "Info: A desktop shortcut to the currently running EXE will be created. If you move the EXE later, the shortcut becomes invalid. Create it anyway?",
+  "settings.create_shortcut.success": "Shortcut has been created on the desktop.",
+  "settings.create_shortcut.failed": "Shortcut could not be created.",
+  "dialog.understood": "Understood",
 
   "about.title": "About NEO SSH-Win Manager",
   "about.desc": "A modern GUI frontend for sshfs-win.\nMount remote SSH filesystems as Windows drive letters.",

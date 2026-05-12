@@ -5,10 +5,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from src.ui.dialog_utils import match_parent_height
+from src.ui.frameless_dialog import FramelessDialog
 from src.ui.widgets.no_wheel import NoWheelScrollArea
 from src.i18n import tr
 
-class UpdateDialog(QDialog):
+class UpdateDialog(FramelessDialog):
     """
     Dialog to show available updates and initiate the installation.
     """
@@ -31,7 +32,7 @@ class UpdateDialog(QDialog):
         match_parent_height(self, parent)
 
     def _build_ui(self):
-        outer = QVBoxLayout(self)
+        outer = QVBoxLayout(self._fdlg_content)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 

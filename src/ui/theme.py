@@ -38,6 +38,29 @@ STYLESHEET = """
    NEO SSH-Win Manager – Modern Cyber Theme (v2.0)
    ============================================================ */
 
+/* ---- Custom Titlebar (dark) ------------------------------- */
+#customTitlebar {
+    background-color: #0d0d12;
+    border-bottom: 1px solid #1a1a2e;
+}
+#customTitlebarTitle {
+    color: #c8d6e5;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    background: transparent;
+}
+#customTitlebarVersion {
+    color: #8fa4b8;
+    font-family: "Consolas";
+    font-size: 10px;
+    background: transparent;
+    padding: 0 4px;
+}
+#fwOuter {
+    background-color: #0d0d12;
+}
+
 /* ---- Global Bases ----------------------------------------- */
 QWidget {
     color: #c8d6e5;
@@ -118,12 +141,78 @@ QCheckBox::indicator:checked:hover {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1.2px;
-    padding-top: 12px;
+    padding-top: 10px;
 }
 
 #fieldLabel {
     color: #8b949e;
+    font-size: 12px;
+}
+
+#hintLabel {
+    color: #5a6d7e;
     font-size: 11px;
+}
+
+#ctrlRowLabel {
+    color: #9ab0c5;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ---- Settings Cards (per-section) ------------------------ */
+#settingsGroupCard {
+    background-color: #0f1720;
+    border: 1px solid #1a2738;
+    border-radius: 14px;
+}
+
+#settingsRow {
+    background: transparent;
+    border-radius: 0px;
+}
+
+#settingsRow:hover {
+    background: rgba(255, 255, 255, 0.025);
+}
+
+#rowSep {
+    background-color: rgba(255, 255, 255, 0.05);
+    max-height: 1px;
+    min-height: 1px;
+    margin: 0 14px;
+}
+
+#rowLabel {
+    color: #c8d6e5;
+    font-size: 13px;
+}
+
+QPushButton#settingsActionBtn {
+    background-color: #141d28;
+    border: 1px solid #243243;
+    border-radius: 10px;
+    color: #9ab0c5;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 14px;
+    text-align: center;
+}
+QPushButton#settingsActionBtn:hover {
+    background-color: #192433;
+    border: 1px solid #36506c;
+    color: #deebf7;
+}
+QPushButton#settingsActionBtn[btn_type="primary"] {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #00b4d8, stop:1 #0077b6);
+    border: none;
+    color: #fff;
+    font-weight: 700;
+}
+QPushButton#settingsActionBtn[btn_type="primary"]:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #22c4e8, stop:1 #0088c8);
 }
 
 #errorLabel {
@@ -1389,6 +1478,29 @@ LIGHT_STYLESHEET = """
    NEO SSH-Win Manager – Light Theme
    ============================================================ */
 
+/* ---- Custom Titlebar (light) ------------------------------ */
+#customTitlebar {
+    background-color: #f0f2f5;
+    border-bottom: 1px solid #d4d8df;
+}
+#customTitlebarTitle {
+    color: #1a2332;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    background: transparent;
+}
+#customTitlebarVersion {
+    color: #5a6a7a;
+    font-family: "Consolas";
+    font-size: 10px;
+    background: transparent;
+    padding: 0 4px;
+}
+#fwOuter {
+    background-color: #f0f2f5;
+}
+
 QWidget {
     color: #1a2332;
     font-family: "Inter", "Segoe UI", sans-serif;
@@ -1455,14 +1567,80 @@ QCheckBox::indicator:checked:hover {
     font-size: 11px;
     font-weight: bold;
     text-transform: uppercase;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
 #fieldLabel {
     color: #4a5a6a;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     margin-bottom: 2px;
+}
+
+#hintLabel {
+    color: #7a8a9a;
+    font-size: 11px;
+}
+
+#ctrlRowLabel {
+    color: #445769;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ---- Settings Cards (per-section) ------------------------ */
+#settingsGroupCard {
+    background-color: #ffffff;
+    border: 1px solid #d5dde7;
+    border-radius: 14px;
+}
+
+#settingsRow {
+    background: transparent;
+    border-radius: 0px;
+}
+
+#settingsRow:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+#rowSep {
+    background-color: rgba(0, 0, 0, 0.07);
+    max-height: 1px;
+    min-height: 1px;
+    margin: 0 14px;
+}
+
+#rowLabel {
+    color: #1a2332;
+    font-size: 13px;
+}
+
+QPushButton#settingsActionBtn {
+    background-color: #f0f4f8;
+    border: 1px solid #c8d3df;
+    border-radius: 10px;
+    color: #3a5067;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 14px;
+    text-align: center;
+}
+QPushButton#settingsActionBtn:hover {
+    background-color: #e4ecf4;
+    border: 1px solid #9ab0c5;
+    color: #182536;
+}
+QPushButton#settingsActionBtn[btn_type="primary"] {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #0088c8, stop:1 #005fa3);
+    border: none;
+    color: #fff;
+    font-weight: 700;
+}
+QPushButton#settingsActionBtn[btn_type="primary"]:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #009add, stop:1 #006fb8);
 }
 
 #errorLabel { color: #dc2626; font-size: 12px; }

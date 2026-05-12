@@ -140,6 +140,12 @@
   "settings.putty_not_found": "putty.exe wurde nicht gefunden unter:\n{path}\n\nTrotzdem speichern?",
   "settings.putty_not_found_title": "PuTTY nicht gefunden",
   "settings.select_putty": "putty.exe auswählen",
+  "settings.create_shortcut": "Desktop-Verknüpfung erstellen",
+  "settings.create_shortcut.hint": "Desktop-Verknüpfung zur aktuell laufenden App erstellen",
+  "settings.create_shortcut.confirm": "Info: Es wird eine Desktop-Verknüpfung zur aktuell laufenden EXE erstellt. Wenn du die EXE später verschiebst, wird die Verknüpfung ungültig. Trotzdem erstellen?",
+  "settings.create_shortcut.success": "Verknüpfung wurde auf dem Desktop erstellt.",
+  "settings.create_shortcut.failed": "Verknüpfung konnte nicht erstellt werden.",
+  "dialog.understood": "Verstanden",
 
   "about.title": "Über NEO SSH-Win Manager",
   "about.desc": "Eine moderne Oberfläche für sshfs-win.\nRemote-SSH-Dateisysteme als Windows-Laufwerke einbinden.",
@@ -282,7 +288,7 @@
   "sysinfo.error": "Fehler:",
   "sysinfo.key_required": "SSH-Schlüssel oder Passwort ist erforderlich, um Systeminformationen anzuzeigen.",
   "sysinfo.key_missing.title": "Authentifizierung erforderlich",
-  "sysinfo.key_missing.desc": "Bitte konfigurieren Sie einen SSH-Schlüssel oder Passwort\nfür diese Verbindung.",
+  "sysinfo.key_missing.desc": "Bitte konfiguriere einen SSH-Schlüssel oder ein Passwort\nfür diese Verbindung.",
   "sysinfo.auth.missing.title": "Authentifizierung erforderlich",
   "sysinfo.auth.missing.desc": "Für diese Verbindung ist kein SSH-Key oder Passwort hinterlegt.\nSSH-Key oder Passwort in den Verbindungseinstellungen eintragen.",
   "ssh.putty.pw_disabled": "Passwort-Login steht für diese Verbindung nicht zur Verfügung.\nAuthentifizierungsmethode auf SSH-Key wechseln oder Sicherheitseinstellungen anpassen.",
@@ -326,7 +332,7 @@
   "status.dismount_all_none": "Keine Verbindungen zum Trennen.",
 
   "dialog.key_fallback.title": "SSH-Key fehlgeschlagen",
-  "dialog.key_fallback.message": "SSH-Key Authentifizierung fuer '{name}' fehlgeschlagen.\n\nFuer diese Verbindung ist ein Passwort hinterlegt.\nMöchten Sie stattdessen mit Passwort verbinden?",
+  "dialog.key_fallback.message": "SSH-Key Authentifizierung fuer '{name}' fehlgeschlagen.\n\nFuer diese Verbindung ist ein Passwort hinterlegt.\nMöchtest du stattdessen mit Passwort verbinden?",
   "dialog.key_fallback.yes": "Mit Passwort versuchen",
   "dialog.key_fallback.no": "Abbrechen",
 
