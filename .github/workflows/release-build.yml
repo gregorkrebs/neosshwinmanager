@@ -1,0 +1,73 @@
+name: Release Build
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to upload assets to, for example v1.5.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-build-${{ github.event.release.tag_name || github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-windows-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Run tests
+        shell: pwsh
+        run: python -m pytest tests -q
+
+      - name: Build release executables
+        shell: pwsh
+        run: .\build_dual.ps1
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-executables
+          path: |
+            dist/NeoSSHWinManager.exe
+            dist/NeoSSHWinManager-cli.exe
+          if-no-files-found: error
+
+      - name: Upload assets to GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+        run: |
+          if (-not $env:RELEASE_TAG) {
+            throw 'No release tag was provided by the event payload.'
+          }
+
+          gh release upload $env:RELEASE_TAG \
+            .\dist\NeoSSHWinManager.exe \
+            .\dist\NeoSSHWinManager-cli.exe \
+            --repo $env:GITHUB_REPOSITORY \
+            --clobber
