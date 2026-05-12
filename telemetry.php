@@ -27,7 +27,13 @@ if (!isset($_SERVER['HTTP_USER_AGENT']) || strpos($_SERVER['HTTP_USER_AGENT'], '
 // --- 1. IP Rate Limiting (Zero-Log mit täglichem Hash) ---
 // Um PII (IP-Adressen) nicht zu speichern, wird ein gehashter Wert generiert.
 // Dieser Hash ist unwiderruflich und wechselt um Mitternacht automatisch.
-define('RATE_LIMIT_SALT', 'NeoSSH_RateLimitSecret_2026'); // Serverseitiges Geheimnis
+// SECURITY: Load salt from environment variable; never hardcode secrets in source.
+$_salt = getenv('NEOSSH_RATE_LIMIT_SALT');
+if (!$_salt) {
+    http_response_code(500);
+    exit(json_encode(["status" => "error", "message" => "Server misconfiguration"]));
+}
+define('RATE_LIMIT_SALT', $_salt);
 $client_ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 $daily_salt = date('Y-m-d'); 
 $anonymous_client_hash = hash('sha256', $client_ip . RATE_LIMIT_SALT . $daily_salt);
