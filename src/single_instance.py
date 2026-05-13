@@ -38,6 +38,7 @@ def _find_and_focus_existing_window() -> bool:
     user32 = ctypes.windll.user32
 
     found_hwnd = ctypes.wintypes.HWND(0)
+    hidden_hwnd = ctypes.wintypes.HWND(0)
 
     # EnumWindows callback signature: BOOL CALLBACK(HWND hwnd, LPARAM lParam)
     WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
@@ -53,17 +54,19 @@ def _find_and_focus_existing_window() -> bool:
         title = buf.value
 
         if APP_WINDOW_TITLE.lower() in title.lower():
-            # Check if window is visible (not a background helper window)
             if user32.IsWindowVisible(hwnd):
                 found_hwnd.value = hwnd
                 return False  # stop enumeration
+            if not hidden_hwnd.value:
+                hidden_hwnd.value = hwnd
         return True  # continue
 
     callback = WNDENUMPROC(_enum_callback)
     user32.EnumWindows(callback, 0)
 
-    if found_hwnd.value:
-        hwnd = found_hwnd.value
+    hwnd = found_hwnd.value or hidden_hwnd.value
+
+    if hwnd:
         SW_RESTORE = 9
         SW_SHOW = 5
         # Restore if minimized
