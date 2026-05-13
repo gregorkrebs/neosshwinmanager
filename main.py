@@ -125,6 +125,7 @@ from src.database import init_db
 from src.ui.dialogs.login_dialog import LoginDialog
 from src.auth_manager import Session
 from src.i18n import tr
+from src.channel import display_name
 
 
 def _install_global_exception_handlers():
@@ -237,8 +238,9 @@ def main():
         pass
 
     app = QApplication(sys.argv)
-    app.setApplicationName("NEO SSH-Win Manager")
-    app.setApplicationDisplayName("NEO SSH-Win Manager")
+    app_name = display_name()
+    app.setApplicationName(app_name)
+    app.setApplicationDisplayName(app_name)
     app.setApplicationVersion(APP_VERSION)
     app.setOrganizationName("NeoSSHWinManager")
 

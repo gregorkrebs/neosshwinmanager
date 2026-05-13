@@ -38,6 +38,7 @@ from src.ui.frameless_window import FramelessMainWindow
 from src.ui.icons import icon as svg_icon, pixmap as svg_pixmap
 from src.ui.widgets.no_wheel import NoWheelComboBox, NoWheelSpinBox
 from src.i18n import tr, current_language, available_languages
+from src.channel import display_name
 from PyQt6.QtCore import QThread
 
 
@@ -100,7 +101,7 @@ class MainWindow(FramelessMainWindow):
         self._debug_mode = False  # Can be toggled via F2
 
         self.setObjectName("MainWindow")
-        self.setWindowTitle("NEO SSH-Win Manager v" + APP_VERSION)
+        self.setWindowTitle(display_name() + " v" + APP_VERSION)
         self.setMinimumSize(820, 520)
         self.resize(1100, 640)
 
@@ -3545,7 +3546,7 @@ class MainWindow(FramelessMainWindow):
             event.ignore()
             self.hide()
             self._tray.showMessage(
-                "NEO SSH-Win Manager", tr("tray.running"),
+                display_name(), tr("tray.running"),
                 self._tray.MessageIcon.Information, 2000,
             )
         else:

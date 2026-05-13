@@ -7,6 +7,7 @@ from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QAction
 from PyQt6.QtCore import Qt, QSize
 import os
 from src.i18n import tr
+from src.channel import display_name
 
 
 def _create_tray_icon() -> QIcon:
@@ -45,7 +46,7 @@ class SystemTray(QSystemTrayIcon):
         else:
             self.setIcon(QIcon(_create_tray_icon()))
             
-        self.setToolTip("NEO SSH-Win Manager")
+        self.setToolTip(display_name())
         self._build_menu()
         self.activated.connect(self._on_activated)
 
