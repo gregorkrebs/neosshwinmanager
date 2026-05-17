@@ -93,8 +93,6 @@ Manage multiple SSH connections, mount them with one click, switch languages per
 </table>
 
 ## Browser Demo
-**The live demo works via GitHub Pages:**
-
 👉 **<https://www.neosshwinmanager.org/app>**
 
 ## Prerequisites
