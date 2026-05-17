@@ -323,97 +323,11 @@ class TerminalBridgeServer:
 
 
 # ---------------------------------------------------------------------------
-# Host-key helpers
+# Host-key helpers (shared with sftp_client via host_key_utils)
 # ---------------------------------------------------------------------------
 
-def _is_host_known(host: str, port: int, known_hosts_path: str) -> bool:
-    if not os.path.exists(known_hosts_path):
-        return False
-
-    ssh_keygen = shutil.which("ssh-keygen") or r"C:\Windows\System32\OpenSSH\ssh-keygen.exe"
-    if shutil.which("ssh-keygen") or os.path.exists(ssh_keygen):
-        try:
-            target = f"[{host}]:{port}" if port != 22 else host
-            result = subprocess.run(
-                [ssh_keygen, "-F", target, "-f", known_hosts_path],
-                capture_output=True, timeout=5,
-                creationflags=0x08000000,
-            )
-            return result.returncode == 0
-        except Exception:
-            pass
-
-    try:
-        target_plain = host
-        target_port = f"[{host}]:{port}" if port != 22 else None
-        with open(known_hosts_path, "r", encoding="utf-8", errors="ignore") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                parts = line.split()
-                if len(parts) < 3:
-                    continue
-                for h in parts[0].split(","):
-                    if h == target_plain or (target_port and h == target_port):
-                        return True
-    except Exception:
-        pass
-
-    return False
-
-
-def _get_server_fingerprint(host: str, port: int) -> str | None:
-    """Returns SHA256 fingerprint string of the server's host key, or None on failure."""
-    ssh_keyscan = shutil.which("ssh-keyscan") or r"C:\Windows\System32\OpenSSH\ssh-keyscan.exe"
-    if not (shutil.which("ssh-keyscan") or os.path.exists(ssh_keyscan)):
-        return None
-    try:
-        result = subprocess.run(
-            [ssh_keyscan, "-p", str(port), "-H", host],
-            capture_output=True, timeout=8,
-            creationflags=0x08000000,
-        )
-        keyscan_output = result.stdout.decode("utf-8", errors="ignore")
-        if not keyscan_output.strip():
-            return None
-        # Hash via ssh-keygen -l
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
-            tmp.write(keyscan_output)
-            tmp_path = tmp.name
-        try:
-            r2 = subprocess.run(
-                [ssh_keyscan.replace("ssh-keyscan", "ssh-keygen").replace("ssh-keyscan.exe", "ssh-keygen.exe"),
-                 "-l", "-f", tmp_path],
-                capture_output=True, timeout=5,
-                creationflags=0x08000000,
-            )
-            lines = r2.stdout.decode("utf-8", errors="ignore").strip().splitlines()
-            if lines:
-                return lines[0]
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return None
-
-
-class _TOFUAcceptPolicy:
-    """Paramiko missing-host-key policy that saves accepted keys to known_hosts."""
-
-    def __init__(self, known_hosts_path: str):
-        self._path = known_hosts_path
-
-    def missing_host_key(self, client, hostname, key):
-        import base64
-        key_type = key.get_name()
-        key_b64 = base64.b64encode(key.asbytes()).decode()
-        entry = f"{hostname} {key_type} {key_b64}\n"
-        os.makedirs(os.path.dirname(self._path), exist_ok=True)
-        with open(self._path, "a", encoding="utf-8") as f:
-            f.write(entry)
-        logger.info("Terminal: host key for %s saved to known_hosts", hostname)
+from src.ui.host_key_utils import (
+    is_host_known as _is_host_known,
+    get_server_fingerprint as _get_server_fingerprint,
+    TOFUAcceptPolicy as _TOFUAcceptPolicy,
+)

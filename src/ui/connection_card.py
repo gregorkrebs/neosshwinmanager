@@ -129,7 +129,7 @@ class ConnectionCard(QFrame):
 
         if mounted:
             self._cloud_lbl.setToolTip(tr("card.tooltip.mount_on"))
-            self._drive_badge.setToolTip(tr("card.tooltip.open_path"))
+            self._drive_badge.setToolTip(tr("card.tooltip.sftp_browser"))
             self._drive_badge.setCursor(Qt.CursorShape.PointingHandCursor)
         else:
             self._cloud_lbl.setToolTip(tr("card.tooltip.mount_off"))

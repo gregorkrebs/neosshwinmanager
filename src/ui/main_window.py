@@ -92,6 +92,7 @@ class MainWindow(FramelessMainWindow):
         self._cards: dict[str, ConnectionCard] = {}
         self._selected_id: str | None = None
         self._workers: dict[str, QThread] = {}
+        self._sftp_browsers: dict[str, object] = {}
         self._panel_mode: str = _PANEL_NONE
         self._panel_conn_id: str | None = None   # which connection the panel belongs to
         self._ef_initial_snapshot: dict | None = None
@@ -1273,7 +1274,7 @@ class MainWindow(FramelessMainWindow):
         status_layout.addWidget(status_text)
         if is_mounted:
             status_container.setCursor(Qt.CursorShape.PointingHandCursor)
-            status_container.setToolTip(tr("card.tooltip.open_path"))
+            status_container.setToolTip(tr("card.tooltip.sftp_browser"))
             status_container.mousePressEvent = lambda ev, cid=conn.id: self._on_open_mounted_path(cid)
         status_row.addWidget(status_container)
         status_row.addStretch()
@@ -1284,7 +1285,7 @@ class MainWindow(FramelessMainWindow):
             folder_lbl.setFixedSize(QSize(42, 30))
             folder_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             folder_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
-            folder_lbl.setToolTip(tr("card.tooltip.open_path"))
+            folder_lbl.setToolTip(tr("card.tooltip.sftp_browser"))
             folder_lbl.mousePressEvent = lambda ev, cid=conn.id: self._on_open_mounted_path(cid)
             status_row.addWidget(folder_lbl)
         v.addLayout(status_row)
@@ -2005,7 +2006,7 @@ class MainWindow(FramelessMainWindow):
                 folder_lbl.setFixedSize(QSize(42, 30))
                 folder_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 folder_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
-                folder_lbl.setToolTip(tr("card.tooltip.open_path"))
+                folder_lbl.setToolTip(tr("card.tooltip.sftp_browser"))
                 folder_lbl.mousePressEvent = lambda ev, cid=conn.id: self._on_open_mounted_path(cid)
                 status_row.addWidget(folder_lbl)
             v.addLayout(status_row)
@@ -3535,37 +3536,37 @@ class MainWindow(FramelessMainWindow):
             self._err_popup("SSH-Terminal", error)
 
     def _on_open_mounted_path(self, conn_id: str):
-        import subprocess
+        """Open the SFTP file browser for the mounted connection."""
         conn = self._mgr.get_by_id(conn_id)
         if not conn:
             return
         card = self._cards.get(conn_id)
         if not card or not card.is_mounted:
             return
-        path = conn.drive_letter
-        if not path.endswith("\\"):
-            path += "\\"
-        try:
-            is_admin = bool(ctypes.windll.shell32.IsUserAnAdmin())
-        except Exception:
-            is_admin = False
-        # SECURITY FIX: Validate path to prevent command injection
-        if not path or not isinstance(path, str):
+
+        # Raise existing browser window if already open for this connection
+        existing = self._sftp_browsers.get(conn_id)
+        if existing is not None:
+            try:
+                existing.raise_()
+                existing.activateWindow()
+                return
+            except RuntimeError:
+                # C++ object was deleted; fall through and open a new one
+                pass
+
+        conn = self._prepare_auth(conn)
+        if conn is None:
             return
-        # Reject dangerous characters but allow backslash for Windows paths
-        dangerous = set(';|&`$(){}[]<>!"\'\n\r\t')
-        if any(c in dangerous for c in path):
-            logger.warning(f"Rejected potentially dangerous path: {path}")
-            return
-        
-        try:
-            if is_admin:
-                subprocess.Popen(["explorer.exe", path], creationflags=0x00000010)
-            else:
-                os.startfile(path)
-            self._set_status(tr("status.opening_explorer", path=path))
-        except Exception as e:
-            self._err_popup(tr("dialog.error"), str(e))
+
+        from src.ui.sftp_browser import SftpBrowserWindow
+        theme = self._mgr.get_settings().theme or "dark"
+        browser = SftpBrowserWindow(conn, theme=theme, parent=self)
+        browser.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        browser.destroyed.connect(lambda: self._sftp_browsers.pop(conn_id, None))
+        self._sftp_browsers[conn_id] = browser
+        browser.show()
+        self._set_status(tr("status.sftp_browser_opened", name=conn.name))
 
     def _on_settings(self):
         self._open_settings_panel()
