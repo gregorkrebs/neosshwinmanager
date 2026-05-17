@@ -236,6 +236,14 @@ def main():
     except Exception:
         pass
 
+    # QtWebEngineWidgets MUST be imported before QApplication is created.
+    try:
+        from PyQt6.QtWebEngineWidgets import QWebEngineView as _QWebEngineView  # noqa: F401
+        from PyQt6.QtWebEngineCore import QWebEnginePage as _QWebEnginePage    # noqa: F401
+        from PyQt6.QtWebChannel import QWebChannel as _QWebChannel              # noqa: F401
+    except ImportError:
+        pass  # xterm terminal feature unavailable; app still runs without it
+
     app = QApplication(sys.argv)
     app_name = display_name()
     app.setApplicationName(app_name)

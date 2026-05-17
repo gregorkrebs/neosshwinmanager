@@ -65,6 +65,7 @@ class AppSettings:
     require_admin: bool = False
     use_putty: bool = False
     putty_path: str = r"C:\Program Files\PuTTY\putty.exe"
+    terminal_client: str = "ssh"  # "ssh" | "putty" | "xterm"
     auto_login: bool = False
     auto_reconnect_mounts: bool = True
     language: str = "en"

@@ -282,6 +282,17 @@ class ConnectionCard(QFrame):
         self.style().unpolish(self)
         self.style().polish(self)
 
+    def set_terminal_active(self, active: bool):
+        """Highlight the SSH button when an integrated terminal session is alive."""
+        if active:
+            color = "#00b4d8" if self._theme == "dark" else "#0077b6"
+        else:
+            color = "#aab4c4"
+        self._ssh_btn.setIcon(svg_icon("terminal", color, 16))
+        self._ssh_btn.setProperty("terminal_active", "true" if active else "false")
+        self._ssh_btn.style().unpolish(self._ssh_btn)
+        self._ssh_btn.style().polish(self._ssh_btn)
+
     def _on_cloud_clicked(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
             return

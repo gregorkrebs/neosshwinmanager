@@ -53,6 +53,7 @@ _PANEL_SETTINGS = "settings"
 _PANEL_ADD      = "add"
 _PANEL_USERS    = "users"
 _PANEL_PROFILE  = "profile"
+_PANEL_TERMINAL = "terminal"
 
 try:
     with open(os.path.join(os.path.dirname(__file__), "..", "version.txt"), "r", encoding="utf-8") as f:
@@ -100,6 +101,13 @@ class MainWindow(FramelessMainWindow):
         # Debug mode settings
         self._debug_mode = False  # Can be toggled via F2
 
+        # Integrated terminal (xterm.js)
+        self._bridge_server = None
+        self._terminal_panels: dict[str, object] = {}       # session_key → TerminalPanel
+        self._terminal_conn_tabs: dict[str, list] = {}       # conn_id → [session_key, ...]
+        self._terminal_active_tab: dict[str, str] = {}       # conn_id → active session_key
+        self._terminal_session_counter: dict[str, int] = {}  # conn_id → next session index
+
         self.setObjectName("MainWindow")
         self.setWindowTitle(display_name() + " v" + APP_VERSION)
         self.setMinimumSize(820, 520)
@@ -125,6 +133,7 @@ class MainWindow(FramelessMainWindow):
         self._refresh_list()
         self._apply_debug_mode()
         self._setup_ipc()
+        QTimer.singleShot(0, self._start_terminal_bridge)
 
         # Setup keyboard shortcut for debug mode toggle (F2)
         debug_shortcut = QShortcut(QKeySequence("F2"), self)
@@ -355,6 +364,7 @@ class MainWindow(FramelessMainWindow):
         self._body_splitter = _PillSplitter(Qt.Orientation.Horizontal)
         self._body_splitter.setObjectName("bodySplitter")
         self._body_splitter.setHandleWidth(14)
+        self._body_splitter.setOpaqueResize(False)
         self._body_splitter.addWidget(self._build_connections_panel())
         self._body_splitter.addWidget(self._right_panel_widget)
         self._body_splitter.setCollapsible(0, False)
@@ -660,6 +670,18 @@ class MainWindow(FramelessMainWindow):
         self._rp_cancel_top_btn.setAccessibleName(tr("card.tooltip.cancel_top"))
         hh.addWidget(self._rp_cancel_top_btn)
 
+        # "Open another session" button (only visible in xterm terminal mode)
+        self._rp_new_session_btn = QPushButton()
+        self._rp_new_session_btn.setObjectName("rpHeaderBtn")
+        self._rp_new_session_btn.setFixedSize(QSize(32, 32))
+        self._rp_new_session_btn.setIcon(svg_icon("plus", "#aab4c4", 15))
+        self._rp_new_session_btn.setIconSize(QSize(15, 15))
+        self._rp_new_session_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rp_new_session_btn.setToolTip(tr("terminal.new_session"))
+        self._rp_new_session_btn.clicked.connect(self._on_new_terminal_session)
+        self._rp_new_session_btn.setVisible(False)
+        hh.addWidget(self._rp_new_session_btn)
+
         # Close button
         self._rp_close_btn = QPushButton()
         self._rp_close_btn.setObjectName("rpHeaderBtn")
@@ -688,6 +710,45 @@ class MainWindow(FramelessMainWindow):
         self._rp_layout.setSpacing(0)
         self._rp_scroll.setWidget(self._rp_content)
         v.addWidget(self._rp_scroll, stretch=1)
+
+        # Terminal area (tab bar + stacked panels + end-session bar)
+        # Hidden by default; shown only in _PANEL_TERMINAL mode.
+        self._terminal_area = QWidget()
+        self._terminal_area.setObjectName("terminalArea")
+        ta_layout = QVBoxLayout(self._terminal_area)
+        ta_layout.setContentsMargins(0, 0, 0, 0)
+        ta_layout.setSpacing(0)
+
+        # Tab bar
+        self._terminal_tab_bar = QWidget()
+        self._terminal_tab_bar.setObjectName("terminalTabBar")
+        self._terminal_tab_bar_layout = QHBoxLayout(self._terminal_tab_bar)
+        self._terminal_tab_bar_layout.setContentsMargins(4, 4, 4, 0)
+        self._terminal_tab_bar_layout.setSpacing(2)
+        self._terminal_tab_bar_layout.addStretch()
+        ta_layout.addWidget(self._terminal_tab_bar)
+
+        # Stacked widget for terminal panels
+        self._terminal_stack = QStackedWidget()
+        self._terminal_stack.setObjectName("terminalStack")
+        ta_layout.addWidget(self._terminal_stack, stretch=1)
+
+        # "End session" bottom bar
+        self._terminal_end_bar = QWidget()
+        self._terminal_end_bar.setObjectName("terminalEndBar")
+        eb = QHBoxLayout(self._terminal_end_bar)
+        eb.setContentsMargins(12, 6, 12, 6)
+        eb.setSpacing(8)
+        eb.addStretch()
+        self._terminal_end_btn = QPushButton(tr("terminal.end_session"))
+        self._terminal_end_btn.setObjectName("dangerBtn")
+        self._terminal_end_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._terminal_end_btn.clicked.connect(self._on_end_terminal_session)
+        eb.addWidget(self._terminal_end_btn)
+        ta_layout.addWidget(self._terminal_end_bar)
+
+        self._terminal_area.setVisible(False)
+        v.addWidget(self._terminal_area, stretch=1)
 
         # Save/Cancel button bar (only visible in edit/add mode)
         self._rp_btn_bar = QWidget()
@@ -881,6 +942,9 @@ class MainWindow(FramelessMainWindow):
         self._tray.update_connections_menu(connections, set(mounted_map.keys()))
         self._refresh_groups_combo()  # Gruppen-Filter aktualisieren
         self._apply_group_filter()
+        # Restore terminal-active indicators on rebuilt cards
+        for conn_id in list(self._terminal_conn_tabs.keys()):
+            self._update_card_terminal_indicator(conn_id)
 
     def _create_connection_container(self, conn, mounted):
         container = QWidget()
@@ -892,7 +956,7 @@ class MainWindow(FramelessMainWindow):
         card = ConnectionCard(conn, mounted=mounted, theme=(self._mgr.get_settings().theme or "dark"))
         card.mount_requested.connect(self._on_mount)
         card.unmount_requested.connect(self._on_unmount)
-        card.ssh_requested.connect(self._on_ssh_terminal)
+        card.ssh_requested.connect(self._on_ssh_requested)
         card.open_path_requested.connect(self._on_open_mounted_path)
         card.info_requested.connect(self._on_info_requested)
         card.edit_requested.connect(self._open_edit_panel)
@@ -969,7 +1033,10 @@ class MainWindow(FramelessMainWindow):
         self._rp_save_top_btn.setVisible(False)
         self._rp_cancel_top_btn.setVisible(False)
         self._rp_close_btn.setVisible(False)
+        self._rp_new_session_btn.setVisible(False)
         self._rp_btn_bar.setVisible(False)
+        self._rp_scroll.setVisible(True)
+        self._terminal_area.setVisible(False)
 
         body = QWidget()
         body.setObjectName("rightPanelPlaceholder")
@@ -1018,6 +1085,11 @@ class MainWindow(FramelessMainWindow):
         # Deactivate info btn on previously active card
         if self._panel_conn_id and self._panel_conn_id in self._cards:
             self._cards[self._panel_conn_id].set_info_active(False)
+
+        # If leaving terminal mode: hide terminal area but keep sessions alive
+        if self._panel_mode == _PANEL_TERMINAL:
+            self._detach_terminal_area()
+
         self._panel_mode = _PANEL_NONE
         self._panel_conn_id = None
         # Also deselect card highlight
@@ -1071,9 +1143,12 @@ class MainWindow(FramelessMainWindow):
         self._rp_save_top_btn.setVisible(False)
         self._rp_cancel_top_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
+        self._rp_new_session_btn.setVisible(False)
         self._rp_btn_bar.setVisible(False)
 
         self._clear_right_panel_content()
+        self._rp_scroll.setVisible(True)
+        self._terminal_area.setVisible(False)
         self._build_info_content(conn)
         self._right_panel_widget.setVisible(True)
         self._ensure_panel_sized()
@@ -1107,9 +1182,12 @@ class MainWindow(FramelessMainWindow):
         self._rp_save_top_btn.setVisible(False)
         self._rp_cancel_top_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
+        self._rp_new_session_btn.setVisible(False)
         self._rp_btn_bar.setVisible(False)
 
         self._clear_right_panel_content()
+        self._rp_scroll.setVisible(True)
+        self._terminal_area.setVisible(False)
         self._build_sysinfo_fullpanel(conn)
         self._right_panel_widget.setVisible(True)
         self._ensure_panel_sized()
@@ -1293,9 +1371,12 @@ class MainWindow(FramelessMainWindow):
         self._rp_cancel_top_btn.setVisible(True)
         # Avoid duplicate close/discard UX (and double dirty-prompts)
         self._rp_close_btn.setVisible(False)
+        self._rp_new_session_btn.setVisible(False)
         self._rp_btn_bar.setVisible(False)
 
         self._clear_right_panel_content()
+        self._rp_scroll.setVisible(True)
+        self._terminal_area.setVisible(False)
         self._build_edit_form(conn)
         self._right_panel_widget.setVisible(True)
         self._ensure_panel_sized()
@@ -1324,9 +1405,12 @@ class MainWindow(FramelessMainWindow):
         self._rp_save_top_btn.setVisible(False)
         self._rp_cancel_top_btn.setVisible(False)
         self._rp_close_btn.setVisible(True)
+        self._rp_new_session_btn.setVisible(False)
         self._rp_btn_bar.setVisible(True)
 
         self._clear_right_panel_content()
+        self._rp_scroll.setVisible(True)
+        self._terminal_area.setVisible(False)
         self._build_edit_form(None)
         self._right_panel_widget.setVisible(True)
         self._ensure_panel_sized()
@@ -2423,9 +2507,20 @@ class MainWindow(FramelessMainWindow):
         v.addWidget(_section_hdr(tr("settings.section.terminal")))
         v.addSpacing(4)
 
-        self._sf_putty = QCheckBox(tr("settings.use_putty"))
-        self._sf_putty.setChecked(getattr(s, 'use_putty', False))
-        self._sf_putty.toggled.connect(self._sf_putty_toggled)
+        _tc = getattr(s, 'terminal_client', 'ssh') or 'ssh'
+
+        self._sf_term_ssh   = QRadioButton(tr("settings.terminal_client.ssh"))
+        self._sf_term_putty = QRadioButton(tr("settings.terminal_client.putty"))
+        self._sf_term_xterm = QRadioButton(tr("settings.terminal_client.xterm"))
+        self._sf_term_ssh.setChecked(_tc == 'ssh')
+        self._sf_term_putty.setChecked(_tc == 'putty')
+        self._sf_term_xterm.setChecked(_tc == 'xterm')
+        self._sf_term_ssh.toggled.connect(self._sf_terminal_client_toggled)
+        self._sf_term_putty.toggled.connect(self._sf_terminal_client_toggled)
+        self._sf_term_xterm.toggled.connect(self._sf_terminal_client_toggled)
+
+        # Legacy alias so existing code that references _sf_putty still works
+        self._sf_putty = self._sf_term_putty
 
         self._sf_putty_path = QLineEdit(getattr(s, 'putty_path', r"C:\Program Files\PuTTY\putty.exe"))
         self._sf_putty_path.setPlaceholderText(r"C:\Program Files\PuTTY\putty.exe")
@@ -2455,10 +2550,14 @@ class MainWindow(FramelessMainWindow):
         pp_vl.addWidget(hint2)
 
         term_card, term_vl = _group_card()
-        term_vl.addWidget(_row_check(self._sf_putty))
+        term_vl.addWidget(_row_check(self._sf_term_ssh))
+        term_vl.addWidget(_inner_sep())
+        term_vl.addWidget(_row_check(self._sf_term_putty))
         self._sf_putty_widget = putty_path_row
-        self._sf_putty_widget.setVisible(getattr(s, 'use_putty', False))
+        self._sf_putty_widget.setVisible(_tc == 'putty')
         term_vl.addWidget(self._sf_putty_widget)
+        term_vl.addWidget(_inner_sep())
+        term_vl.addWidget(_row_check(self._sf_term_xterm))
         v.addWidget(term_card)
         v.addSpacing(14)
 
@@ -2567,6 +2666,9 @@ class MainWindow(FramelessMainWindow):
         txt = _WARNINGS[index] if index < len(_WARNINGS) else ""
         self._sf_sec_warning.setText(txt)
         self._sf_sec_warning.setVisible(bool(txt))
+
+    def _sf_terminal_client_toggled(self, _checked: bool):
+        self._sf_putty_widget.setVisible(self._sf_term_putty.isChecked())
 
     def _sf_putty_toggled(self, checked: bool):
         self._sf_putty_widget.setVisible(checked)
@@ -2697,7 +2799,11 @@ class MainWindow(FramelessMainWindow):
         conn_id = self._panel_conn_id
         if not conn_id:
             return
-        self._on_ssh_terminal(conn_id)
+        settings = self._mgr.get_settings()
+        if getattr(settings, "terminal_client", "ssh") == "xterm":
+            self._open_terminal_panel(conn_id)
+        else:
+            self._on_ssh_terminal(conn_id)
 
     def _sync_rp_mount_button(self, conn_id: str):
         """Update mount/unmount header button state based on card mount state."""
@@ -2924,20 +3030,26 @@ class MainWindow(FramelessMainWindow):
         self._open_info_panel(new_conn.id)
 
     def _save_settings_form(self):
-        if self._sf_putty.isChecked():
+        if self._sf_term_putty.isChecked():
             import os as _os
             path = self._sf_putty_path.text().strip()
             if not path:
                 self._show_inline_message("PuTTY", tr("settings.putty_missing"), is_error=True)
                 return
             if not _os.path.exists(path):
-                # Ask inline
                 self._show_inline_message(
                     tr("settings.putty_not_found_title"),
                     tr("settings.putty_not_found", path=path),
                     is_error=True
                 )
                 return
+
+        if self._sf_term_putty.isChecked():
+            _tc = "putty"
+        elif self._sf_term_xterm.isChecked():
+            _tc = "xterm"
+        else:
+            _tc = "ssh"
 
         old_lang = current_language()
         _sec = self._sf_security_level.currentIndex()
@@ -2950,7 +3062,8 @@ class MainWindow(FramelessMainWindow):
             auto_remount_on_lost=self._sf_auto_remount.isChecked(),
             auto_reconnect_mounts=self._sf_auto_reconnect.isChecked(),
             debug_mode=self._sf_debug.isChecked(),
-            use_putty=self._sf_putty.isChecked(),
+            terminal_client=_tc,
+            use_putty=(_tc == "putty"),
             putty_path=self._sf_putty_path.text().strip(),
             language=self._sf_lang.currentData() or "en",
             theme=self._sf_theme.currentData() or "dark",
@@ -3397,6 +3510,15 @@ class MainWindow(FramelessMainWindow):
                 pass
 
     @pyqtSlot(str)
+    def _on_ssh_requested(self, conn_id: str):
+        """Dispatcher: routes to integrated xterm panel or external SSH client."""
+        settings = self._mgr.get_settings()
+        if getattr(settings, "terminal_client", "ssh") == "xterm":
+            self._open_terminal_panel(conn_id)
+        else:
+            self._on_ssh_terminal(conn_id)
+
+    @pyqtSlot(str)
     def _on_ssh_terminal(self, conn_id: str):
         conn = self._mgr.get_by_id(conn_id)
         if not conn:
@@ -3511,7 +3633,7 @@ class MainWindow(FramelessMainWindow):
             return
         self._unmount_all()
         Session.logout()
-        QApplication.quit()
+        self.quit_app()
 
     def _on_profile(self):
         """Show user profile panel for password change."""
@@ -3540,6 +3662,17 @@ class MainWindow(FramelessMainWindow):
     # Window close
     # ------------------------------------------------------------------
 
+    def quit_app(self):
+        """Proper shutdown: unmount drives, stop bridge, then quit."""
+        self._unmount_all()
+        self._kill_sshfs_processes()
+        if self._bridge_server:
+            try:
+                self._bridge_server.stop()
+            except Exception:
+                pass
+        QApplication.quit()
+
     def closeEvent(self, event):
         settings = self._mgr.get_settings()
         if settings.minimize_to_tray:
@@ -3550,10 +3683,8 @@ class MainWindow(FramelessMainWindow):
                 self._tray.MessageIcon.Information, 2000,
             )
         else:
-            self._unmount_all()
-            self._kill_sshfs_processes()
             event.accept()
-            QApplication.quit()
+            self.quit_app()
 
     # ------------------------------------------------------------------
     # Helpers
@@ -3775,3 +3906,288 @@ class MainWindow(FramelessMainWindow):
         status_msg = f"DEBUG: {widget_info['widget_type']} | {widget_info['object_name'] or 'No Name'} | {widget_info['text'][:30] if widget_info['text'] != 'N/A' else 'N/A'}"
         if hasattr(self, 'statusBar') and self.statusBar():
             self.statusBar().showMessage(status_msg, 5000)
+
+    # ------------------------------------------------------------------
+    # Integrated Terminal (xterm.js)
+    # ------------------------------------------------------------------
+
+    def _start_terminal_bridge(self):
+        try:
+            from src.terminal.bridge_server import TerminalBridgeServer
+            self._bridge_server = TerminalBridgeServer()
+            self._bridge_server.host_key_verify_callback = self._terminal_tofu_callback
+            self._bridge_server.start()
+
+            self._terminal_cleanup_timer = QTimer(self)
+            self._terminal_cleanup_timer.timeout.connect(self._cleanup_idle_terminal_sessions)
+            self._terminal_cleanup_timer.start(60_000)
+
+            logger.debug("Terminal bridge server started on port %d", self._bridge_server.port)
+        except Exception as e:
+            logger.warning("Terminal bridge server could not start: %s", e)
+
+    def _terminal_tofu_callback(self, host: str, port: int, fingerprint: str) -> bool:
+        """Called from bridge_server thread when an unknown host key is encountered."""
+        import threading
+        result = threading.Event()
+        accepted = [False]
+
+        def _ask():
+            from PyQt6.QtWidgets import QMessageBox
+            body = tr("terminal.host_key_dialog.body").format(host=host, fingerprint=fingerprint)
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle(tr("terminal.host_key_dialog.title"))
+            dlg.setText(body)
+            dlg.setStandardButtons(
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            dlg.setDefaultButton(QMessageBox.StandardButton.No)
+            accepted[0] = dlg.exec() == QMessageBox.StandardButton.Yes
+            result.set()
+
+        QTimer.singleShot(0, _ask)
+        result.wait(timeout=30)
+        return accepted[0]
+
+    def _open_terminal_panel(self, conn_id: str):
+        """Switch the right panel to _PANEL_TERMINAL for conn_id, opening the first session."""
+        if self._panel_mode in (_PANEL_EDIT, _PANEL_ADD):
+            if not self._guard_leave_form():
+                return
+
+        conn = self._mgr.get_by_id(conn_id)
+        if not conn:
+            return
+
+        # If already showing terminal for same conn → just bring to front
+        if self._panel_mode == _PANEL_TERMINAL and self._panel_conn_id == conn_id:
+            return
+
+        # Deactivate previous card highlight
+        if self._panel_conn_id and self._panel_conn_id in self._cards:
+            self._cards[self._panel_conn_id].set_info_active(False)
+
+        self._panel_mode = _PANEL_TERMINAL
+        self._panel_conn_id = conn_id
+
+        self._set_right_panel_header("", conn.name.upper())
+        self._rp_info_btn.setVisible(False)
+        self._rp_edit_btn.setVisible(False)
+        self._rp_terminal_btn.setVisible(False)
+        self._rp_mount_btn.setVisible(False)
+        self._rp_del_btn.setVisible(False)
+        self._rp_save_top_btn.setVisible(False)
+        self._rp_cancel_top_btn.setVisible(False)
+        self._rp_close_btn.setVisible(True)
+        self._rp_new_session_btn.setVisible(True)
+        self._rp_btn_bar.setVisible(False)
+
+        self._clear_right_panel_content()
+        self._rp_scroll.setVisible(False)
+        self._terminal_area.setVisible(True)
+
+        # If this conn already has sessions, just restore the active tab
+        if conn_id in self._terminal_conn_tabs and self._terminal_conn_tabs[conn_id]:
+            self._rebuild_tab_bar(conn_id)
+            active_key = self._terminal_active_tab.get(conn_id)
+            if active_key:
+                self._switch_terminal_tab(conn_id, active_key)
+        else:
+            # First session for this conn
+            self._create_terminal_session(conn_id)
+
+        self._right_panel_widget.setVisible(True)
+        self._ensure_panel_sized()
+
+    def _create_terminal_session(self, conn_id: str) -> bool:
+        """Create a new SSH session for conn_id and add a tab. Returns True on success."""
+        conn = self._mgr.get_by_id(conn_id)
+        if not conn:
+            return False
+
+        if self._bridge_server is None:
+            logger.error("Terminal bridge server not running")
+            return False
+
+        conn_auth = self._prepare_auth(conn)
+        if conn_auth is None:
+            return False
+
+        idx = self._terminal_session_counter.get(conn_id, 0) + 1
+        self._terminal_session_counter[conn_id] = idx
+        session_key = f"{conn_id}#{idx}"
+
+        token = self._bridge_server.create_session_token(session_key, conn_auth)
+        if token is None:
+            self._err_popup(tr("terminal.connecting"), tr("terminal.error_connect"))
+            return False
+
+        theme = self._mgr.get_settings().theme or "dark"
+        from src.terminal.terminal_panel import TerminalPanel
+        panel = TerminalPanel(self._bridge_server, session_key, conn_auth, theme, self)
+        panel.reconnect_requested.connect(lambda sk: self._on_terminal_reconnect(sk))
+        self._terminal_panels[session_key] = panel
+        self._terminal_stack.addWidget(panel)
+        panel.load_session(token)
+
+        tabs = self._terminal_conn_tabs.setdefault(conn_id, [])
+        tabs.append(session_key)
+        self._terminal_active_tab[conn_id] = session_key
+
+        self._rebuild_tab_bar(conn_id)
+        self._switch_terminal_tab(conn_id, session_key)
+        self._update_card_terminal_indicator(conn_id)
+        return True
+
+    def _rebuild_tab_bar(self, conn_id: str):
+        """Rebuild the tab bar for the given conn_id."""
+        layout = self._terminal_tab_bar_layout
+        # Remove all tab buttons (keep the trailing stretch)
+        while layout.count() > 1:
+            item = layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
+        tabs = self._terminal_conn_tabs.get(conn_id, [])
+        active_key = self._terminal_active_tab.get(conn_id)
+        for n, sk in enumerate(tabs, start=1):
+            label = tr("terminal.session_tab").format(n=n)
+            btn = QPushButton(label)
+            btn.setObjectName("terminalTabBtn")
+            btn.setCheckable(True)
+            btn.setChecked(sk == active_key)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setProperty("session_key", sk)
+            btn.clicked.connect(lambda checked, _sk=sk: self._switch_terminal_tab(conn_id, _sk))
+            layout.insertWidget(n - 1, btn)
+
+        # Show tab bar only when there are multiple sessions
+        self._terminal_tab_bar.setVisible(len(tabs) > 1)
+
+    def _switch_terminal_tab(self, conn_id: str, session_key: str):
+        """Activate the tab for session_key."""
+        self._terminal_active_tab[conn_id] = session_key
+        panel = self._terminal_panels.get(session_key)
+        if panel:
+            self._terminal_stack.setCurrentWidget(panel)
+
+        # Update checked state on all tab buttons
+        layout = self._terminal_tab_bar_layout
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item:
+                w = item.widget()
+                if w and w.objectName() == "terminalTabBtn":
+                    w.setChecked(w.property("session_key") == session_key)
+
+    def _detach_terminal_area(self):
+        """Hide the terminal area and restore the scroll area (session stays alive)."""
+        self._terminal_area.setVisible(False)
+        self._rp_scroll.setVisible(True)
+        self._rp_new_session_btn.setVisible(False)
+
+    def _teardown_session_key(self, session_key: str):
+        """Destroy one terminal panel + SSH session."""
+        panel = self._terminal_panels.pop(session_key, None)
+        if panel is not None:
+            self._terminal_stack.removeWidget(panel)
+            panel.setParent(None)
+            panel.deleteLater()
+        if self._bridge_server:
+            self._bridge_server.close_session(session_key)
+
+    def _teardown_all_terminal_sessions(self, conn_id: str):
+        """Destroy all sessions for conn_id."""
+        for sk in list(self._terminal_conn_tabs.get(conn_id, [])):
+            self._teardown_session_key(sk)
+        self._terminal_conn_tabs.pop(conn_id, None)
+        self._terminal_active_tab.pop(conn_id, None)
+        self._terminal_session_counter.pop(conn_id, None)
+        self._update_card_terminal_indicator(conn_id)
+
+    def _on_new_terminal_session(self):
+        """Header button: open an additional SSH session for the current conn."""
+        if self._panel_mode != _PANEL_TERMINAL or not self._panel_conn_id:
+            return
+        self._create_terminal_session(self._panel_conn_id)
+
+    def _on_end_terminal_session(self):
+        """'Session beenden' button: terminate active tab; if last → close terminal panel."""
+        if self._panel_mode != _PANEL_TERMINAL or not self._panel_conn_id:
+            return
+        conn_id = self._panel_conn_id
+        active_key = self._terminal_active_tab.get(conn_id)
+        if not active_key:
+            return
+
+        tabs = self._terminal_conn_tabs.get(conn_id, [])
+        self._teardown_session_key(active_key)
+        tabs = [sk for sk in tabs if sk != active_key]
+        self._terminal_conn_tabs[conn_id] = tabs
+
+        if not tabs:
+            # No more sessions → close terminal panel
+            self._teardown_all_terminal_sessions(conn_id)
+            self._close_right_panel_force()
+        else:
+            # Switch to last remaining tab
+            self._terminal_active_tab[conn_id] = tabs[-1]
+            self._rebuild_tab_bar(conn_id)
+            self._switch_terminal_tab(conn_id, tabs[-1])
+            self._update_card_terminal_indicator(conn_id)
+
+    def _on_terminal_reconnect(self, session_key: str):
+        """User pressed 'Reconnect' in the xterm.js overlay for session_key."""
+        conn_id = session_key.rsplit("#", 1)[0]
+        tabs = self._terminal_conn_tabs.get(conn_id, [])
+        if session_key not in tabs:
+            return
+
+        # Destroy old session
+        self._teardown_session_key(session_key)
+        tabs.remove(session_key)
+        self._terminal_conn_tabs[conn_id] = tabs
+
+        # Create fresh session in its place
+        conn = self._mgr.get_by_id(conn_id)
+        if not conn:
+            return
+        conn_auth = self._prepare_auth(conn)
+        if conn_auth is None:
+            return
+        if self._bridge_server is None:
+            return
+
+        idx = self._terminal_session_counter.get(conn_id, 0) + 1
+        self._terminal_session_counter[conn_id] = idx
+        new_key = f"{conn_id}#{idx}"
+
+        token = self._bridge_server.create_session_token(new_key, conn_auth)
+        if token is None:
+            return
+        theme = self._mgr.get_settings().theme or "dark"
+        from src.terminal.terminal_panel import TerminalPanel
+        panel = TerminalPanel(self._bridge_server, new_key, conn_auth, theme, self)
+        panel.reconnect_requested.connect(lambda sk: self._on_terminal_reconnect(sk))
+        self._terminal_panels[new_key] = panel
+        self._terminal_stack.addWidget(panel)
+        panel.load_session(token)
+
+        tabs.append(new_key)
+        self._terminal_conn_tabs[conn_id] = tabs
+        self._terminal_active_tab[conn_id] = new_key
+        self._rebuild_tab_bar(conn_id)
+        self._switch_terminal_tab(conn_id, new_key)
+        self._update_card_terminal_indicator(conn_id)
+
+    def _update_card_terminal_indicator(self, conn_id: str):
+        """Set SSH button accent color on card when active sessions exist for conn_id."""
+        card = self._cards.get(conn_id)
+        if card:
+            has_sessions = bool(self._terminal_conn_tabs.get(conn_id))
+            card.set_terminal_active(has_sessions)
+
+    def _cleanup_idle_terminal_sessions(self):
+        if self._bridge_server:
+            self._bridge_server.cleanup_idle_sessions(max_idle_seconds=1800)

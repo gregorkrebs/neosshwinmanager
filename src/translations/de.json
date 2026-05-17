@@ -19,7 +19,6 @@
   "dialog.lead.addedit.add": "Lege eine neue Verbindung mit denselben kompakten Formularblöcken wie im Web-Vorbild an.",
   "dialog.lead.addedit.edit": "Bearbeite Host, Authentifizierung und Mount-Ziel in einer kompakten Kartenansicht wie im Web.",
   "dialog.lead.users": "Verwalte Benutzer, Rollen und Passwortwechsel in einer einheitlichen Kartenansicht.",
-
   "main.add_connection": "Verbindung hinzufügen",
   "main.delete": "Löschen",
   "main.settings": "Einstellungen",
@@ -28,25 +27,22 @@
   "main.users": "Benutzer",
   "main.logout": "Abmelden",
   "main.debug": "Debug",
-
   "status.connecting": "Verbinde {name} → {drive}…",
   "status.disconnecting": "Trenne {drive}…",
-  "status.connected": "\u2713 {name} verbunden als {drive}",
-  "status.disconnected": "\u2713 {name} getrennt.",
-  "status.connect_failed": "\u2717 Verbinden fehlgeschlagen: {name}",
-  "status.disconnect_failed": "\u2717 Trennen fehlgeschlagen: {name}",
+  "status.connected": "✓ {name} verbunden als {drive}",
+  "status.disconnected": "✓ {name} getrennt.",
+  "status.connect_failed": "✗ Verbinden fehlgeschlagen: {name}",
+  "status.disconnect_failed": "✗ Trennen fehlgeschlagen: {name}",
   "status.connection_added": "Verbindung '{name}' hinzugefügt.",
   "status.connection_updated": "Verbindung '{name}' aktualisiert.",
   "status.connection_deleted": "Verbindung '{name}' gelöscht.",
   "status.settings_saved": "Einstellungen gespeichert.",
   "status.opening_explorer": "Öffne {path} im Explorer",
   "status.ssh_started": "{backend}-Terminal für '{name}' gestartet.",
-
-  "prereq.missing_both": "\u26a0 WinFsp + SSHFS-Win fehlen — bitte installieren.",
-  "prereq.missing_winfsp": "\u26a0 WinFsp nicht gefunden.",
-  "prereq.missing_sshfs": "\u26a0 SSHFS-Win fehlt.",
-  "prereq.ok": "\u2713 SSHFS-Win bereit: {path}",
-
+  "prereq.missing_both": "⚠ WinFsp + SSHFS-Win fehlen — bitte installieren.",
+  "prereq.missing_winfsp": "⚠ WinFsp nicht gefunden.",
+  "prereq.missing_sshfs": "⚠ SSHFS-Win fehlt.",
+  "prereq.ok": "✓ SSHFS-Win bereit: {path}",
   "dialog.cancel": "Abbrechen",
   "dialog.save": "Speichern",
   "dialog.close": "Schließen",
@@ -56,29 +52,23 @@
   "dialog.error": "Fehler",
   "dialog.success": "Erfolg",
   "dialog.warning": "Warnung",
-
   "mount.failed.title": "Verbindung fehlgeschlagen",
   "mount.failed.main": "Die Verbindung zu '{name}' konnte nicht aufgebaut werden.",
   "mount.failed.troubleshoot": "\n\nBitte prüfe folgende Punkte:\n • Ist das Gerät im Netzwerk erreichbar? (IP: {host})\n • Sind die Zugangsdaten (Passwort/Key) korrekt?\n • Ist der SSH-Dienst auf dem Zielgerät aktiv?\n • Blockiert eine Firewall den Port {port}?",
   "mount.failed.details": "\n\nTechnische Details:\n{msg}",
   "mount.failed.retry": "Erneut versuchen",
   "unmount.failed.title": "Trennen fehlgeschlagen",
-
   "delete.title": "Löschen",
   "delete.select_one": "Bitte eine Verbindung auswählen.",
   "delete.mounted_confirm": "'{name}' ist verbunden. Trennen und löschen?",
   "delete.confirm": "Verbindung '{name}' löschen?",
-
   "edit.locked.title": "Bearbeiten gesperrt",
   "edit.locked.msg": "Diese Verbindung ist aktuell gemountet und kann nicht bearbeitet werden.\nBitte zuerst trennen.",
-
   "logout.title": "Abmelden",
   "logout.confirm": "Wirklich abmelden?\nAlle aktiven Verbindungen werden getrennt.\nDas Programm wird beendet.",
-
   "tray.running": "Läuft weiter im Infobereich. Doppelklick zum Öffnen.",
   "tray.show_hide": "Anzeigen / Verbergen",
   "tray.quit": "Beenden",
-
   "card.tooltip.info": "Systeminformationen anzeigen",
   "card.tooltip.edit": "Verbindung bearbeiten",
   "card.tooltip.edit_locked": "Bearbeitung gesperrt: Verbindung ist gemountet",
@@ -92,7 +82,6 @@
   "card.loading.connect": "Verbinde…",
   "card.loading.disconnect": "Trenne…",
   "card.loading.saving": "Speichere ...",
-
   "settings.title": "Einstellungen",
   "settings.section.general": "ALLGEMEIN",
   "settings.section.language": "SPRACHE",
@@ -133,6 +122,7 @@
   "settings.theme.light": "Hell",
   "settings.fix_ghosts": "Geister-Laufwerke fixen",
   "settings.restart_explorer": "Explorer neu starten",
+  "settings.restart_explorer_hint": "Windows Explorer neu starten",
   "settings.ghosts_ok": "Geister-Laufwerke wurden bereinigt.\nExplorer wird neu gestartet…",
   "settings.ghosts_failed": "Bereinigung konnte nicht vollständig abgeschlossen werden.",
   "settings.explorer_restarted": "Explorer wurde neu gestartet.",
@@ -146,7 +136,6 @@
   "settings.create_shortcut.success": "Verknüpfung wurde auf dem Desktop erstellt.",
   "settings.create_shortcut.failed": "Verknüpfung konnte nicht erstellt werden.",
   "dialog.understood": "Verstanden",
-
   "about.title": "Über NEO SSH-Win Manager",
   "about.desc": "Eine moderne Oberfläche für sshfs-win.\nRemote-SSH-Dateisysteme als Windows-Laufwerke einbinden.",
   "about.what_it_does.title": "Funktionen",
@@ -164,7 +153,6 @@
   "about.author.neossh.btn": "NEO SSH",
   "about.other.devs": "Weitere Mitwirkende",
   "about.open_source": "Open Source · MIT-Lizenz",
-
   "login.title": "NEO SSH-Win Manager – Anmeldung",
   "login.please_sign_in": "Bitte anmelden",
   "login.username": "Benutzername",
@@ -183,7 +171,6 @@
   "login.passwords_differ": "Passwörter stimmen nicht überein.",
   "login.no_crypto": "cryptography ist nicht installiert.\n\nBitte ausführen:\n  pip install cryptography",
   "login.locked": "Account gesperrt. Bitte warten: {time}.",
-
   "users.title": "Benutzerverwaltung",
   "users.section.users": "BENUTZER",
   "users.section.new": "NEUEN BENUTZER ANLEGEN",
@@ -210,7 +197,6 @@
   "users.not_found": "Benutzer nicht gefunden.",
   "users.username_min": "Benutzername muss mindestens 3 Zeichen haben.",
   "users.password_min": "Passwort muss mindestens 8 Zeichen haben.",
-
   "chgpw.title": "Passwort ändern",
   "chgpw.current": "Aktuelles Passwort",
   "chgpw.new": "Neues Passwort (min. 8 Zeichen)",
@@ -219,7 +205,6 @@
   "chgpw.mismatch": "Die Passwörter stimmen nicht überein.",
   "chgpw.wrong_old": "Aktuelles Passwort ist falsch.",
   "chgpw.success": "Passwort geändert.",
-
   "addedit.edit_title": "Verbindung bearbeiten",
   "addedit.add_title": "Verbindung hinzufügen",
   "addedit.section.template": "VORLAGE",
@@ -262,7 +247,6 @@
   "addedit.required.user": "Benutzer darf nicht leer sein.",
   "addedit.name.invalid": "Verbindungsname enthält ungültige Zeichen (erlaubt: Buchstaben, Ziffern, Leerzeichen, - _ .)",
   "addedit.name.hint": "Erlaubte Zeichen: Buchstaben, Ziffern, Leerzeichen, Bindestriche, Unterstriche und Punkte.",
-
   "sysinfo.title": "Systeminfo – {name}",
   "sysinfo.loading": "Lade Systeminformationen…",
   "sysinfo.refresh": "Aktualisieren",
@@ -300,7 +284,6 @@
   "status.saved": "Änderungen gespeichert.",
   "app.unexpected_error.title": "Unerwarteter Fehler",
   "app.unexpected_error.body": "Ein unerwarteter Fehler ist aufgetreten.\nDie Anwendung versucht weiterzulaufen.\n\nDetails wurden in crash_report.txt protokolliert.",
-
   "main.mount_all": "Alle mounten",
   "main.dismount_all": "Alle trennen",
   "main.groups_filter": "Nach Gruppe filtern",
@@ -308,7 +291,6 @@
   "main.groups_mounted": "Nur aktive",
   "main.groups_unmounted": "Nur inaktive",
   "main.profile": "Profil",
-
   "profile.title": "Benutzerprofil",
   "profile.user_info": "Benutzerinformation",
   "profile.active": "Aktiv",
@@ -317,7 +299,6 @@
   "profile.role.admin": "Administrator",
   "profile.role.user": "Benutzer",
   "profile.change_password": "Passwort ändern",
-
   "addedit.section.groups": "GRUPPEN / TAGS",
   "addedit.label.groups": "Gruppen / Tags",
   "addedit.placeholder.groups": "web, prod, linux",
@@ -325,17 +306,14 @@
   "addedit.section.template_options": "TEMPLATE-OPTIONEN",
   "addedit.template.save_as_template": "Als Template speichern",
   "addedit.template.save_as_template.hint": "Templates sind wiederverwendbare Vorlagen zum Erstellen neuer Verbindungen. Sie erscheinen nicht in der Hauptliste.",
-
   "status.mount_all_started": "Mounte {count} Verbindungen…",
   "status.mount_all_none": "Keine Verbindungen zum Mounten.",
   "status.dismount_all_started": "Trenne {count} Verbindungen…",
   "status.dismount_all_none": "Keine Verbindungen zum Trennen.",
-
   "dialog.key_fallback.title": "SSH-Key fehlgeschlagen",
   "dialog.key_fallback.message": "SSH-Key Authentifizierung fuer '{name}' fehlgeschlagen.\n\nFuer diese Verbindung ist ein Passwort hinterlegt.\nMöchtest du stattdessen mit Passwort verbinden?",
   "dialog.key_fallback.yes": "Mit Passwort versuchen",
   "dialog.key_fallback.no": "Abbrechen",
-
   "debug.title": "Debug-Konsole",
   "debug.subtitle": "Interne Events, Mounting und SSH-Status in Echtzeit",
   "debug.subtitle.tooltip": "Diese Konsole zeigt interne Ereignisse, Mounting-Status\nund SSH-bezogene Informationen in Echtzeit an. Nützlich für Fehlersuche und Überwachung.",
@@ -351,5 +329,19 @@
   "debug.test.no_user": "Kein eingeloggter Benutzer für Test gefunden.",
   "debug.test.completed": "Test abgeschlossen.",
   "debug.password.decryption.successful": "Passwort erfolgreich entschlüsselt.",
-  "debug.password.empty.or.decryption.failed": "Passwort ist leer oder Entschlüsselung fehlgeschlagen."
+  "debug.password.empty.or.decryption.failed": "Passwort ist leer oder Entschlüsselung fehlgeschlagen.",
+  "settings.terminal_client": "SSH-Terminal-Client",
+  "settings.terminal_client.ssh": "Nativer SSH-Client (ssh.exe)",
+  "settings.terminal_client.putty": "PuTTY",
+  "settings.terminal_client.xterm": "Integriertes Terminal (xterm)",
+  "terminal.connecting": "Verbindung wird hergestellt…",
+  "terminal.connected": "Verbunden",
+  "terminal.disconnected": "Sitzung beendet",
+  "terminal.reconnect": "Erneut verbinden",
+  "terminal.error_connect": "SSH-Verbindung fehlgeschlagen. Bitte Host, Zugangsdaten und Netzwerk prüfen.",
+  "terminal.host_key_dialog.title": "Unbekannter Host-Key",
+  "terminal.host_key_dialog.body": "Der Host '{host}' präsentiert einen unbekannten Schlüssel:\n\n{fingerprint}\n\nMöchtest du diesem Host vertrauen und verbinden?",
+  "terminal.new_session": "Weitere Session öffnen",
+  "terminal.end_session": "Session beenden",
+  "terminal.session_tab": "Session {n}"
 }

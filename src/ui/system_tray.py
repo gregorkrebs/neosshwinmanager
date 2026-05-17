@@ -61,7 +61,7 @@ class SystemTray(QSystemTrayIcon):
         menu.addSeparator()
 
         quit_act = QAction("✕  " + tr("tray.quit"), self)
-        quit_act.triggered.connect(QApplication.quit)
+        quit_act.triggered.connect(self._main_window.quit_app)
         menu.addAction(quit_act)
 
         self.setContextMenu(menu)
@@ -100,7 +100,7 @@ class SystemTray(QSystemTrayIcon):
 
         menu.addSeparator()
         quit_act = QAction("✕  " + tr("tray.quit"), self)
-        quit_act.triggered.connect(QApplication.quit)
+        quit_act.triggered.connect(self._main_window.quit_app)
         menu.addAction(quit_act)
 
     def _on_tray_toggle(self, conn_id: str, is_mounted: bool):
