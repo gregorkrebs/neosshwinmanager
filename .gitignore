@@ -23,10 +23,6 @@ dist/
 # IDE / editor
 .vscode/
 .idea/
-.github/*
-!.github/
-!.github/workflows/
-!.github/workflows/**
 .gemini/
 *.swp
 *.swo

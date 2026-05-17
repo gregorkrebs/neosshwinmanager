@@ -21,7 +21,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--pass-helper":
     import json
     import ctypes
     import ctypes.wintypes
-    
+
     pipe_name = r"\\.\pipe\SSHWinManager_IPC_v1"
     GENERIC_READ = 0x80000000
     GENERIC_WRITE = 0x40000000
@@ -71,7 +71,6 @@ import json
 
 # Ensure src/ is importable from project root
 sys.path.insert(0, os.path.dirname(__file__))
-
 
 def _is_admin() -> bool:
     """Check if the process is running with administrator rights."""
