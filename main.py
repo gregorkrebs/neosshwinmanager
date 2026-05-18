@@ -348,6 +348,46 @@ def main():
     except Exception as e:
         logger.warning(f"Language/theme/telemetry init failed: {e}")
 
+    # ── Prerequisite check: WinFSP + SSHFS-Win required ─────────────────
+    from src.sshfs_controller import SSHFSController
+    import webbrowser as _webbrowser
+    _prereq = SSHFSController.get_install_status()
+    if not _prereq["winfsp"] or not _prereq["sshfs_win"]:
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+        from PyQt6.QtCore import Qt as _Qt
+        _dlg = QDialog()
+        _dlg.setWindowTitle(tr("prereq.dialog.title"))
+        _dlg.setMinimumWidth(440)
+        _dlg.setWindowFlag(_Qt.WindowType.WindowCloseButtonHint, False)
+        _vl = QVBoxLayout(_dlg)
+        _vl.setSpacing(16)
+        _vl.setContentsMargins(24, 24, 24, 24)
+        if not _prereq["winfsp"] and not _prereq["sshfs_win"]:
+            _msg = tr("prereq.dialog.text_both")
+        elif not _prereq["winfsp"]:
+            _msg = tr("prereq.dialog.text_winfsp")
+        else:
+            _msg = tr("prereq.dialog.text_sshfs")
+        _lbl = QLabel(_msg)
+        _lbl.setWordWrap(True)
+        _vl.addWidget(_lbl)
+        _btn_row = QHBoxLayout()
+        _btn_row.setSpacing(8)
+        if not _prereq["winfsp"]:
+            _b1 = QPushButton(tr("prereq.dialog.download_winfsp"))
+            _b1.clicked.connect(lambda: _webbrowser.open("https://winfsp.dev/rel/"))
+            _btn_row.addWidget(_b1)
+        if not _prereq["sshfs_win"]:
+            _b2 = QPushButton(tr("prereq.dialog.download_sshfs"))
+            _b2.clicked.connect(lambda: _webbrowser.open("https://github.com/winfsp/sshfs-win/releases/latest"))
+            _btn_row.addWidget(_b2)
+        _vl.addLayout(_btn_row)
+        _exit_btn = QPushButton(tr("prereq.dialog.exit"))
+        _exit_btn.clicked.connect(_dlg.accept)
+        _vl.addWidget(_exit_btn)
+        _dlg.exec()
+        sys.exit(0)
+
     # Don't quit when the last window is hidden (tray support)
     app.setQuitOnLastWindowClosed(False)
 

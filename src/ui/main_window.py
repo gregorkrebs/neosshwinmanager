@@ -2479,36 +2479,11 @@ class MainWindow(FramelessMainWindow):
         v.addWidget(mnt_card)
         v.addSpacing(14)
 
-        # ── SECURITY ──────────────────────────────────────────────────────
-        v.addWidget(_section_hdr(tr("settings.section.security")))
-        v.addSpacing(4)
-
-        self._sf_security_level = NoWheelComboBox()
-        self._sf_security_level.addItem(tr("settings.security.level.strict"), 0)
-        self._sf_security_level.addItem(tr("settings.security.level.key_no_passphrase"), 1)
-        self._sf_security_level.addItem(tr("settings.security.level.password_arg"), 2)
-        _cur_level = getattr(s, 'security_level', 0)
-        self._sf_security_level.setCurrentIndex(min(_cur_level, 2))
-        self._sf_security_level.setFixedWidth(230)
-
-        self._sf_sec_warning = QLabel()
-        self._sf_sec_warning.setObjectName("errorLabel")
-        self._sf_sec_warning.setWordWrap(True)
-        self._sf_sec_warning.setContentsMargins(16, 6, 16, 10)
-
-        sec_card, sec_vl = _group_card()
-        sec_vl.addWidget(_row_combo(tr("settings.security.level.label"), self._sf_security_level))
-        sec_vl.addWidget(self._sf_sec_warning)
-        v.addWidget(sec_card)
-        self._sf_security_level.currentIndexChanged.connect(self._on_sf_security_changed)
-        self._on_sf_security_changed(_cur_level)
-        v.addSpacing(14)
-
         # ── SSH TERMINAL ──────────────────────────────────────────────────
         v.addWidget(_section_hdr(tr("settings.section.terminal")))
         v.addSpacing(4)
 
-        _tc = getattr(s, 'terminal_client', 'ssh') or 'ssh'
+        _tc = getattr(s, 'terminal_client', 'xterm') or 'xterm'
 
         self._sf_term_ssh   = QRadioButton(tr("settings.terminal_client.ssh"))
         self._sf_term_putty = QRadioButton(tr("settings.terminal_client.putty"))
@@ -2516,9 +2491,14 @@ class MainWindow(FramelessMainWindow):
         self._sf_term_ssh.setChecked(_tc == 'ssh')
         self._sf_term_putty.setChecked(_tc == 'putty')
         self._sf_term_xterm.setChecked(_tc == 'xterm')
-        self._sf_term_ssh.toggled.connect(self._sf_terminal_client_toggled)
-        self._sf_term_putty.toggled.connect(self._sf_terminal_client_toggled)
-        self._sf_term_xterm.toggled.connect(self._sf_terminal_client_toggled)
+        # Explicit group required because _row_check() wraps each button in its
+        # own QWidget, breaking Qt's parent-based auto-grouping.
+        from PyQt6.QtWidgets import QButtonGroup
+        self._sf_term_group = QButtonGroup(self)
+        self._sf_term_group.addButton(self._sf_term_ssh)
+        self._sf_term_group.addButton(self._sf_term_putty)
+        self._sf_term_group.addButton(self._sf_term_xterm)
+        self._sf_term_group.buttonToggled.connect(self._sf_terminal_client_toggled)
 
         # Legacy alias so existing code that references _sf_putty still works
         self._sf_putty = self._sf_term_putty
@@ -2560,6 +2540,40 @@ class MainWindow(FramelessMainWindow):
         term_vl.addWidget(_inner_sep())
         term_vl.addWidget(_row_check(self._sf_term_xterm))
         v.addWidget(term_card)
+        v.addSpacing(14)
+
+        # ── SECURITY (only for OpenSSH / PuTTY) ───────────────────────────
+        _show_sec = (_tc != 'xterm')
+        self._sf_sec_header = _section_hdr(tr("settings.section.security"))
+        self._sf_sec_header.setVisible(_show_sec)
+        v.addWidget(self._sf_sec_header)
+        _sec_spacing = v.count()  # index used to manage the spacing widget below
+        self._sf_sec_spacing = QWidget()
+        self._sf_sec_spacing.setFixedHeight(4)
+        self._sf_sec_spacing.setVisible(_show_sec)
+        v.addWidget(self._sf_sec_spacing)
+
+        self._sf_security_level = NoWheelComboBox()
+        self._sf_security_level.addItem(tr("settings.security.level.strict"), 0)
+        self._sf_security_level.addItem(tr("settings.security.level.key_no_passphrase"), 1)
+        self._sf_security_level.addItem(tr("settings.security.level.password_arg"), 2)
+        _cur_level = getattr(s, 'security_level', 0)
+        self._sf_security_level.setCurrentIndex(min(_cur_level, 2))
+        self._sf_security_level.setFixedWidth(230)
+
+        self._sf_sec_warning = QLabel()
+        self._sf_sec_warning.setObjectName("errorLabel")
+        self._sf_sec_warning.setWordWrap(True)
+        self._sf_sec_warning.setContentsMargins(16, 6, 16, 10)
+
+        sec_card, sec_vl = _group_card()
+        sec_vl.addWidget(_row_combo(tr("settings.security.level.label"), self._sf_security_level))
+        sec_vl.addWidget(self._sf_sec_warning)
+        self._sf_sec_card = sec_card
+        self._sf_sec_card.setVisible(_show_sec)
+        v.addWidget(sec_card)
+        self._sf_security_level.currentIndexChanged.connect(self._on_sf_security_changed)
+        self._on_sf_security_changed(_cur_level)
         v.addSpacing(14)
 
         # ── DEVELOPER ─────────────────────────────────────────────────────
@@ -2668,8 +2682,12 @@ class MainWindow(FramelessMainWindow):
         self._sf_sec_warning.setText(txt)
         self._sf_sec_warning.setVisible(bool(txt))
 
-    def _sf_terminal_client_toggled(self, _checked: bool):
+    def _sf_terminal_client_toggled(self, _button=None, _checked=None):
         self._sf_putty_widget.setVisible(self._sf_term_putty.isChecked())
+        _show_sec = not self._sf_term_xterm.isChecked()
+        self._sf_sec_header.setVisible(_show_sec)
+        self._sf_sec_spacing.setVisible(_show_sec)
+        self._sf_sec_card.setVisible(_show_sec)
 
     def _sf_putty_toggled(self, checked: bool):
         self._sf_putty_widget.setVisible(checked)
@@ -3053,7 +3071,7 @@ class MainWindow(FramelessMainWindow):
             _tc = "ssh"
 
         old_lang = current_language()
-        _sec = self._sf_security_level.currentIndex()
+        _sec = 0 if _tc == "xterm" else self._sf_security_level.currentIndex()
         new_settings = AppSettings(
             start_with_windows=self._sf_start.isChecked(),
             minimize_to_tray=self._sf_tray.isChecked(),
@@ -4092,10 +4110,11 @@ class MainWindow(FramelessMainWindow):
         """Destroy one terminal panel + SSH session."""
         panel = self._terminal_panels.pop(session_key, None)
         if panel is not None:
+            panel.close_session()
             self._terminal_stack.removeWidget(panel)
             panel.setParent(None)
             panel.deleteLater()
-        if self._bridge_server:
+        elif self._bridge_server:
             self._bridge_server.close_session(session_key)
 
     def _teardown_all_terminal_sessions(self, conn_id: str):

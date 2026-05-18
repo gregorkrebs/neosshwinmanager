@@ -100,6 +100,11 @@ class TerminalPanel(QWidget):
     def is_alive(self) -> bool:
         return self._bridge_server.is_session_alive(self._conn_id)
 
+    def close_session(self):
+        """Intentionally close the SSH session without showing the disconnect overlay."""
+        self._page.runJavaScript("if (window.closeSession) window.closeSession();")
+        self._bridge_server.close_session(self._conn_id)
+
 
 def _build_html(ws_url: str, bg: str, fg: str, accent: str) -> str:
     template_path = os.path.join(_assets_dir(), "index.html")
