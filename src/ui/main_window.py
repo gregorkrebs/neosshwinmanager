@@ -2554,14 +2554,13 @@ class MainWindow(FramelessMainWindow):
         v.addWidget(self._sf_sec_spacing)
 
         self._sf_security_level = NoWheelComboBox()
-        self._sf_security_level.addItem(tr("settings.security.level.strict"), 0)
-        self._sf_security_level.addItem(tr("settings.security.level.key_no_passphrase"), 1)
-        self._sf_security_level.addItem(tr("settings.security.level.password_arg"), 2)
-        _cur_level = getattr(s, 'security_level', 0)
-        self._sf_security_level.setCurrentIndex(min(_cur_level, 2))
-        self._sf_security_level.setFixedWidth(230)
+        self._sf_security_level.addItem(tr("settings.security.level.ask"), 0)
+        self._sf_security_level.addItem(tr("settings.security.level.autologin"), 1)
+        _cur_level = min(getattr(s, 'security_level', 0), 1)
+        self._sf_security_level.setCurrentIndex(_cur_level)
+        self._sf_security_level.setFixedWidth(260)
 
-        self._sf_sec_warning = QLabel()
+        self._sf_sec_warning = QLabel(tr("settings.security.warning.level1"))
         self._sf_sec_warning.setObjectName("errorLabel")
         self._sf_sec_warning.setWordWrap(True)
         self._sf_sec_warning.setContentsMargins(16, 6, 16, 10)
@@ -2673,14 +2672,7 @@ class MainWindow(FramelessMainWindow):
         updater.check_for_updates_async()
 
     def _on_sf_security_changed(self, index: int):
-        _WARNINGS = [
-            "",
-            tr("settings.security.warning.level1"),
-            tr("settings.security.warning.level2"),
-        ]
-        txt = _WARNINGS[index] if index < len(_WARNINGS) else ""
-        self._sf_sec_warning.setText(txt)
-        self._sf_sec_warning.setVisible(bool(txt))
+        self._sf_sec_warning.setVisible(index >= 1)
 
     def _sf_terminal_client_toggled(self, _button=None, _checked=None):
         self._sf_putty_widget.setVisible(self._sf_term_putty.isChecked())

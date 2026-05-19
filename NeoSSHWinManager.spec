@@ -6,11 +6,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('src', 'src'), ('assets', 'assets')],
-    hiddenimports=[
-        'PyQt6.sip', 'win32api', 'win32con', 'winreg', 'keyring', 'keyring.backends.Windows',
-        'PyQt6.QtWebEngineWidgets', 'PyQt6.QtWebEngineCore', 'PyQt6.QtWebChannel',
-        'websockets', 'websockets.legacy', 'websockets.asyncio', 'asyncio',
-    ],
+    hiddenimports=['PyQt6.sip', 'win32api', 'win32con', 'winreg', 'keyring', 'keyring.backends.Windows'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
